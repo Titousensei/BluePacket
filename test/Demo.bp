@@ -1,0 +1,35 @@
+DemoPacket:
+    bool f_boolean
+    byte f_byte
+    short f_short
+    int f_int
+    long f_long
+    float f_float
+    double f_double
+    string f_string
+    string f_longstring
+
+    MyInner f_inner
+    list MyInner a_inner
+
+    DemoOuter f_outer
+    list DemoOuter a_outer
+
+    MyEnum f_enum
+    DemoEnum o_enum
+
+    MyInner:
+        int i_integer
+
+    MyEnum: enum
+        DUNNO, MAYBE, POSSIBLE, WHOKNOWS
+
+DemoEnum: enum
+    YES
+    SURE
+    ABSOLUTELY
+    NO_DOUBT
+
+DemoOuter:
+    int o_int
+    string o_string
