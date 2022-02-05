@@ -9,12 +9,15 @@ DemoPacket:
     string fString
     string fLongstring
 
+    # Inner class with just one int
     MyInner fInner
     list MyInner aInner
 
+    # External class
     DemoOuter fOuter
     list DemoOuter aOuter
 
+    # Enum test labels
     MyEnum fEnum
     DemoEnum oEnum
 
