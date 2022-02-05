@@ -1,0 +1,40 @@
+DemoPacket:
+    bool fBoolean
+    byte fByte
+    short fShort
+    int fInt
+    long fLong
+    float fFloat
+    double fDouble
+    string fString
+    string fLongstring
+
+    MyInner fInner
+    list MyInner aInner
+
+    DemoOuter fOuter
+    list DemoOuter aOuter
+
+    MyEnum fEnum
+    DemoEnum oEnum
+
+    MyInner:
+        int iInteger
+
+    MyEnum: enum
+        DUNNO, MAYBE, POSSIBLE, WHOKNOWS
+
+DemoEnum: enum
+    YES
+    SURE
+    ABSOLUTELY
+    NO_DOUBT
+
+DemoOuter:
+    int oInt
+    string oString
+
+BinaryTreeNode:
+    string data
+    BinaryTreeNode left
+    BinaryTreeNode right

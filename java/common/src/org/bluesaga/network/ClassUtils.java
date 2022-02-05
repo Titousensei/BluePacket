@@ -112,12 +112,13 @@ public interface ClassUtils
     catch (IOException ex) {
       throw new RuntimeException(ex);
     }
-
+    
     try {
       for (URL url : discoverable_urls) {
+        if (url == null) continue;
         File directory = new File(url.getFile());
         if (directory.exists()) {
-          int rootDirLength = directory.getAbsolutePath().length() - root_package.length() + 1;
+          int rootDirLength = directory.getAbsolutePath().length() - root_package.length();
           findInDirectory(result, rootDirLength, directory, baseclass);
         }
         else { // jar file

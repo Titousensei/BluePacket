@@ -37,8 +37,10 @@ def _mergeUniquely(a, b, msg):
   return ret
 
 
-def versionString(data, all_data, my_enums, my_inner):
+def versionString(data, all_data, my_enums, my_inner, seen):
   ret = data.name
+  if data.name not in PRIMITIVE_TYPES:
+    seen.add(data.name)
   if data.name in all_data:
     my_inner = _mergeUniquely(my_inner, all_data[data.name].inner, data.name)
     my_enums = _mergeUniquely(my_enums, all_data[data.name].enums, data.name)
@@ -46,11 +48,15 @@ def versionString(data, all_data, my_enums, my_inner):
     if not fname:
       continue
     ret += f"+{fname}:"
+    if ftype in seen:
+      ary = "[]" if 'list' in opt else ""
+      ret += f"{{{ary}{ftype}+...}}"
+      continue
     if 'list' in opt:
       if ftype in my_inner:
-        ret += f"{{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner) + "}"
+        ret += f"{{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
       elif ftype in all_data:
-        ret += f"{{[]" + versionString(all_data[ftype], all_data, my_enums, my_inner) + "}"
+        ret += f"{{[]" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
       else:
         raise Exception(f"Unknown field type in {ftype} {fname} in {ret}")
     elif ftype in data.field_is_enum:
@@ -63,18 +69,18 @@ def versionString(data, all_data, my_enums, my_inner):
     elif ftype in PRIMITIVE_TYPES:
         ret += ftype
     elif ftype in my_inner:
-        ret += "{" + versionString(my_inner[ftype], all_data, my_enums, my_inner) + "}"
+        ret += "{" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
     elif ftype in my_enums:
         ret += f"{{{ftype}+" + "+".join(my_enums[ftype].fields) + "}"
     elif ftype in all_data:
-        ret += "{=" + versionString(all_data[ftype], all_data, my_enums, my_inner) + "}"
+        ret += "{" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
     elif not data.is_enum:
       raise Exception(f"Unknown field type in {ftype} {fname} in {ret}")
   return ret
 
 
 def versionHash(data, all_data, prefix=""):
-  s = prefix+versionString(data, all_data, data.enums, data.inner)
+  s = prefix+versionString(data, all_data, {}, {}, set())
   h = md5(s.encode("utf-8"))
   ret, _ = unpack("!2q", h.digest())
   return ret

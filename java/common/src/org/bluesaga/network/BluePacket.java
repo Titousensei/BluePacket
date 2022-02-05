@@ -5,7 +5,7 @@ import java.util.*;
 import java.util.zip.*;
 import java.lang.reflect.*;
 
-import network.packets.*;
+//import network.packets.*;
 
 public abstract class BluePacket
 {
@@ -14,17 +14,20 @@ public abstract class BluePacket
 
   public static boolean DEBUG = true;
 
-  public static Map<Long, BluePacket> PACKETID_TO_CLASS;
+  public static Map<Long, BluePacket> PACKETID_TO_CLASS = null;
 
   private static final int MAX_UNSIGNED_BYTE = 255;
 
   public String sequenceId = null;
 
-  static
+  public static void init(String pkg)
   {
+    if (PACKETID_TO_CLASS != null) {
+      throw new RuntimeException("BluePacket already initialized.");
+    }
     PACKETID_TO_CLASS = new HashMap<>();
 
-    for (Class<? extends BluePacket> cl : ClassUtils.findSubClasses("/network/packets", BluePacket.class)) {
+    for (Class<? extends BluePacket> cl : ClassUtils.findSubClasses(pkg, BluePacket.class)) {
       try {
         recognize(cl);
       } catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException ex) {

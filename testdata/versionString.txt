@@ -1,0 +1,3 @@
+DemoPacket+a_inner:{[]MyInner+i_integer:int}+a_outer:{[]DemoOuter+o_int:int+o_string:string}+f_boolean:bool+f_byte:byte+f_double:double+f_enum:{MyEnum+DUNNO+MAYBE+POSSIBLE+WHOKNOWS}+f_float:float+f_inner:{MyInner+...}+f_int:int+f_long:long+f_longstring:string+f_outer:{DemoOuter+...}+f_short:short+f_string:string+o_enum:{DemoEnum+YES+SURE+ABSOLUTELY+NO_DOUBT}
+DemoOuter+o_int:int+o_string:string
+BinaryNode+data:string+left:{BinaryNode+...}+right:{BinaryNode+...}

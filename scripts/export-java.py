@@ -39,12 +39,13 @@ JAVA_READER = {
   "string": "readString(s)",
 }
 
+
 def header(out, package, data):
     println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
     println(out, "package " + package + ';')
     println(out)
     if not data.is_enum:
-      println(out, "import network.BluePacket;")
+      println(out, "import org.bluesaga.network.BluePacket;")
       println(out)
 
 

@@ -1,0 +1,1 @@
+{DemoPacket aInner={MyInner *2| iInteger=777| iInteger=6666} aOuter={DemoOuter *1| oInt=282 oString=:-)} fBoolean=true fByte=99 fDouble=1.23456789 fEnum=MAYBE fFloat=3.14 fInner={MyInner iInteger=88} fInt=987654321 fLong=101112131415 fOuter={DemoOuter oInt=191} fShort=2345 fString=abcdef oEnum=NO_DOUBT}
