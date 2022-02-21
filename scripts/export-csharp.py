@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import argparse
 import os, sys
 
 from libexport import Parser, println, versionHash
@@ -43,6 +44,8 @@ def header(out, namespace, data):
       println(out, "using System.IO;")
       println(out, "using System.Text;")
       println(out)
+      println(out, "using BluePackets;")
+      println(out)
     println(out, f"namespace {namespace}")
     println(out, "{")
     println(out)
@@ -81,7 +84,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  {CS_WRITER[ftype]}(s, {fname});")
     else:
       println(out, f"{indent}  if ({fname} == null) s.WriteByte(0);")
-      println(out, f"{indent}  else {{")
+      println(out, indent + "  {")
       println(out, f"{indent}    s.WriteByte(1);")
       println(out, f"{indent}    {fname}.SerializeData(s);")
       println(out, indent + "  }")
@@ -237,7 +240,7 @@ if __name__ == "__main__":
       print(cl, lf)
   for _, data in all_data.items():
     if data.is_enum:
-      exportEnum(args.output_dir, args.package, data)
+      exportEnum(args.output_dir, args.namespace, data)
     else:
       version = versionHash(data, all_data)
-      exportClass(args.output_dir, args.package, data, version)
+      exportClass(args.output_dir, args.namespace, data, version)

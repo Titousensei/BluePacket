@@ -6,3 +6,14 @@
 - load from binary
 - save to binary
 - to string
+
+=== Features ===
+- random access file
+- connected client + server
+- rpc client + server
+- plain text API
+- lang: python, rust, go, nim, ocaml, zig, lua, nelua, javascript, odin, C
+- implement xshort: variable length short, mostly small.
+  - start with a byte, if value == -128 read a short.
+- implement xint: variable length int, mostly small.
+  - start with a byte, if value == -128 read a short, if value == -127 read an int.
