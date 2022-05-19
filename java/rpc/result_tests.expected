@@ -1,0 +1,8 @@
+10.0
+42.0
+30.000002
+15.0
+Exception in thread "main" java.lang.RuntimeException: ERROR - Unknown operation: Fake
+Exception in thread "main" java.lang.IllegalArgumentException: No enum constant example.packet.CalcMean.Type.Quantic
+Exception in thread "main" java.lang.RuntimeException: No values provided
+[RpcServer] exiting

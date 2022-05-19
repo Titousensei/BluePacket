@@ -1,0 +1,27 @@
+
+# returns RpcResult
+CalcSum:
+    list float values
+
+# returns RpcResult | RpcError
+CalcMean:
+    list float values
+    Type type
+
+    Type: enum
+        # sum(x)/n
+        Arithmetic
+        # mul(x)^(1/n)
+        Geometric
+        # n / sum(1/x)
+        Harmonic
+
+# test:
+# 4, 36, 45, 50, 75
+# AM = 42, GM = 30, HM = 15
+
+RpcResult:
+    float value
+
+RpcError:
+    string message
