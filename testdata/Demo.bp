@@ -41,3 +41,13 @@ BinaryTreeNode:
     string data
     BinaryTreeNode left
     BinaryTreeNode right
+
+DemoPacket2:
+    list bool fBoolean
+    list byte fByte
+    list short fShort
+    list int fInt
+    list long fLong
+    list float fFloat
+    list double fDouble
+    list string fString

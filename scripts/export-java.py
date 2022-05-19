@@ -46,6 +46,7 @@ def header(out, package, data):
     println(out)
     if not data.is_enum:
       println(out, "import org.bluesaga.network.BluePacket;")
+      println(out, "import java.util.Arrays;")
       println(out)
 
 
@@ -53,10 +54,11 @@ def produceFields(out, fields, indent):
   for fname, ftype, *opt in fields:
     if fname in FORBIDDEN_NAMES:
       raise Exception(f"Fields name can't be Java reserved keywords: {ftype} {fname}")
+    ftype = JAVA_TYPE.get(ftype, ftype)
     if 'list' in opt:
       println(out, f"{indent}public {ftype}[] {fname};")
     elif fname:
-      println(out, f"{indent}public {JAVA_TYPE.get(ftype, ftype)} {fname};")
+      println(out, f"{indent}public {ftype} {fname};")
     elif ftype.startswith('#'):
       println(out, indent + "//" + ftype[1:])
     else:
@@ -69,10 +71,11 @@ def produceSetters(out, name, fields, indent):
     if not fname:
       continue
     out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
+    ftype = JAVA_TYPE.get(ftype, ftype)
     if 'list' in opt:
-      out.write(f"({JAVA_TYPE.get(ftype, ftype)}[] val)")
+      out.write(f"({ftype}[] val)")
     else:
-      out.write(f"({JAVA_TYPE.get(ftype, ftype)} val)")
+      out.write(f"({ftype} val)")
     println(out, f" {{ {fname} = val; return this; }}")
 
 
@@ -113,20 +116,21 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
     if not fname:
       continue
     if 'list' in opt:
-      println(out, f"{indent}  {fname} = new {ftype}[readSequenceLength(s)];")
-      println(out, f"{indent}  for (int i = 0; i < {fname}.length; ++i)")
-      println(out, indent + "  {")
-      println(out, f"{indent}    {ftype} obj = new {ftype}();")
-      println(out, f"{indent}    obj.populateData(s);")
-      println(out, f"{indent}    {fname}[i] = obj;")
+      println(out, f"{indent}  {fname} = new {JAVA_TYPE.get(ftype, ftype)}[readSequenceLength(s)];")
+      println(out, f"{indent}  for (int i = 0; i < {fname}.length; ++i) {{")
+      if ftype in JAVA_READER:
+        println(out, f"{indent}    {fname}[i] = {JAVA_READER[ftype]};")
+      else:
+        println(out, f"{indent}    {ftype} obj = new {ftype}();")
+        println(out, f"{indent}    obj.populateData(s);")
+        println(out, f"{indent}    {fname}[i] = obj;")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
       println(out, f"{indent}  {fname} = {ftype}.valueOf(s.readUnsignedByte());")
     elif ftype in JAVA_READER:
       println(out, f"{indent}  {fname} = {JAVA_READER[ftype]};")
     else:
-      println(out, f"{indent}  if (s.readUnsignedByte() > 0)")
-      println(out, indent + "  {")
+      println(out, f"{indent}  if (s.readUnsignedByte() > 0) {{")
       println(out, f"{indent}    {fname} = new {ftype}();")
       println(out, f"{indent}    {fname}.populateData(s);")
       println(out, indent + "  }")
@@ -143,10 +147,12 @@ def produceFieldsToString(out, name, fields, indent):
   for fname, ftype, *opt in fields:
     if not fname:
       continue
-    if 'list' in opt:
-      println(out, f'{indent}  appendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
-    else:
+    if 'list' not in opt:
       println(out, f'{indent}  appendIfNotEmpty(sb, "{fname}", {fname});')
+    elif ftype in JAVA_READER:
+      println(out, f'{indent}  if ({fname}!=null && {fname}.length!=0) appendNativeArray(sb, "{fname}", "{ftype}", {fname}.length, Arrays.toString({fname}));')
+    else:
+      println(out, f'{indent}  appendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
 
   println(out, indent + "}")
 
@@ -206,6 +212,7 @@ def exportClass(out_dir, package, data, version):
     println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")
     println(out)
     produceFields(out, data.fields, DEFAULT_INDENT)
+    println(out)
     println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
     sorted_fields = list(sorted(data.fields))
     produceSetters(out, data.name, sorted_fields, DEFAULT_INDENT)

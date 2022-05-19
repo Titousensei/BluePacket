@@ -2,9 +2,11 @@
 import os, sys
 import unittest
 
+sys.path.append('..')
+
 from libexport import Parser, versionString
 
-TESTDATA_DIR = "../testdata"
+TESTDATA_DIR = "../../testdata"
 
 class TestStringMethods(unittest.TestCase):
 

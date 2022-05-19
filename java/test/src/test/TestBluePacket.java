@@ -14,6 +14,9 @@ class TestBluePacket
   private DemoPacket demoPacket;
   private byte[] demoPacketBin;
   
+  private DemoPacket2 demoPacket2;
+  private byte[] demoPacket2Bin;
+  
   private void assertEquals(Object expected, Object actual, String msg)
   {
     if (!actual.equals(expected)) {
@@ -38,7 +41,7 @@ class TestBluePacket
   throws FileNotFoundException, IOException
   {
     byte[] data = null;
-    try (FileInputStream in = new FileInputStream(TESTDATA_DIR + "DemoPacket.bin")) {
+    try (FileInputStream in = new FileInputStream(path)) {
       data = new byte[in.available()];
       in.read(data);
     }
@@ -76,45 +79,55 @@ class TestBluePacket
     demoPacket.aOuter[0] = new DemoOuter().setOInt(282).setOString(":-)");
     
     demoPacketBin = readBinary(TESTDATA_DIR + "DemoPacket.bin");
+    demoPacket2 = new DemoPacket2()
+        .setFBoolean(new boolean[] {true, false, true})
+        .setFByte(new byte[] {99, 98, 97, 96})
+        .setFDouble(new double[] {1.23456789, 2.3456789})
+        .setFFloat(new float[] {3.14f})
+        .setFInt(new int[] {987654321, 87654321})
+        .setFLong(new long[] {101112131415L, 1617181920L})
+        .setFShort(new short[] {2345, 3456, 4567})
+        .setFString(new String[] {"abcdef", "xyz", "w", "asdfghjkl;"});
+
+    demoPacket2Bin = readBinary(TESTDATA_DIR + "DemoPacket2.bin");
   }
 
-
-  private void testPacketHash()
+  private void testPacketHash(String name, BluePacket packet, long hash)
   throws Exception
   {
-    System.out.print("testVersionHash: ");
-    assertEquals(3909449246358733856L, demoPacket.getPacketHash(), "getPacketHash()");
+    System.out.print(name + ": ");
+    assertEquals(hash, packet.getPacketHash(), "getPacketHash()");
     System.out.println("PASS");
   }
   
-  private void testDeserialize()
+  private void testDeserialize(String name, BluePacket packet, byte[] bin)
   throws Exception
   {
-    System.out.print("testDeserialize: ");
-    BluePacket bp = BluePacket.deserialize(demoPacketBin, false);
-    assertEquals(demoPacket.toString(), bp.toString(), "toString()");
+    System.out.print(name + ": ");
+    BluePacket bp = BluePacket.deserialize(bin, false);
+    assertEquals(packet.toString(), bp.toString(), "toString()");
     System.out.println("PASS");
   }
   
-  private void testSerialize()
+  private void testSerialize(String name, BluePacket packet, byte[] bin)
   throws Exception
   {
-    System.out.print("testSerialize: ");
-    byte[] data = demoPacket.serialize();
-    try (FileOutputStream out = new FileOutputStream("gen/DemoPacket.serialized")) {
+    System.out.print(name + ": ");
+    byte[] data = packet.serialize();
+    try (FileOutputStream out = new FileOutputStream("gen/" + name + ".bin")) {
       out.write(data);
     }
     
-    assertEquals(demoPacketBin, data, "serialize()");
+    assertEquals(bin, data, "serialize()");
     System.out.println("PASS");
   }
   
-  private void testToString()
+  private void testToString(String name, String filename, BluePacket packet)
   throws Exception
   {
-    System.out.print("testToString: ");
-    List<String> strings = Files.readAllLines(Paths.get(TESTDATA_DIR + "toString.txt"));
-    assertEquals(demoPacket.toString(), strings.get(0), "toString()");
+    System.out.print(name + ": ");
+    List<String> strings = Files.readAllLines(Paths.get(TESTDATA_DIR + filename));
+    assertEquals(strings.get(0), packet.toString(), "toString()");
     System.out.println("PASS");
   }
   
@@ -124,9 +137,13 @@ class TestBluePacket
     TestBluePacket test = new TestBluePacket();
     
     test.setUp();
-    test.testToString();
-    test.testPacketHash();
-    test.testDeserialize();
-    test.testSerialize();
+    test.testToString("testToString", "toString.txt", test.demoPacket);
+    test.testToString("testToString2", "toString2.txt", test.demoPacket2);
+    test.testPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
+    test.testPacketHash("testVersionHash2", test.demoPacket2, -2936897381744985570L);
+    test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
+    test.testSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
+    test.testDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);
+    test.testDeserialize("testDeserialize2", test.demoPacket2, test.demoPacket2Bin);
   }
 }

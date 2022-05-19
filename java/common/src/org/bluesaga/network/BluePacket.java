@@ -115,13 +115,90 @@ public abstract class BluePacket
   protected void writeArray(DataOutputStream dos, BluePacket[] arr)
   throws IOException
   {
-    if (arr == null) {
-      dos.writeByte(0);
+    if (arr == null) { dos.writeByte(0);
     } else {
       writeSequenceLength(dos, arr.length);
-      for(BluePacket p : arr) {
-        p.serializeData(dos);
-      }
+      for(BluePacket p : arr) p.serializeData(dos);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, boolean[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(boolean p : arr) dos.writeBoolean(p);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, byte[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(byte p : arr) dos.writeByte(p);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, double[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(double p : arr) dos.writeDouble(p);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, float[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(float p : arr) dos.writeFloat(p);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, int[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(int p : arr) dos.writeInt(p);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, long[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(long p : arr) dos.writeLong(p);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, short[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(short p : arr) dos.writeShort(p);
+    }
+  }
+
+  protected void writeArray(DataOutputStream dos, String[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(String p : arr) writeString(dos, p);
     }
   }
 
@@ -279,5 +356,17 @@ public abstract class BluePacket
       p.fieldsToString(sb);
     }
     sb.append('}');
+  }
+  
+  public static void appendNativeArray(StringBuilder sb, String fname, String ftype, int length, String str)
+  {
+    sb.append(' ')
+      .append(fname)
+      .append("={")
+      .append(ftype)
+      .append(" *")
+      .append(length)
+      .append(str)
+      .append('}');
   }
 }

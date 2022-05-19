@@ -6,11 +6,15 @@
 - load from binary
 - save to binary
 - to string
+- load from text (yaml)
+- save to text (yaml)
 
 === Features ===
-- implement xshort: variable length short, mostly small.
+- list of native type with anonymous single field struct
+- xbool -> bits in a byte
+- xshort: variable length short, mostly small.
   - start with a byte, if value == -128 read a short.
-- implement xint: variable length int, mostly small.
+- xint: variable length int, mostly small.
   - start with a byte, if value == -128 read a short, if value == -127 read an int.
 
 === Languages ===

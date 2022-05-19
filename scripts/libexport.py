@@ -54,11 +54,13 @@ def versionString(data, all_data, my_enums, my_inner, seen):
       continue
     if 'list' in opt:
       if ftype in my_inner:
-        ret += f"{{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
+        ret += "{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
       elif ftype in all_data:
-        ret += f"{{[]" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
+        ret += "{[]" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
+      elif ftype in PRIMITIVE_TYPES:
+        ret += "[]" + ftype
       else:
-        raise Exception(f"Unknown field type in {ftype} {fname} in {ret}")
+        raise Exception(f"Unknown list field type in {ftype} {fname} in {ret}")
     elif ftype in data.field_is_enum:
       if ftype in my_enums:
         ret += f"{{{ftype}+" + "+".join(my_enums[ftype].fields) + "}"
