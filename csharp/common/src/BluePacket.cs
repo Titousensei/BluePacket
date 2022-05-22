@@ -172,7 +172,7 @@ namespace BluePackets
       ms.Write(b, 0, b.Length);
     }
 
-    private static void WriteSequenceLength(Stream ms, int length)
+    protected static void WriteSequenceLength(Stream ms, int length)
     {
       if (length < MAX_UNSIGNED_BYTE)
       {
@@ -380,7 +380,7 @@ namespace BluePackets
       } else if (t.IsEnum) {
         return Convert.ToInt32(obj) != 0;
       } else if (t.IsArray) {
-        return ((object[])obj).Length != 0;
+        return (int)t.GetProperty("Length").GetValue(obj) != 0;
       }
       return true;
     }
@@ -401,6 +401,19 @@ namespace BluePackets
       {
         sb.Append('|');
         p.FieldsToString(sb);
+      }
+      sb.Append('}');
+    }
+
+    public static void AppendIfNotEmpty(StringBuilder sb, String fname, object[] obj)
+    {
+      if (obj == null || obj.Length == 0) return;
+
+      sb.Append(' ').Append(fname).Append("={").Append(obj.GetType()).Append(" *").Append(obj.Length);
+      foreach (object p in obj)
+      {
+        sb.Append('|');
+        if (p != null) sb.Append(p);
       }
       sb.Append('}');
     }

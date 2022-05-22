@@ -13,6 +13,9 @@ class TestBluePacket
   private DemoPacket demoPacket;
   private byte[] demoPacketBin;
   
+  private DemoPacket2 demoPacket2;
+  private byte[] demoPacket2Bin;
+  
   private void AssertEquals(object expected, object actual, string msg)
   {
     Debug.Assert(
@@ -59,39 +62,52 @@ class TestBluePacket
     };
   
     demoPacketBin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket.bin");
-  }
-
-
-  private void TestPacketHash()
-  {
-    Console.Write("testVersionHash: ");
-    AssertEquals(3909449246358733856L, demoPacket.GetPacketHash(), "GetPacketHash()");
-    Console.WriteLine("PASS");
-  }
-  
-  private void TestDeserialize()
-  {
-    Console.Write("testDeserialize: ");
-    BluePacket bp = BluePacket.Deserialize(demoPacketBin, false);
-    AssertEquals(demoPacket.ToString(), bp.ToString(), "ToString()");
-    Console.WriteLine("PASS");
-  }
-  
-  private void TestSerialize()
-  {
-    Console.Write("testSerialize: ");
-    byte[] data = demoPacket.Serialize();
-    File.WriteAllBytes("gen/DemoPacket.serialized", data);
-    AssertEquals(demoPacketBin, data, "Serialize()");
-    Console.WriteLine("PASS");
-  }
-  
-  private void TestToString()
-  {
-    Console.Write("testToString: ");
     
-    var strings = File.ReadAllLines(TESTDATA_DIR + "toString.txt");
-    AssertEquals(demoPacket.ToString(), strings[0], "ToString()");
+    demoPacket2 = new DemoPacket2 {
+        fBoolean = new bool[3] {true, false, true},
+        fByte = new sbyte[4] {99, 98, 97, 96},
+        fDouble = new double[2] {1.23456789, 2.3456789},
+        fFloat = new float[1] {3.14f},
+        fInt = new int[2] {987654321, 87654321},
+        fLong = new long[2] {101112131415L, 1617181920L},
+        fShort = new short[3] {2345, 3456, 4567},
+        fString = new String[4] {"abcdef", "xyz", "w", "asdfghjkl;"},
+        fEmptyStringList = new String[0]
+    };
+
+    demoPacket2Bin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket2.bin");
+  }
+
+
+  private void TestPacketHash(String name, BluePacket packet, long hash)
+  {
+    Console.Write(name + ": ");
+    AssertEquals(hash, packet.GetPacketHash(), "GetPacketHash()");
+    Console.WriteLine("PASS");
+  }
+  
+  private void TestDeserialize(String name, BluePacket packet, byte[] bin)
+  {
+    Console.Write(name + ": ");
+    BluePacket bp = BluePacket.Deserialize(bin, false);
+    AssertEquals(packet.ToString(), bp.ToString(), "ToString()");
+    Console.WriteLine("PASS");
+  }
+  
+  private void TestSerialize(String name, BluePacket packet, byte[] bin)
+  {
+    Console.Write(name + ": ");
+    byte[] data = packet.Serialize();
+    File.WriteAllBytes("gen/" + name + ".bin", data);
+    AssertEquals(bin, data, "Serialize()");
+    Console.WriteLine("PASS");
+  }
+  
+  private void TestToString(String name, String filename, BluePacket packet)
+  {
+    Console.Write(name + ": ");
+    var strings = File.ReadAllLines(TESTDATA_DIR + filename);
+    AssertEquals(packet.ToString(), strings[0], "ToString()");
     Console.WriteLine("PASS");
   }
   
@@ -100,9 +116,13 @@ class TestBluePacket
     TestBluePacket test = new TestBluePacket();
     
     test.SetUp();
-    test.TestToString();
-    test.TestPacketHash();
-    test.TestDeserialize();
-    test.TestSerialize();
+    test.TestToString("testToString", "toString.txt", test.demoPacket);
+    test.TestToString("testToString2", "toString2.txt", test.demoPacket2);
+    test.TestPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
+    test.TestPacketHash("testVersionHash2", test.demoPacket2, -5868655447559340230L);
+    test.TestSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
+    test.TestSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
+    test.TestDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);
+    test.TestDeserialize("testDeserialize2", test.demoPacket2, test.demoPacket2Bin);
   }
 }

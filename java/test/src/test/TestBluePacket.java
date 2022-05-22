@@ -87,7 +87,8 @@ class TestBluePacket
         .setFInt(new int[] {987654321, 87654321})
         .setFLong(new long[] {101112131415L, 1617181920L})
         .setFShort(new short[] {2345, 3456, 4567})
-        .setFString(new String[] {"abcdef", "xyz", "w", "asdfghjkl;"});
+        .setFString(new String[] {"abcdef", "xyz", "w", "asdfghjkl;"})
+        .setFEmptyStringList(new String[0]);
 
     demoPacket2Bin = readBinary(TESTDATA_DIR + "DemoPacket2.bin");
   }
@@ -140,7 +141,7 @@ class TestBluePacket
     test.testToString("testToString", "toString.txt", test.demoPacket);
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
     test.testPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
-    test.testPacketHash("testVersionHash2", test.demoPacket2, -2936897381744985570L);
+    test.testPacketHash("testVersionHash2", test.demoPacket2, -5868655447559340230L);
     test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.testSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
     test.testDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);

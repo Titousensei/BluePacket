@@ -57,7 +57,7 @@ def produceFields(out, fields, indent):
     if fname in FORBIDDEN_NAMES:
       raise Exception(f"Fields name can't be C# reserved keywords: {ftype} {fname}")
     if 'list' in opt:
-      println(out, f"{indent}public {ftype}[] {fname};")
+      println(out, f"{indent}public {CS_TYPE.get(ftype, ftype)}[] {fname};")
     elif fname:
       println(out, f"{indent}public {CS_TYPE.get(ftype, ftype)} {fname};")
     elif ftype.startswith('#'):
@@ -75,9 +75,17 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if not fname:
       continue
     if 'list' in opt:
-      println(out, f"{indent}  WriteArrayLength(s, {fname});")
-      println(out, f"{indent}  if ({fname} != null) foreach (BluePacket p in {fname})")
-      println(out, f"{indent}    p.SerializeData(s);")
+      if ftype in CS_READER:
+        println(out, f"{indent}  if ({fname} == null) s.WriteByte(0); else {{")
+        println(out, f"{indent}    WriteSequenceLength(s, {fname}.Length);")
+        println(out, f"{indent}    for (int i = 0; i < {fname}.Length; ++i)")
+        println(out, f"{indent}      {CS_WRITER[ftype]}(s, {fname}[i]);")
+      else:
+        println(out, f"{indent}  WriteArrayLength(s, {fname});")
+        println(out, f"{indent}  if ({fname} != null) {{")
+        println(out, f"{indent}    foreach (BluePacket p in {fname})")
+        println(out, f"{indent}      p.SerializeData(s);")
+      println(out, indent + "  }")
     elif ftype in field_is_enum:
       println(out, f"{indent}  WriteEnum(s, {fname});")
     elif ftype in CS_WRITER:
@@ -101,20 +109,21 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
     if not fname:
       continue
     if 'list' in opt:
-      println(out, f"{indent}  {fname} = new {ftype}[ReadSequenceLength(s)];")
-      println(out, f"{indent}  for (int i = 0; i < {fname}.Length; ++i)")
-      println(out, indent + "  {")
-      println(out, f"{indent}    {ftype} obj = new {ftype}();")
-      println(out, f"{indent}    obj.PopulateData(s);")
-      println(out, f"{indent}    {fname}[i] = obj;")
+      println(out, f"{indent}  {fname} = new {CS_TYPE.get(ftype, ftype)}[ReadSequenceLength(s)];")
+      println(out, f"{indent}  for (int i = 0; i < {fname}.Length; ++i) {{")
+      if ftype in CS_READER:
+        println(out, f"{indent}    {fname}[i] = {CS_READER[ftype]}(s);")
+      else:
+        println(out, f"{indent}    {ftype} obj = new {ftype}();")
+        println(out, f"{indent}    obj.PopulateData(s);")
+        println(out, f"{indent}    {fname}[i] = obj;")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
       println(out, f"{indent}  {fname} = ({ftype})ReadEnum(typeof({ftype}), s);")
     elif ftype in CS_READER:
       println(out, f"{indent}  {fname} = {CS_READER[ftype]}(s);")
     else:
-      println(out, f"{indent}  if (ReadByte(s) > 0)")
-      println(out, indent + "  {")
+      println(out, f"{indent}  if (ReadByte(s) > 0) {{")
       println(out, f"{indent}    {fname} = new {ftype}();")
       println(out, f"{indent}    {fname}.PopulateData(s);")
       println(out, indent + "  }")
@@ -130,10 +139,10 @@ def produceFieldsToString(out, name, fields, indent):
   for fname, ftype, *opt in fields:
     if not fname:
       continue
-    if 'list' in opt:
-      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
-    else:
+    if 'list' not in opt or ftype in CS_READER:
       println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
+    else:
+      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
 
   println(out, indent + "}")
 
@@ -182,6 +191,7 @@ def exportClass(out_dir, namespace, data, version):
     println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")
     produceFields(out, data.fields, DEFAULT_INDENT)
     sorted_fields = list(sorted(data.fields))
+    println(out)
     println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)

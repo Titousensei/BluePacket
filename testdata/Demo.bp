@@ -51,3 +51,6 @@ DemoPacket2:
     list float fFloat
     list double fDouble
     list string fString
+    list int fZero
+    list string fEmptyStringList
+    list DemoOuter fNullObjectList
