@@ -339,6 +339,13 @@ public abstract class BluePacket
     return true;
   }
 
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, boolean obj)
+  {
+    if(isNotEmpty(obj)) {
+      sb.append(' ').append(fname).append('=').append(obj?'1':'0');
+    }
+  }
+
   public static void appendIfNotEmpty(StringBuilder sb, String fname, Object obj)
   {
     if(isNotEmpty(obj)) {
@@ -357,16 +364,79 @@ public abstract class BluePacket
     }
     sb.append('}');
   }
-  
-  public static void appendNativeArray(StringBuilder sb, String fname, String ftype, int length, String str)
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, boolean[] obj)
   {
-    sb.append(' ')
-      .append(fname)
-      .append("={")
-      .append(ftype)
-      .append(" *")
-      .append(length)
-      .append(str)
-      .append('}');
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (boolean p : obj) sb.append('|').append(p?'1':'0');
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, byte[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (byte p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, double[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (double p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, float[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (float p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, int[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (int p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, long[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (long p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, short[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (short p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, String[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (String p : obj) {
+        sb.append('|');
+        if (p!=null) sb.append(p);
+    }
+    sb.append('}');
   }
 }

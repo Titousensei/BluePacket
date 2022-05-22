@@ -50,29 +50,29 @@ class TestBluePacket
       fInner = new DemoPacket.MyInner { iInteger = 88 }
     };
 
-    DemoPacket.MyInner[] inner = new DemoPacket.MyInner[2] {
+    DemoPacket.MyInner[] inner = new DemoPacket.MyInner[] {
       new DemoPacket.MyInner { iInteger = 777 },
       new DemoPacket.MyInner { iInteger = 6666 }
     };
     demoPacket.aInner = inner;
     demoPacket.fOuter = new DemoOuter { oInt = 191 };
 
-    demoPacket.aOuter = new DemoOuter[1] {
+    demoPacket.aOuter = new DemoOuter[] {
       new DemoOuter { oInt = 282, oString = ":-)" }
     };
   
     demoPacketBin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket.bin");
     
     demoPacket2 = new DemoPacket2 {
-        fBoolean = new bool[3] {true, false, true},
-        fByte = new sbyte[4] {99, 98, 97, 96},
-        fDouble = new double[2] {1.23456789, 2.3456789},
-        fFloat = new float[1] {3.14f},
-        fInt = new int[2] {987654321, 87654321},
-        fLong = new long[2] {101112131415L, 1617181920L},
-        fShort = new short[3] {2345, 3456, 4567},
-        fString = new String[4] {"abcdef", "xyz", "w", "asdfghjkl;"},
-        fEmptyStringList = new String[0]
+        aBoolean = new bool[] {true, false, true},
+        aByte = new sbyte[] {99, 98, 97, 96},
+        aDouble = new double[] {1.23456789, 2.3456789},
+        aFloat = new float[] {3.14f},
+        aInt = new int[] {987654321, 87654321},
+        aLong = new long[] {101112131415L, 1617181920L},
+        aShort = new short[] {2345, 3456, 4567},
+        aString = new String[] {"abcdef", "xyz", "w", null, "asdfghjkl;"},
+        aEmpty = new String[0]
     };
 
     demoPacket2Bin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket2.bin");

@@ -14,49 +14,40 @@ class FieldTypeException(Exception):
     return f"Not a {self.ftype}: {self.value}"
     
 
-def _assertBool(x, *_):
-  if type(x) != bool:
-    raise FieldTypeException("bool", x)
+def _checkByte(x, _):
+  return type(x) == int and -128 <= x <= 127
 
-def _assertByte(x, *_):
-  if type(x) != int or x < -128 or x > 127:
-    raise FieldTypeException("byte", x)
+def _checkDouble(x, _):
+  return type(x) == float
+    
+def _checkLong(x, _):
+  return type(x) == int
+    
+def _checkShort(x, _):
+  return type(x) == int and -32768 <= x <= 32767
 
-def _assertFloat(x, t, _):
-  if type(x) != float:
-    raise FieldTypeException(t, x)
+def _checkString(x, _):
+  return x is None or type(x) == str
+    
+def _assertOther(x, t):
+  return type(x).__name__ == t
 
-def _assertInt(x, t, _):
-  if type(x) != int:
-    raise FieldTypeException(t, x)
-
-def _assertShort(x, t, _):
-  if type(x) != int or x < -32768 or x > 32767:
-    raise FieldTypeException("short", x)
-
-def _assertString(x, t, _):
-  if type(x) != str:
-    raise FieldTypeException("string", x)
-
-def _assertOther(x, t, is_list):
+def _assertType(x, t, is_list):
   if is_list:
     if type(x) != list:
       raise FieldTypeException("list " + t, x)
     for elem in x:
-      if type(elem).__name__ != t:
+      if not _TYPE_VALIDATOR.get(t, _assertOther)(elem, t):
         raise FieldTypeException(t + " in list", elem)
-  elif type(x).__name__ != t:
+  elif not _TYPE_VALIDATOR.get(t, _assertOther)(x, t):
     raise FieldTypeException(t, x)
 
 _TYPE_VALIDATOR = {
-  "bool": _assertBool,
-  "byte": _assertByte,
-  "double": _assertFloat,
-  "float": _assertFloat,
-  "int": _assertInt,
-  "long": _assertInt,
-  "short": _assertShort,
-  "string": _assertString,
+  "byte": _checkByte,
+  "double": _checkDouble,
+  "long": _checkLong,
+  "short": _checkShort,
+  "string": _checkString,
 }
 
     
@@ -76,7 +67,7 @@ class BluePacket(bytearray):
   def assertType(cls, value, ftype, is_list):
     if value is None:
       return
-    _TYPE_VALIDATOR.get(ftype, _assertOther)(value, ftype, is_list)
+    _assertType(value, ftype, is_list)
     
   @classmethod
   def deserialize(cls, buffer, hasSequenceId):
@@ -85,7 +76,7 @@ class BluePacket(bytearray):
     # Header
     packetHash = bpr.readLong();
     if packetHash not in cls.PACKETID_TO_CLASS:
-      raise Exception("Unknown packetHash received: " + packetHash)
+      raise Exception(f"Unknown packetHash received: {packetHash}")
     
     packet = cls.PACKETID_TO_CLASS[packetHash]()
 
@@ -148,6 +139,14 @@ class BluePacket(bytearray):
         self._writeSeqLength(len(field))
         for b in field:
             b.serializeData(self)
+
+  def writeArrayNative(self, field, serialize_fn):
+    if field is None:
+        self.writeByte(0)
+    else:
+        self._writeSeqLength(len(field))
+        for b in field:
+            serialize_fn(b)
 
 
 class _BluePacketReader(deque):

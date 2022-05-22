@@ -107,7 +107,10 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if not fname:
       continue
     if 'list' in opt:
-      println(out, f"{indent}  bpw.writeArray(self.{fname})")
+      if ftype in PYTHON_WRITER:
+        println(out, f"{indent}  bpw.writeArrayNative(self.{fname}, bpw.{PYTHON_WRITER[ftype]})")
+      else:
+        println(out, f"{indent}  bpw.writeArray(self.{fname})")
     elif ftype in field_is_enum:
       println(out, f"{indent}  bpw.writeByte(0 if self.{fname} is None else self.{fname}.value)")
     elif ftype in PYTHON_WRITER:
@@ -132,8 +135,11 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
     if 'list' in opt:
       println(out, f"{indent}  self.{fname} = []")
       println(out, f"{indent}  for _ in range(bpr.readUnsignedByte()):")
-      println(out, f"{indent}    x = {ftype}()")
-      println(out, f"{indent}    x.populateData(bpr)")
+      if ftype in PYTHON_READER:
+        println(out, f"{indent}    x = bpr.{PYTHON_READER[ftype]}()")
+      else:
+        println(out, f"{indent}    x = {ftype}()")
+        println(out, f"{indent}    x.populateData(bpr)")
       println(out, f"{indent}    self.{fname}.append(x)")
     elif ftype in field_is_enum:
       if ftype in data.enums:
@@ -157,18 +163,24 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
     if 'list' in opt:
       println(out, f'{indent}    if self.{fname}:')
       println(out, f'{indent}      yield " {fname}={{{ftype} *" + str(len(self.{fname})) + "|"')
-      println(out, f'{indent}      yield "|".join("".join(x.fieldsStr()) for x in self.{fname}) + "}}"')
+      if ftype == 'bool':
+        println(out, f'{indent}      yield "|".join("1" if x else "0" for x in self.{fname}) + "}}"')
+      elif ftype == 'string':
+        println(out, f'{indent}      yield "|".join(x or "" for x in self.{fname}) + "}}"')
+      elif ftype in PYTHON_WRITER:
+        println(out, f'{indent}      yield "|".join(str(x) for x in self.{fname}) + "}}"')
+      else:
+        println(out, f'{indent}      yield "|".join("".join(x.fieldsStr()) for x in self.{fname}) + "}}"')
     elif ftype in field_is_enum:
       println(out, f'{indent}    if self.{fname}.value: yield " {fname}=" + self.{fname}.name')
     elif ftype == 'bool':
-      println(out, f'{indent}    if self.{fname}: yield " {fname}=true"')
+      println(out, f'{indent}    if self.{fname}: yield " {fname}=1"')
     else:
       println(out, f'{indent}    if self.{fname}: yield " {fname}=" + str(self.{fname})')
 
   println(out)
   println(out, indent + "def __str__(self):")
   println(out, f'{indent}  return "{{{name}" + "".join(self.fieldsStr()) + "}}"')
-
 
 
 def exportInnerEnum(out, data):

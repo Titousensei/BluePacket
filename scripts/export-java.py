@@ -149,8 +149,6 @@ def produceFieldsToString(out, name, fields, indent):
       continue
     if 'list' not in opt:
       println(out, f'{indent}  appendIfNotEmpty(sb, "{fname}", {fname});')
-    elif ftype in JAVA_READER:
-      println(out, f'{indent}  if ({fname}!=null && {fname}.length!=0) appendNativeArray(sb, "{fname}", "{ftype}", {fname}.length, Arrays.toString({fname}));')
     else:
       println(out, f'{indent}  appendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
 

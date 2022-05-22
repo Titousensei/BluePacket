@@ -80,15 +80,15 @@ class TestBluePacket
     
     demoPacketBin = readBinary(TESTDATA_DIR + "DemoPacket.bin");
     demoPacket2 = new DemoPacket2()
-        .setFBoolean(new boolean[] {true, false, true})
-        .setFByte(new byte[] {99, 98, 97, 96})
-        .setFDouble(new double[] {1.23456789, 2.3456789})
-        .setFFloat(new float[] {3.14f})
-        .setFInt(new int[] {987654321, 87654321})
-        .setFLong(new long[] {101112131415L, 1617181920L})
-        .setFShort(new short[] {2345, 3456, 4567})
-        .setFString(new String[] {"abcdef", "xyz", "w", "asdfghjkl;"})
-        .setFEmptyStringList(new String[0]);
+        .setABoolean(new boolean[] {true, false, true})
+        .setAByte(new byte[] {99, 98, 97, 96})
+        .setADouble(new double[] {1.23456789, 2.3456789})
+        .setAFloat(new float[] {3.14f})
+        .setAInt(new int[] {987654321, 87654321})
+        .setALong(new long[] {101112131415L, 1617181920L})
+        .setAShort(new short[] {2345, 3456, 4567})
+        .setAString(new String[] {"abcdef", "xyz", "w", null, "asdfghjkl;"})
+        .setAEmpty(new String[0]);
 
     demoPacket2Bin = readBinary(TESTDATA_DIR + "DemoPacket2.bin");
   }
@@ -141,7 +141,7 @@ class TestBluePacket
     test.testToString("testToString", "toString.txt", test.demoPacket);
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
     test.testPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
-    test.testPacketHash("testVersionHash2", test.demoPacket2, -5868655447559340230L);
+    test.testPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
     test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.testSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
     test.testDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);
