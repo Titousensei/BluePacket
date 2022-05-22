@@ -388,7 +388,12 @@ namespace BluePackets
     public static void AppendIfNotEmpty(StringBuilder sb, String fname, object obj)
     {
       if(IsNotEmpty(obj)) {
-        sb.Append(' ').Append(fname).Append('=').Append(obj);
+        sb.Append(' ').Append(fname).Append('=');
+        if (obj.GetType() == typeof(bool)) {
+          sb.Append('1');
+        } else {
+          sb.Append(obj);
+        }
       }
     }
 
@@ -405,15 +410,24 @@ namespace BluePackets
       sb.Append('}');
     }
 
-    public static void AppendIfNotEmpty(StringBuilder sb, String fname, object[] obj)
+    public static void AppendIfNotEmptyArray<T>(StringBuilder sb, String fname, String ftype, T[] obj)
     {
       if (obj == null || obj.Length == 0) return;
+      var isNotBool = !"bool".Equals(ftype);
 
-      sb.Append(' ').Append(fname).Append("={").Append(obj.GetType()).Append(" *").Append(obj.Length);
-      foreach (object p in obj)
+      sb.Append(' ').Append(fname).Append("={").Append(ftype).Append(" *").Append(obj.Length);
+      foreach (T p in obj)
       {
         sb.Append('|');
-        if (p != null) sb.Append(p);
+        if (p != null) {
+          if (isNotBool) {
+            sb.Append(p);
+          } else if (p.Equals(true)) {
+            sb.Append('1');
+          } else {
+            sb.Append('0');
+          }
+        }
       }
       sb.Append('}');
     }

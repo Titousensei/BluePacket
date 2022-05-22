@@ -18,18 +18,16 @@ class TestBluePacket
   
   private void AssertEquals(object expected, object actual, string msg)
   {
-    Debug.Assert(
-      actual == expected,
-      msg + ":\nExpected:" + expected + "\nActual  :" + actual
-    );
+    if (!expected.Equals(actual)) {
+      throw new ArgumentException(msg + ": Not equal\nExpected:" + expected + "\nActual  :" + actual);
+    }
   }
 
   private void AssertEquals(byte[] expected, byte[] actual, string msg)
   {
-    Debug.Assert(
-      expected.SequenceEqual(actual),
-      msg + ":\nExpected:" + expected + "\nActual  :" + actual
-    );
+    if (!expected.SequenceEqual(actual)) {
+      throw new ArgumentException(msg + ": Not equal\nExpected:" + expected + "\nActual  :" + actual);
+    }
   }
   
   private void SetUp()
@@ -107,7 +105,7 @@ class TestBluePacket
   {
     Console.Write(name + ": ");
     var strings = File.ReadAllLines(TESTDATA_DIR + filename);
-    AssertEquals(packet.ToString(), strings[0], "ToString()");
+    AssertEquals(strings[0], packet.ToString(), "ToString()");
     Console.WriteLine("PASS");
   }
   
@@ -119,7 +117,7 @@ class TestBluePacket
     test.TestToString("testToString", "toString.txt", test.demoPacket);
     test.TestToString("testToString2", "toString2.txt", test.demoPacket2);
     test.TestPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
-    test.TestPacketHash("testVersionHash2", test.demoPacket2, -5868655447559340230L);
+    test.TestPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
     test.TestSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.TestSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
     test.TestDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);

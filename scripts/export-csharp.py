@@ -139,10 +139,15 @@ def produceFieldsToString(out, name, fields, indent):
   for fname, ftype, *opt in fields:
     if not fname:
       continue
-    if 'list' not in opt or ftype in CS_READER:
+    if 'list' in opt:
+      if ftype in CS_READER:
+        println(out, f'{indent}  AppendIfNotEmptyArray<{CS_TYPE.get(ftype, ftype)}>(sb, "{fname}", "{ftype}", {fname});')
+      else:
+        println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
+    elif ftype in CS_READER:
       println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
     else:
-      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
+      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
 
   println(out, indent + "}")
 
