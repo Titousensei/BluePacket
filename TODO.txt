@@ -9,25 +9,50 @@
 - load from text (yaml)
 - save to text (yaml)
 
-=== Features ===
-- list of native type with anonymous single field struct
+=== Possible Future Features ===
 - xbool -> bits in a byte
-- xshort: variable length short, mostly small.
-  - start with a byte, if value == -128 read a short.
+- enum power of 2 for masking, with xbool?
 - xint: variable length int, mostly small.
   - start with a byte, if value == -128 read a short, if value == -127 read an int.
-- java convenience setters DONE
-  Example:
-  - setField(Type[] value)  // current version
-  - setField(Type... value)  // replace current version
-  - setField(Collection<Type> value) // trivial toArray conversion
+- load from / save to text (yaml-like)
+- constants aliases native and enum
+- default values native and enum
+- array with null elements
+- data alignement hints
+- converters: automatically build converter functions.
+  Exact field types, all source fields must map.
+    convert MyPacket => NewPacket
+    -> NewPacket p = NewPacket.fromMyPacket(myPacket);
+    -> p = MyPacket_to_NewPacket(myPacket)
+  Cast field types when necessary, source fields not in dest ignored
+    convert MyPacket -> NewPacket
+  Custom field mapping
+    convert MyPacket => NewPacket
+      field1 => field2
+      field3 -> field4
+- service stub declaration
+  rpc RequetPacket -> ResponsePacket | ExceptionPacket
+  handler MessagePacket
+- legacy / deprecation mechanism
+  - packets marked deprecated get suffix _<B58> with their hash
+  - packets including deprecated packets print a warning / error if they don't have a deprecated version
+- "view" packets: definitions that are a subset of a full packet
+- interfaces
+  - composition of fields for subtyping
+  - might be implemented as getters and setters
 
 === Languages ===
-- rust, go, nim, ocaml, zig, lua, nelua, javascript, odin, C
+- HIPRI: rust, go, C, C++
+- MEDPRI: nim, ocaml, zig, lua, javascript
+- LOPRI: nelua, odin
+- pico-8 (lua)
 
 === Demos ===
-- random access file
+- random access file  .bpbin
 - connected client + server
 - rpc client + server
 - plain text API
-
+  - load/save from text config .bptxt
+  - same format as .bp
+  - intermediate variables
+- subclass extends packet with utils (list of pairs to HashMap)
