@@ -203,5 +203,10 @@ class TestBluePacket
     test.TestDeserialize("testDeserialize3", test.demoPacket3, test.demoPacket3Bin);
     test.TestDeserialize("testDeserializeU", test.demoPacketU, test.demoPacketUBin);
     test.testUnsigned("testUnsigned");
+
+    test.TestPacketHash("testDeprecated1", new DemoVersion__3FC7F86674610139{}, 4595915063677747513L);
+    test.TestPacketHash("testDeprecated2", new DemoVersion{}, 7260826007793545337L);
+    test.TestPacketHash("testIncludeDeprecated1", new DemoIncludeVersion__3D76B02436B66199{}, 4428920953148694937L);
+    test.TestPacketHash("testIncludeDeprecated2", new DemoIncludeVersion{}, -4044184110803273943L);
   }
 }

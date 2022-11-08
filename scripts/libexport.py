@@ -28,6 +28,8 @@ FORBIDDEN_NAMES = {
   "complex64", "complex128",
 }
 
+MARKER_DEPRECATED = "__"
+# golang might use: U+0394     GREEK CAPITAL LETTER DELTA     Δ
 
 class SourceException(Exception):
   def __init__(self, message, what=None, filename=None, line_number=0):
@@ -47,7 +49,9 @@ class PacketData:
   def __init__(self):
     self.name = None
     self.docstring = []
+    self.version = None
     self.is_enum = False
+    self.origin_name = None
     self.indent: 0
     # format: [name?, type?, 'list'|'', [doc*]]
     self.fields = []
@@ -57,7 +61,7 @@ class PacketData:
     self.field_names = set()
 
   def __repr__(self):
-    return f"{{{self.name}/{'E' if self.is_enum else 'C'} F={self.fields} C{list(self.inner.values())} E{list(self.enums.values())} D{self.docstring}}}"
+    return f"{{{self.origin_name}/{'E' if self.is_enum else 'C'} F={self.fields} C{list(self.inner.values())} E{list(self.enums.values())} D{self.docstring}}}"
 
 
 def println(out, line=''):
@@ -76,7 +80,7 @@ def _mergeUniquely(a, b, msg):
 
 
 def versionString(data, all_data, my_enums, my_inner, seen):
-  ret = data.name
+  ret = data.origin_name or data.name
   if data.name not in PRIMITIVE_TYPES:
     seen.add(data.name)
   if data.name in all_data:
@@ -85,6 +89,9 @@ def versionString(data, all_data, my_enums, my_inner, seen):
   for fname, ftype, *opt in sorted(data.fields):
     if not fname:
       continue
+    # un-deprecate
+    fname, *_ = fname.split(MARKER_DEPRECATED)
+
     ret += f"+{fname}:"
     if ftype in seen:
       ary = "[]" if 'list' in opt else ""
@@ -192,15 +199,17 @@ class Parser:
     name, option = (x.strip() for x in line.split(':'))
     self.data.name = name
 
+    self.data.origin_name, *_ = name.split(MARKER_DEPRECATED)
+
     if indent == 0:
       if name in self.packet_list:
         raise SourceException("Duplicate Packet name", what=name)
       self.packet_list[name] = self.data
       self.top = self.data
     elif option == "enum":
-      self.top.enums[self.data.name] = self.data
+      self.top.enums[name] = self.data
     else:
-      self.top.inner[self.data.name] = self.data
+      self.top.inner[name] = self.data
 
     if option == "enum":
       self.state = self.read_enums
@@ -246,10 +255,33 @@ class Parser:
           except Exception as ex:
             raise SourceException(''.join(ex.args), filename=path, line_number=lnum)
 
-    #find all enum type fields
+    deprecated = {}
+    for _, data in self.packet_list.items():
+        if data.origin_name == data.name:
+            continue
+        version = versionHash(data, self.packet_list)
+        hexname = f"{data.origin_name}__{version & 0xFFFFFFFFFFFFFFFF:0X}"
+        if data.name != hexname:
+          raise SourceException(
+            "Deprecated packet named with wrong hex version",
+            what=data.name + ' should be ' + hexname,
+            filename=path,
+          )
+        if data.origin_name in deprecated:
+            deprecated[data.origin_name].add(data.name)
+        else:
+            deprecated[data.origin_name] = {data.name}
+
+    # verify fields: enum type, deprecated
     for _, data in self.packet_list.items():
       inner_enums = {en.name for en in data.enums.values()}
-      for _, ftype, *_ in data.fields:
+      for fname, ftype, *_ in data.fields:
+        if ftype in deprecated and data.origin_name not in deprecated:
+          raise SourceException(
+              "Packet has field potentially deprecated but does not have its own deprecated version",
+              what=ftype + ' ' + fname,
+              filename=path,
+          )
         if ftype in inner_enums or (ftype in self.packet_list and self.packet_list[ftype].is_enum):
           en = self.packet_list.get(ftype) or data.enums.get(ftype)
           data.field_is_enum[ftype] = sum(1 for f in en.fields if f[0])
@@ -258,6 +290,9 @@ class Parser:
           if ftype in inner_enums or (ftype in self.packet_list and self.packet_list[ftype].is_enum):
             en = self.packet_list.get(ftype) or data.enums.get(ftype)
             data.field_is_enum[ftype] = sum(1 for f in en.fields if f[0])
+
+    if not data.is_enum:
+        data.version = versionHash(data, self.packet_list)
 
     return self.packet_list
 

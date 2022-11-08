@@ -1,0 +1,13 @@
+# New version of deprecated packet used but user does not have a deprecated version
+# @what DemoVersion version
+
+DemoVersion__3FC7F86674610139:
+    int version
+
+DemoVersion:
+    int major
+    int minor
+    int patch
+
+DemoIncludeVersion:
+    DemoVersion version

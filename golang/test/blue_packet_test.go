@@ -220,6 +220,11 @@ func TestDemoBluePacketHash(t *testing.T) {
 	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -4035910894404497038)
 	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 3706623474888074790)
 	testPacketHash(t, "testVersionHashU", &test.demoPacketU, 4436886959950420991)
+
+	testPacketHash(t, "testDeprecated1", &DemoVersionΔ3FC7F86674610139{}, 4595915063677747513)
+	testPacketHash(t, "testDeprecated2", &DemoVersion{}, 7260826007793545337)
+	testPacketHash(t, "testIncludeDeprecated1", &DemoIncludeVersionΔ3D76B02436B66199{}, 4428920953148694937)
+	testPacketHash(t, "testIncludeDeprecated2", &DemoIncludeVersion{}, -4044184110803273943)
 }
 
 func TestDemoBluePacketSerialize(t *testing.T) {

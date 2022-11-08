@@ -1,0 +1,13 @@
+DemoVersion__3FC7F86674610139:
+    int version
+
+DemoVersion:
+    int major
+    int minor
+    int patch
+
+DemoIncludeVersion__3D76B02436B66199:
+    DemoVersion__3FC7F86674610139 version
+
+DemoIncludeVersion:
+    DemoVersion version

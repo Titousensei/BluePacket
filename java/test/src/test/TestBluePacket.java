@@ -274,5 +274,10 @@ class TestBluePacket
     test.testDeserialize("testDeserializeU", test.demoPacketU, test.demoPacketUBin);
     test.testSetters("testSetters");
     test.testUnsigned("testUnsigned");
+
+    test.testPacketHash("testDeprecated1", new DemoVersion__3FC7F86674610139(), 4595915063677747513L);
+    test.testPacketHash("testDeprecated2", new DemoVersion(), 7260826007793545337L);
+    test.testPacketHash("testIncludeDeprecated1", new DemoIncludeVersion__3D76B02436B66199(), 4428920953148694937L);
+    test.testPacketHash("testIncludeDeprecated2", new DemoIncludeVersion(), -4044184110803273943L);
   }
 }

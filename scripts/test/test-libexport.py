@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 import glob, os, sys
-import unittest
+import unittest, traceback
 
 sys.path.append('..')
 
@@ -61,8 +61,7 @@ class TestLibExport(unittest.TestCase):
         annotations = {}
         with self.assertRaises(SourceException) as cm:
           data = p.parse([filepath], annotations=annotations)
-        self.assertEqual(annotations['@what'], cm.exception.what)
-
+        self.assertEqual(annotations['@what'], cm.exception.what, ''.join(traceback.format_exception(cm.exception)))
 
 if __name__ == '__main__':
     unittest.main()

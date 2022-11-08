@@ -1,0 +1,13 @@
+# deprecated packet uses non-existent hash
+# @what DemoVersion__1234 version
+
+DemoVersion__3FC7F86674610139:
+    int version
+
+DemoVersion:
+    int major
+    int minor
+    int patch
+
+DemoIncludeVersion__C7E02BFA6D4AB729:
+    DemoVersion__1234 version

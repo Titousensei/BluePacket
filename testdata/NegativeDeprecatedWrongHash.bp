@@ -1,0 +1,5 @@
+# Deprecated packet used with wrong hash value
+# @what DemoVersion__1234 should be DemoVersion__3FC7F86674610139
+
+DemoVersion__1234:
+    int version

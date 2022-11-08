@@ -7,7 +7,7 @@ rm -rf gen build doc > /dev/null
 
 echo "=== EXPORTING ==="
 mkdir -p gen/test build doc
-../../scripts/export-java.py --package test --output_dir gen/test ../../testdata/Demo.bp
+../../scripts/export-java.py --package test --output_dir gen/test ../../testdata/Demo.bp ../../testdata/DemoDeprecated.bp
 
 echo "=== COMPILING ==="
 javac -d build ../../java/common/src/org/bluepacket/* src/test/* gen/test/*

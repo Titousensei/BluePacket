@@ -113,11 +113,21 @@ class TestBluePacket(unittest.TestCase):
     with open(TESTDATA_DIR + "DemoPacketU.bin", "rb") as f:
       _TEST_DATA['DemoPacketU.bin'] = f.read()
 
+    _TEST_DATA["DemoVersion__3FC7F86674610139"] = t.DemoVersion__3FC7F86674610139()
+    _TEST_DATA["DemoVersion"] = t.DemoVersion()
+    _TEST_DATA["DemoIncludeVersion__3D76B02436B66199"] = t.DemoIncludeVersion__3D76B02436B66199()
+    _TEST_DATA["DemoIncludeVersion"] = t.DemoIncludeVersion()
+
+
   @parameters(
     (-3377904526771042813, "DemoPacket"),
     (-4035910894404497038, "DemoPacket2"),
     (3706623474888074790, "DemoPacket3"),
     (4436886959950420991, "DemoPacketU"),
+    (4595915063677747513, "DemoVersion__3FC7F86674610139"),
+    (7260826007793545337, "DemoVersion"),
+    (4428920953148694937, "DemoIncludeVersion__3D76B02436B66199"),
+    (-4044184110803273943, "DemoIncludeVersion"),
   )
   def testPacketHash(self, expected, packet):
     hash = _TEST_DATA[packet].packetHash

@@ -5,7 +5,7 @@ rm -rf gen doc > /dev/null
 
 echo "=== EXPORTING ==="
 mkdir -p gen/test
-../../scripts/export-python.py --output_dir gen/test ../../testdata/Demo.bp
+../../scripts/export-python.py --output_dir gen/test ../../testdata/Demo.bp ../../testdata/DemoDeprecated.bp
 
 echo "=== DOCUMENTATION ==="
 if [[ $(type -P doxygen) ]]

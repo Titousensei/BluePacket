@@ -1,0 +1,8 @@
+# Deprecated packet used with old name
+# @what DemoVersion version
+
+DemoVersion__3FC7F86674610139:
+    int version
+
+DemoIncludeVersion:
+    DemoVersion version

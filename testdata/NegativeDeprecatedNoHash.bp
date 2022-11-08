@@ -1,0 +1,5 @@
+# Deprecated packet used with no hash value
+# @what DemoVersion__ should be DemoVersion__3FC7F86674610139
+
+DemoVersion__:
+    int version

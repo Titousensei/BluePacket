@@ -2,7 +2,7 @@
 import argparse
 import os, sys
 
-from libexport import Parser, println, versionHash
+from libexport import MARKER_DEPRECATED, Parser, println, versionHash
 
 GO_TYPE = {
   "bool": "bool",
@@ -77,10 +77,18 @@ def produceDocstring(out, indent, docstring):
     out.write("\n")
 
 
+_GOLANG_DEPRECATED = '\u0394'
+
+
+def _getGoType(ftype):
+  return ftype.replace(MARKER_DEPRECATED, _GOLANG_DEPRECATED) if ftype is not None else None
+
+
 def produceStructDef(out, name, fields, field_is_enum):
   println(out, f"type {name} struct {{")
   first = True
   for fname, ftype, opt, docstring in fields:
+    ftype = _getGoType(ftype)
     if 'list' in opt:
       produceDocstring(out, "\t", docstring)
       if ftype in GO_WRITER:  # native type
@@ -116,6 +124,7 @@ def produceSerializer(out, name, fields, field_is_enum):
 
   bool_counter = 0
   for fname, ftype, *opt in fields:
+    ftype = _getGoType(ftype)
     if ftype != 'bool' or 'list' in opt:
       continue
     if bool_counter == 0:
@@ -133,6 +142,7 @@ def produceSerializer(out, name, fields, field_is_enum):
 
   println(out, f"\t// Non-boolean fields")
   for fname, ftype, opt, _ in fields:
+    ftype = _getGoType(ftype)
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
@@ -175,6 +185,7 @@ def produceDeserializer(out, name, fields, field_is_enum):
 
   bool_counter = 0
   for fname, ftype, *opt in fields:
+    ftype = _getGoType(ftype)
     if ftype != 'bool' or 'list' in opt:
       continue
     if bool_counter == 0:
@@ -188,6 +199,7 @@ def produceDeserializer(out, name, fields, field_is_enum):
 
   println(out, f"\t// Non-boolean fields")
   for fname, ftype, opt, _ in fields:
+    ftype = _getGoType(ftype)
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
@@ -246,6 +258,7 @@ def produceToString(out, name, fields, field_is_enum):
 
   println(out, f"func (bp *{name}) AppendFields(sb *strings.Builder) {{")
   for fname, ftype, *opt in fields:
+    ftype = _getGoType(ftype)
     if not fname:
       continue
     if 'list' in opt:
@@ -275,25 +288,28 @@ def produceToString(out, name, fields, field_is_enum):
 def exportStructFunc(out, data, field_is_enum, namespace):
   println(out, "////// HELPER FUNCTIONS /////")
   sorted_fields = list(sorted(data.fields))
-  produceSerializer(out, namespace + data.name, sorted_fields, data.field_is_enum)
-  produceDeserializer(out, namespace + data.name, sorted_fields, data.field_is_enum)
-  produceToString(out, namespace + data.name, sorted_fields, data.field_is_enum)
+  goname = _getGoType(data.name)
+  produceSerializer(out, namespace + goname, sorted_fields, data.field_is_enum)
+  produceDeserializer(out, namespace + goname, sorted_fields, data.field_is_enum)
+  produceToString(out, namespace + goname, sorted_fields, data.field_is_enum)
 
 
 def _innerFieldsWithNamespace(data):
+  goname = _getGoType(data.name)
   for info in data.fields:
     if info[0]:
       # capitalize all field names to make them public
       info[0] = info[0][0].upper() + info[0][1:]
     if info[1] in data.inner or info[1] in data.enums:
-      info[1] = data.name + info[1]
+      info[1] = goname + info[1]
     yield info
 
 
 def _innerFieldIsEnumWithNamespace(data):
+  goname = _getGoType(data.name)
   for info, num in data.field_is_enum.items():
     if info in data.inner or info in data.enums:
-      yield data.name + info, num
+      yield goname + info, num
     else:
       yield info, num
 
@@ -303,15 +319,16 @@ def exportStruct(out_dir, package, data, version):
   data.fields = list(_innerFieldsWithNamespace(data))
   data.field_is_enum = {k: v for k, v in _innerFieldIsEnumWithNamespace(data)}
 
-  path = os.path.join(out_dir, data.name + ".go")
+  goname = _getGoType(data.name)
+  path = os.path.join(out_dir, goname + ".go")
   print("[ExporterGo] BluePacket struct", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, package, data)
 
     produceDocstring(out, "", data.docstring)
-    produceStructDef(out, data.name, data.fields, data.field_is_enum)
-    println(out, f"func (bp *{data.name}) GetPacketHash() int64 {{ return {version} }}")
-    println(out, f'func (bp *{data.name}) GetPacketHex() string {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}" }}')
+    produceStructDef(out, goname, data.fields, data.field_is_enum)
+    println(out, f"func (bp *{goname}) GetPacketHash() int64 {{ return {version} }}")
+    println(out, f'func (bp *{goname}) GetPacketHex() string {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}" }}')
     println(out)
     exportStructFunc(out, data, data.field_is_enum, "")
 
@@ -322,11 +339,11 @@ def exportStruct(out_dir, package, data, version):
     for x in data.inner.values():
       x.fields = list(_innerFieldsWithNamespace(x))
       produceDocstring(out, "", x.docstring)
-      produceStructDef(out, data.name + x.name, x.fields, data.field_is_enum)
-      println(out, f"func (bp *{data.name}{x.name}) GetPacketHash() int64 {{ return 0 }}")
-      println(out, f'func (bp *{data.name}{x.name}) GetPacketHex() string {{ return "" }}')
+      produceStructDef(out, goname + x.name, x.fields, data.field_is_enum)
+      println(out, f"func (bp *{goname}{x.name}) GetPacketHash() int64 {{ return 0 }}")
+      println(out, f'func (bp *{goname}{x.name}) GetPacketHex() string {{ return "" }}')
       println(out)
-      exportStructFunc(out, x, data.field_is_enum, data.name)
+      exportStructFunc(out, x, data.field_is_enum, goname)
 
     if data.enums:
       println(out)
@@ -334,11 +351,12 @@ def exportStruct(out_dir, package, data, version):
       println(out)
       for x in data.enums.values():
         produceDocstring(out, "", x.docstring)
-        exportEnumDef(out, x, data.name)
+        exportEnumDef(out, x, goname)
 
 
 def exportEnum(out_dir, package, data):
-  path = os.path.join(out_dir, data.name + ".go")
+  goname = _getGoType(data.name)
+  path = os.path.join(out_dir, goname + ".go")
   print("[ExporterGo] BluePacket enum", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, package, data)
@@ -347,9 +365,10 @@ def exportEnum(out_dir, package, data):
 
 
 def exportEnumDef(out, data, namespace):
+    goname = _getGoType(data.name)
     num = sum(1 for f in data.fields if f[0])
     subtype = "byte" if num <=256 else "uint16"
-    println(out, f"type {namespace}{data.name} {subtype}")
+    println(out, f"type {namespace}{goname} {subtype}")
     println(out, f"const (")
     i = 0
     for f, _, _, docstring in data.fields:
@@ -357,19 +376,19 @@ def exportEnumDef(out, data, namespace):
         println(out)
       produceDocstring(out, "\t", docstring)
       if f:
-        println(out, f"\t{namespace}{data.name}{f} {namespace}{data.name} = {i}")
+        println(out, f"\t{namespace}{goname}{f} {namespace}{goname} = {i}")
         i += 1
       else:
         println(out)
     println(out, ")")
     println(out)
-    println(out, f"func (en {namespace}{data.name}) String() string {{")
-    println(out, f"\tshortName{namespace}{data.name} := [{num}]string {{")
+    println(out, f"func (en {namespace}{goname}) String() string {{")
+    println(out, f"\tshortName{namespace}{goname} := [{num}]string {{")
     for f, *_ in data.fields:
       if f:
         println(out, f'\t\t"{f}",')
     println(out, "\t}")
-    println(out, f"\treturn shortName{namespace}{data.name}[int(en)]")
+    println(out, f"\treturn shortName{namespace}{goname}[int(en)]")
     println(out, "}")
 
 
@@ -378,6 +397,10 @@ def get_args():
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
   parser.add_argument('--package', help='Package for the generated classes')
   parser.add_argument('--debug', action='store_true', help='Print parser debug info')
+  # Golint might not like __ in names, so there's an option to replace this marker with another string. 
+  # We should pick special letters that look like separators and are easy to distinguish from alphabetic letters.
+  # Recommended: U+0394     GREEK CAPITAL LETTER DELTA     Δ
+  parser.add_argument('--marker_deprecated', default='\u0394', help='string to replace __ in deprecated packet names') 
   parser.add_argument('packets', nargs='+', help='List of .bp files to process')
   return parser.parse_args()
 
@@ -385,6 +408,7 @@ def get_args():
 if __name__ == "__main__":
   args = get_args()
   p = Parser()
+  _GOLANG_DEPRECATED = args.marker_deprecated
   all_data = p.parse(args.packets)
   if args.debug:
     for cl, lf in all_data.items():
@@ -392,7 +416,7 @@ if __name__ == "__main__":
 
   # compute version hashes before fields are capitalized
   versions = {
-    data.name: versionHash(data, all_data)
+     _getGoType(data.name): versionHash(data, all_data)
     for _, data in all_data.items()
   }
 
@@ -401,4 +425,4 @@ if __name__ == "__main__":
     if data.is_enum:
       exportEnum(args.output_dir, args.package, data)
     else:
-      exportStruct(args.output_dir, args.package, data, versions[data.name])
+      exportStruct(args.output_dir, args.package, data, versions[_getGoType(data.name)])
