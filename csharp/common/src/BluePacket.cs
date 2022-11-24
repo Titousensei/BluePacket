@@ -154,18 +154,6 @@ namespace BluePackets
       }
     }
 
-    protected static void WriteArrayLength(Stream ms, object[] data)
-    {
-      if (data == null)
-      {
-        ms.WriteByte(0);
-      }
-      else
-      {
-        WriteSequenceLength(ms, data.Length);
-      }
-    }
-
     private static void WriteStringBytes(Stream ms, string data)
     {
       byte[] b = ENCODING.GetBytes(data);

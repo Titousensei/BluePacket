@@ -148,6 +148,14 @@ class BluePacket(bytearray):
         for b in field:
             serialize_fn(b)
 
+  def writeArrayEnum(self, field):
+    if field is None:
+        self.writeByte(0)
+    else:
+        self._writeSeqLength(len(field))
+        for b in field:
+            self.writeByte(b.value)
+
 
 class _BluePacketReader(deque):
 

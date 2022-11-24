@@ -54,3 +54,6 @@ DemoPacket2:
     list int aZero
     list string aEmpty
     list DemoOuter aNull
+
+DemoPacket3:
+    list DemoEnum possible

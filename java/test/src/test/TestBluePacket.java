@@ -17,6 +17,9 @@ class TestBluePacket
   private DemoPacket2 demoPacket2;
   private byte[] demoPacket2Bin;
   
+  private DemoPacket3 demoPacket3;
+  private byte[] demoPacket3Bin;
+  
   private void assertEquals(Object expected, Object actual, String msg)
   {
     if (!actual.equals(expected)) {
@@ -79,6 +82,7 @@ class TestBluePacket
     demoPacket.aOuter[0] = new DemoOuter().setOInt(282).setOString(":-)");
     
     demoPacketBin = readBinary(TESTDATA_DIR + "DemoPacket.bin");
+
     demoPacket2 = new DemoPacket2()
         .setABoolean(new boolean[] {true, false, true})
         .setAByte(new byte[] {99, 98, 97, 96})
@@ -91,6 +95,11 @@ class TestBluePacket
         .setAEmpty(new String[0]);
 
     demoPacket2Bin = readBinary(TESTDATA_DIR + "DemoPacket2.bin");
+
+    demoPacket3 = new DemoPacket3()
+        .setPossible(new DemoEnum[] {DemoEnum.NO_DOUBT, DemoEnum.YES});
+
+    demoPacket3Bin = readBinary(TESTDATA_DIR + "DemoPacket3.bin");
   }
 
   private void testPacketHash(String name, BluePacket packet, long hash)
@@ -140,11 +149,15 @@ class TestBluePacket
     test.setUp();
     test.testToString("testToString", "toString.txt", test.demoPacket);
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
+    test.testToString("testToString3", "toString3.txt", test.demoPacket3);
     test.testPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
     test.testPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
+    test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.testSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
+    test.testSerialize("testSerialize3", test.demoPacket3, test.demoPacket3Bin);
     test.testDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);
     test.testDeserialize("testDeserialize2", test.demoPacket2, test.demoPacket2Bin);
+    test.testDeserialize("testDeserialize3", test.demoPacket3, test.demoPacket3Bin);
   }
 }

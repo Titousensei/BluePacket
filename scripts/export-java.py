@@ -46,7 +46,6 @@ def header(out, package, data):
     println(out)
     if not data.is_enum:
       println(out, "import org.bluesaga.network.BluePacket;")
-      println(out, "import java.util.Arrays;")
       println(out)
 
 
@@ -120,6 +119,8 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
       println(out, f"{indent}  for (int i = 0; i < {fname}.length; ++i) {{")
       if ftype in JAVA_READER:
         println(out, f"{indent}    {fname}[i] = {JAVA_READER[ftype]};")
+      elif ftype in field_is_enum:
+        println(out, f"{indent}    {fname}[i] = {ftype}.valueOf(s.readUnsignedByte());")
       else:
         println(out, f"{indent}    {ftype} obj = new {ftype}();")
         println(out, f"{indent}    obj.populateData(s);")

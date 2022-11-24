@@ -2,3 +2,4 @@ DemoPacket+aInner:{[]MyInner+iInteger:int}+aOuter:{[]DemoOuter+oInt:int+oString:
 DemoOuter+oInt:int+oString:string
 BinaryTreeNode+data:string+left:{BinaryTreeNode+...}+right:{BinaryTreeNode+...}
 DemoPacket2+aBoolean:[]bool+aByte:[]byte+aDouble:[]double+aEmpty:[]string+aFloat:[]float+aInt:[]int+aLong:[]long+aNull:{[]DemoOuter+oInt:int+oString:string}+aShort:[]short+aString:[]string+aZero:[]int
+DemoPacket3+possible:[]{DemoEnum+YES+SURE+ABSOLUTELY+NO_DOUBT}

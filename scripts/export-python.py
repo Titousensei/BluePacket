@@ -109,6 +109,8 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if 'list' in opt:
       if ftype in PYTHON_WRITER:
         println(out, f"{indent}  bpw.writeArrayNative(self.{fname}, bpw.{PYTHON_WRITER[ftype]})")
+      elif ftype in field_is_enum:
+        println(out, f"{indent}  bpw.writeArrayEnum(self.{fname})")
       else:
         println(out, f"{indent}  bpw.writeArray(self.{fname})")
     elif ftype in field_is_enum:
@@ -137,6 +139,10 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
       println(out, f"{indent}  for _ in range(bpr.readUnsignedByte()):")
       if ftype in PYTHON_READER:
         println(out, f"{indent}    x = bpr.{PYTHON_READER[ftype]}()")
+      elif ftype in field_is_enum:
+        if ftype in data.enums:
+          ftype = "self." + ftype
+        println(out, f"{indent}    x = {ftype}(bpr.readByte())")
       else:
         println(out, f"{indent}    x = {ftype}()")
         println(out, f"{indent}    x.populateData(bpr)")
@@ -169,6 +175,8 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
         println(out, f'{indent}      yield "|".join(x or "" for x in self.{fname}) + "}}"')
       elif ftype in PYTHON_WRITER:
         println(out, f'{indent}      yield "|".join(str(x) for x in self.{fname}) + "}}"')
+      elif ftype in field_is_enum:
+        println(out, f'{indent}      yield "|".join(x.name for x in self.{fname}) + "}}"')
       else:
         println(out, f'{indent}      yield "|".join("".join(x.fieldsStr()) for x in self.{fname}) + "}}"')
     elif ftype in field_is_enum:

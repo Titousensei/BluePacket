@@ -75,14 +75,15 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if not fname:
       continue
     if 'list' in opt:
+      println(out, f"{indent}  if ({fname} == null) s.WriteByte(0); else {{")
+      println(out, f"{indent}    WriteSequenceLength(s, {fname}.Length);")
       if ftype in CS_READER:
-        println(out, f"{indent}  if ({fname} == null) s.WriteByte(0); else {{")
-        println(out, f"{indent}    WriteSequenceLength(s, {fname}.Length);")
         println(out, f"{indent}    for (int i = 0; i < {fname}.Length; ++i)")
         println(out, f"{indent}      {CS_WRITER[ftype]}(s, {fname}[i]);")
+      elif ftype in field_is_enum:
+        println(out, f"{indent}    foreach ({ftype} p in {fname})")
+        println(out, f"{indent}      WriteEnum(s, p);")
       else:
-        println(out, f"{indent}  WriteArrayLength(s, {fname});")
-        println(out, f"{indent}  if ({fname} != null) {{")
         println(out, f"{indent}    foreach (BluePacket p in {fname})")
         println(out, f"{indent}      p.SerializeData(s);")
       println(out, indent + "  }")
@@ -92,7 +93,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  {CS_WRITER[ftype]}(s, {fname});")
     else:
       println(out, f"{indent}  if ({fname} == null) s.WriteByte(0);")
-      println(out, indent + "  {")
+      println(out, indent + "  else {")
       println(out, f"{indent}    s.WriteByte(1);")
       println(out, f"{indent}    {fname}.SerializeData(s);")
       println(out, indent + "  }")
@@ -113,6 +114,8 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
       println(out, f"{indent}  for (int i = 0; i < {fname}.Length; ++i) {{")
       if ftype in CS_READER:
         println(out, f"{indent}    {fname}[i] = {CS_READER[ftype]}(s);")
+      elif ftype in field_is_enum:
+        println(out, f"{indent}    {fname}[i] = ({ftype})ReadEnum(typeof({ftype}), s);")
       else:
         println(out, f"{indent}    {ftype} obj = new {ftype}();")
         println(out, f"{indent}    obj.PopulateData(s);")
@@ -131,7 +134,7 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out, indent + "}")
 
 
-def produceFieldsToString(out, name, fields, indent):
+def produceFieldsToString(out, name, fields, indent, field_is_enum):
   println(out)
   println(out, indent + "override public void FieldsToString(StringBuilder sb)")
   println(out, indent + "{")
@@ -142,9 +145,13 @@ def produceFieldsToString(out, name, fields, indent):
     if 'list' in opt:
       if ftype in CS_READER:
         println(out, f'{indent}  AppendIfNotEmptyArray<{CS_TYPE.get(ftype, ftype)}>(sb, "{fname}", "{ftype}", {fname});')
+      elif ftype in field_is_enum:
+        println(out, f'{indent}  AppendIfNotEmptyArray<String>(sb, "{fname}", "{ftype}", Array.ConvertAll({fname}, value => value.ToString()));')
       else:
         println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
     elif ftype in CS_READER:
+      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
+    elif ftype in field_is_enum:
       println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
     else:
       println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
@@ -177,7 +184,7 @@ def exportInnerClass(out, data, field_is_enum):
   sorted_fields = list(sorted(data.fields))
   produceSerializer(out, sorted_fields, INNER_INDENT, field_is_enum)
   produceDeserializer(out, data.name, sorted_fields, INNER_INDENT, field_is_enum)
-  produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT)
+  produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT, field_is_enum)
 
   println(out, DEFAULT_INDENT + "}")
 
@@ -200,7 +207,7 @@ def exportClass(out_dir, namespace, data, version):
     println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
-    produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT)
+    produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
 
     if data.inner:
       println(out)

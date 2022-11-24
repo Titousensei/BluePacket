@@ -122,6 +122,16 @@ public abstract class BluePacket
     }
   }
 
+  protected void writeArray(DataOutputStream dos, Enum[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(Enum p : arr) dos.writeByte(p.ordinal());
+    }
+  }
+
   protected void writeArray(DataOutputStream dos, boolean[] arr)
   throws IOException
   {
@@ -425,6 +435,18 @@ public abstract class BluePacket
 
     sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
     for (short p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, Enum[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (Enum p : obj) {
+        sb.append('|');
+        if (p!=null) sb.append(p);
+    }
     sb.append('}');
   }
 
