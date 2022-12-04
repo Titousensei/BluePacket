@@ -211,7 +211,6 @@ def exportClass(out_dir, package, data, version):
     println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")
     println(out)
     produceFields(out, data.fields, DEFAULT_INDENT)
-    println(out)
     println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
     sorted_fields = list(sorted(data.fields))
     produceSetters(out, data.name, sorted_fields, DEFAULT_INDENT)

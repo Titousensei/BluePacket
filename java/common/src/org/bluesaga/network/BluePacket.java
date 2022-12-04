@@ -5,8 +5,6 @@ import java.util.*;
 import java.util.zip.*;
 import java.lang.reflect.*;
 
-//import network.packets.*;
-
 public abstract class BluePacket
 {
   public static final int MASK_COMPRESSED = 1;
@@ -122,13 +120,13 @@ public abstract class BluePacket
     }
   }
 
-  protected void writeArray(DataOutputStream dos, Enum[] arr)
+  protected void writeArray(DataOutputStream dos, Enum<?>[] arr)
   throws IOException
   {
     if (arr == null) { dos.writeByte(0);
     } else {
       writeSequenceLength(dos, arr.length);
-      for(Enum p : arr) dos.writeByte(p.ordinal());
+      for(Enum<?> p : arr) dos.writeByte(p.ordinal());
     }
   }
 
@@ -438,12 +436,12 @@ public abstract class BluePacket
     sb.append('}');
   }
 
-  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, Enum[] obj)
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, Enum<?>[] obj)
   {
     if (obj == null || obj.length == 0) return;
 
     sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
-    for (Enum p : obj) {
+    for (Enum<?> p : obj) {
         sb.append('|');
         if (p!=null) sb.append(p);
     }
