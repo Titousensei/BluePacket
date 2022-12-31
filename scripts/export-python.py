@@ -66,7 +66,7 @@ def produceTypeInfo(out, fields, indent):
       continue
     println(out, f'{indent}  "{fname}": ("{ftype}", {"list" in opt}),')
   println(out, indent + "}")
-      
+
 
 def produceConstructor(out, fields, indent):
   println(out)
@@ -83,9 +83,9 @@ def produceConstructor(out, fields, indent):
       raise Exception(f"Fields name can't be Python reserved keywords: {ftype} {fname}")
     ft = f"list ftype" if 'list' in opt else ftype
     println(out, f"{indent}    {fname} = None,  # {ft}")
-      
+
   println(out, indent + f"):")
-  
+
   for fname, ftype, *opt in fields:
     if not fname:
       continue
@@ -97,7 +97,7 @@ def produceSetAttr(out, name, indent):
   println(out, indent +  "def __setattr__(self, name, value):")
   println(out, indent + f"  bp.assertType(value, *{name}.TYPE_INFO[name])")
   println(out, indent +  "  self.__dict__[name] = value")
-      
+
 
 def produceSerializer(out, fields, indent, field_is_enum):
   println(out)
@@ -219,7 +219,7 @@ def exportClass(out_dir, data, version):
   print("[ExporterPython] BluePacket class", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, data)
-    
+
     sorted_fields = list(sorted(data.fields))
     println(out, f"class {data.name}:")
     println(out, f"  packetHash = {version}")
@@ -281,7 +281,7 @@ if __name__ == "__main__":
   if args.debug:
     for cl, lf in all_data.items():
       print(cl, lf)
-      
+
   exportInit(args.output_dir, all_data)
   for _, data in all_data.items():
     if data.is_enum:

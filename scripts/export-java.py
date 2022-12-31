@@ -45,6 +45,7 @@ def header(out, package, data):
     println(out, "package " + package + ';')
     println(out)
     if not data.is_enum:
+      println(out, "import java.util.Collection;")
       println(out, "import org.bluesaga.network.BluePacket;")
       println(out)
 
@@ -64,18 +65,32 @@ def produceFields(out, fields, indent):
       println(out)
 
 
+def produceListSetters(out, name, fname, ftype, indent):
+  # Array
+  out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
+  out.write(f"({ftype}... val)")
+  println(out, f" {{ {fname} = val; return this; }}")
+
+  if ftype == "String" or (ftype not in JAVA_WRITER and ftype != 'boolean'):
+    # Collection
+    out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
+    out.write(f"(Collection<{ftype}> val)")
+    println(out, f" {{ {fname} = val.toArray(new {ftype}[0]); return this; }}")
+
+
 def produceSetters(out, name, fields, indent):
   println(out)
   for fname, ftype, *opt in fields:
     if not fname:
       continue
-    out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
+
     ftype = JAVA_TYPE.get(ftype, ftype)
     if 'list' in opt:
-      out.write(f"({ftype}[] val)")
+      produceListSetters(out, name, fname, ftype, indent)
     else:
+      out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
       out.write(f"({ftype} val)")
-    println(out, f" {{ {fname} = val; return this; }}")
+      println(out, f" {{ {fname} = val; return this; }}")
 
 
 def produceSerializer(out, fields, indent, field_is_enum):

@@ -1,10 +1,10 @@
 === Unit Tests ===
-- versionString
+- versionString DONE
 
 === Export Tests ===
 - hash version
-- load from binary
-- save to binary
+- load from binary DONE
+- save to binary DONE
 - to string
 - load from text (yaml)
 - save to text (yaml)
@@ -16,6 +16,11 @@
   - start with a byte, if value == -128 read a short.
 - xint: variable length int, mostly small.
   - start with a byte, if value == -128 read a short, if value == -127 read an int.
+- java convenience setters DONE
+  Example:
+  - setField(Type[] value)  // current version
+  - setField(Type... value)  // replace current version
+  - setField(Collection<Type> value) // trivial toArray conversion
 
 === Languages ===
 - rust, go, nim, ocaml, zig, lua, nelua, javascript, odin, C
@@ -25,3 +30,4 @@
 - connected client + server
 - rpc client + server
 - plain text API
+
