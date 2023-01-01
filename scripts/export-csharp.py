@@ -9,12 +9,6 @@ INNER_INDENT = DEFAULT_INDENT + "  "
 
 CS_TYPE = { "byte": "sbyte" }
 
-FORBIDDEN_NAMES = {
-  "bool", "byte", "char", "class", "decimal", "double", "dynamic",
-  "float", "int", "long", "nint", "nuint", "object", "sbyte", "short",
-  "string", "uint", "ulong", "ushort"
-}
-
 CS_WRITER = {
   "bool":   "WriteBool",
   "byte":   "WriteSByte",
@@ -53,8 +47,6 @@ def header(out, namespace, data):
 def produceFields(out, fields, indent):
   println(out)
   for fname, ftype, *opt in fields:
-    if fname in FORBIDDEN_NAMES:
-      raise Exception(f"Fields name can't be C# reserved keywords: {ftype} {fname}")
     if 'list' in opt:
       println(out, f"{indent}public {CS_TYPE.get(ftype, ftype)}[] {fname};")
     elif fname:

@@ -7,11 +7,6 @@ from libexport import Parser, println, versionHash
 DEFAULT_INDENT = "  "
 INNER_INDENT = DEFAULT_INDENT + "  "
 
-FORBIDDEN_NAMES = {
-  "boolean", "byte", "char", "class", "double", "static",
-  "float", "int", "long", "short", "package", "import"
-}
-
 JAVA_TYPE = {
   "bool": "boolean",
   "string": "String",
@@ -52,8 +47,6 @@ def header(out, package, data):
 
 def produceFields(out, fields, indent):
   for fname, ftype, *opt in fields:
-    if fname in FORBIDDEN_NAMES:
-      raise Exception(f"Fields name can't be Java reserved keywords: {ftype} {fname}")
     ftype = JAVA_TYPE.get(ftype, ftype)
     if 'list' in opt:
       println(out, f"{indent}public {ftype}[] {fname};")

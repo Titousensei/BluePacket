@@ -7,11 +7,6 @@ from libexport import Parser, println, versionHash
 DEFAULT_INDENT = "  "
 INNER_INDENT = DEFAULT_INDENT + "  "
 
-FORBIDDEN_NAMES = {
-  "boolean", "byte", "char", "class", "double", "static",
-  "float", "int", "long", "short", "package", "import"
-}
-
 PYTHON_TYPE = {
   "bool": "bool",
   "string": "str",
@@ -79,8 +74,6 @@ def produceConstructor(out, fields, indent):
     if ftype.startswith('#'):
       println(out, indent + ftype)
       continue
-    if fname in FORBIDDEN_NAMES:
-      raise Exception(f"Fields name can't be Python reserved keywords: {ftype} {fname}")
     ft = f"list ftype" if 'list' in opt else ftype
     println(out, f"{indent}    {fname} = None,  # {ft}")
 

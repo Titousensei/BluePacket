@@ -8,6 +8,20 @@ PRIMITIVE_TYPES = {
   "bool", "byte", "double", "float", "int", "long", "short", "string"
 }
 
+FORBIDDEN_NAMES = {
+  "bool", "boolean", "byte",
+  "char", "class",
+  "decimal", "double", "dynamic",
+  "float",
+  "import", "int",
+  "long",
+  "nint", "nuint",
+  "object",
+  "package",
+  "sbyte", "short", "static", "string",
+  "uint", "ulong", "ushort",
+}
+
 class PacketData:
   def __init__(self):
     self.name = None
@@ -121,6 +135,8 @@ class Parser:
       raise Exception(f"Forbidden fields type  'String': should be 'string' (lowercase)")
     elif info[1][0].islower() and info[1] not in PRIMITIVE_TYPES:
       raise Exception(f"Unknown primitive field type: {info[1]} {info[0]}")
+    elif info[0] in FORBIDDEN_NAMES:
+      raise Exception(f"Field name can't be reserved keyword: {ftype} {fname}")
     self.data.fields.append(info)
 
   def read_class(self, line, indent):
