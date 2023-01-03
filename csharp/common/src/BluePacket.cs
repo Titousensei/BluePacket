@@ -116,7 +116,17 @@ namespace BluePackets
       ms.WriteByte((byte)data);
     }
 
+    protected static void WriteByte(Stream ms, byte data)
+    {
+      ms.WriteByte(data);
+    }
+
     protected static void WriteShort(Stream ms, short data)
+    {
+      WriteBytesBigEndian(ms, BitConverter.GetBytes(data));
+    }
+
+    protected static void WriteUShort(Stream ms, ushort data)
     {
       WriteBytesBigEndian(ms, BitConverter.GetBytes(data));
     }
@@ -267,6 +277,12 @@ namespace BluePackets
     {
       byte[] data = ReadNBytesBigEndian(ms, 2);
       return BitConverter.ToInt16(data, 0);
+    }
+
+    protected static ushort ReadUShort(Stream ms)
+    {
+      byte[] data = ReadNBytesBigEndian(ms, 2);
+      return BitConverter.ToUInt16(data, 0);
     }
 
     protected static int ReadInt(Stream ms)

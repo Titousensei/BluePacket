@@ -20,7 +20,20 @@ class TestBluePacket
   private DemoPacket3 demoPacket3;
   private byte[] demoPacket3Bin;
 
+  private DemoUnsigned demoPacketU;
+  private byte[] demoPacketUBin;
+
   private String[] myStrings = new String[] {"abcdef", "xyz", "w", null, "asdfghjkl;"};
+
+  private void assertEquals(int expected, int actual, String msg)
+  {
+    if (actual != expected) {
+      System.out.println("assertEquals failed!");
+      System.out.println("  Expected:" + expected);
+      System.out.println("  Actual  :" + actual);
+      throw new AssertionError(msg);
+    }
+  }
 
   private void assertEquals(Object expected, Object actual, String msg)
   {
@@ -112,6 +125,14 @@ class TestBluePacket
         .setPossible(new DemoEnum[] {DemoEnum.NO_DOUBT, DemoEnum.YES});
 
     demoPacket3Bin = readBinary(TESTDATA_DIR + "DemoPacket3.bin");
+
+    demoPacketU = new DemoUnsigned()
+        .setUb((byte) 200)
+        .setUs((short) 45678)
+        .setLub(new byte[] {(byte) 201, (byte) 5})
+        .setLus(new short[] {(short) 43210, (short) 1234});
+
+    demoPacketUBin = readBinary(TESTDATA_DIR + "DemoPacketU.bin");
   }
 
   private void testPacketHash(String name, BluePacket packet, long hash)
@@ -170,6 +191,33 @@ class TestBluePacket
     System.out.println("PASS");
   }
 
+  private void testUnsigned(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+
+    assertEquals(-56, demoPacketU.ub, "unsigned as signed byte");
+    assertEquals(200, demoPacketU.getUbAsInt(), "get unsigned byte as intended");
+    assertEquals(-19858, demoPacketU.us, "unsigned as signed short");
+    assertEquals(45678, demoPacketU.getUsAsInt(), "get unsigned short as intended");
+
+    DemoPacket packet = new DemoPacket()
+        .setFByte((byte) -99)
+        .setFShort((short) -2345);
+
+    assertEquals(-99, packet.fByte, "signed byte");
+    assertEquals(-99, packet.getFByteAsInt(), "get signed byte as intended");
+    assertEquals(-2345, packet.fShort, "signed short");
+    assertEquals(-2345, packet.getFShortAsInt(), "get signed short as intended");
+
+    assertEquals(-56, (byte) 200, "cast unsigned byte to signed byte as int");
+    assertEquals(-19858, (short) 45678, "cast unsigned short to signed short as int");
+    assertEquals(200, BluePacket.unsigned((byte) -56), "cast signed byte to unsigned byte as int");
+    assertEquals(45678, BluePacket.unsigned((short) -19858), "cast signed short to unsigned short as int");
+
+    System.out.println("PASS");
+  }
+
   public static void main(String[] args)
   throws Exception
   {
@@ -179,15 +227,20 @@ class TestBluePacket
     test.testToString("testToString", "toString.txt", test.demoPacket);
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
     test.testToString("testToString3", "toString3.txt", test.demoPacket3);
+    test.testToString("testToStringU", "toStringU.txt", test.demoPacketU);
     test.testPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
     test.testPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
     test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
+    test.testPacketHash("testVersionHashU", test.demoPacketU, -2484828727609685089L);
     test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.testSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
     test.testSerialize("testSerialize3", test.demoPacket3, test.demoPacket3Bin);
+    test.testSerialize("testSerializeU", test.demoPacketU, test.demoPacketUBin);
     test.testDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);
     test.testDeserialize("testDeserialize2", test.demoPacket2, test.demoPacket2Bin);
     test.testDeserialize("testDeserialize3", test.demoPacket3, test.demoPacket3Bin);
+    test.testDeserialize("testDeserializeU", test.demoPacketU, test.demoPacketUBin);
     test.testSetters("testSetters");
+    test.testUnsigned("testUnsigned");
   }
 }

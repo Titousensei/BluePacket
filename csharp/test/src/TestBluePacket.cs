@@ -19,6 +19,9 @@ class TestBluePacket
   private DemoPacket3 demoPacket3;
   private byte[] demoPacket3Bin;
 
+  private DemoUnsigned demoPacketU;
+  private byte[] demoPacketUBin;
+
   private void AssertEquals(object expected, object actual, string msg)
   {
     if (!expected.Equals(actual)) {
@@ -85,6 +88,15 @@ class TestBluePacket
     };
 
     demoPacket3Bin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket3.bin");
+
+    demoPacketU = new DemoUnsigned {
+        ub = 200,
+        us = 45678,
+        lub = new byte[] {201, 5},
+        lus = new ushort[] {43210, 1234}
+    };
+
+    demoPacketUBin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacketU.bin");
   }
 
 
@@ -120,6 +132,27 @@ class TestBluePacket
     Console.WriteLine("PASS");
   }
 
+  private void testUnsigned(String name)
+  {
+    Console.Write(name + ": ");
+    AssertEquals((sbyte) -56, (sbyte) demoPacketU.ub, "cast to sbyte");
+    AssertEquals((byte) 200, demoPacketU.ub, "get byte");
+    AssertEquals((short) -19858, (short) demoPacketU.us, "cast to short");
+    AssertEquals((ushort) 45678, demoPacketU.us, "get ushort");
+
+    DemoPacket packet = new DemoPacket {
+      fByte = (sbyte) -56,
+      fShort = (short) -19858
+    };
+
+    AssertEquals(200, (int) demoPacketU.ub, "ubyte to int");
+    AssertEquals(45678, (int) demoPacketU.us, "ushort to int");
+    AssertEquals(-56, (int) packet.fByte, "signed byte to int");
+    AssertEquals(-19858, (int) packet.fShort, "signed short to int");
+
+    Console.WriteLine("PASS");
+  }
+
   static void Main(string[] args)
   {
     TestBluePacket test = new TestBluePacket();
@@ -128,14 +161,19 @@ class TestBluePacket
     test.TestToString("testToString", "toString.txt", test.demoPacket);
     test.TestToString("testToString2", "toString2.txt", test.demoPacket2);
     test.TestToString("testToString3", "toString3.txt", test.demoPacket3);
+    test.TestToString("testToStringU", "toStringU.txt", test.demoPacketU);
     test.TestPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
     test.TestPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
     test.TestPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
+    test.TestPacketHash("testVersionHashU", test.demoPacketU, -2484828727609685089L);
     test.TestSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.TestSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
     test.TestSerialize("testSerialize3", test.demoPacket3, test.demoPacket3Bin);
+    test.TestSerialize("testSerializeU", test.demoPacketU, test.demoPacketUBin);
     test.TestDeserialize("testDeserialize", test.demoPacket, test.demoPacketBin);
     test.TestDeserialize("testDeserialize2", test.demoPacket2, test.demoPacket2Bin);
     test.TestDeserialize("testDeserialize3", test.demoPacket3, test.demoPacket3Bin);
+    test.TestDeserialize("testDeserializeU", test.demoPacketU, test.demoPacketUBin);
+    test.testUnsigned("testUnsigned");
   }
 }

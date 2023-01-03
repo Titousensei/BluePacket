@@ -5,7 +5,7 @@ from hashlib import md5
 from struct import unpack
 
 PRIMITIVE_TYPES = {
-  "bool", "byte", "double", "float", "int", "long", "short", "string"
+  "bool", "byte", "double", "float", "int", "long", "short", "string", "ubyte", "ushort"
 }
 
 FORBIDDEN_NAMES = {

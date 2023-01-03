@@ -1,0 +1,1 @@
+{DemoUnsigned lub={ubyte *2|201|5} lus={ushort *2|43210|1234} ub=200 us=45678}

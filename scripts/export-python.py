@@ -21,6 +21,8 @@ PYTHON_WRITER = {
   "long":   "writeLong",
   "short":  "writeShort",
   "string": "writeString",
+  "ubyte":  "writeUnsignedByte",
+  "ushort": "writeUnsignedShort",
 }
 
 PYTHON_READER = {
@@ -32,6 +34,8 @@ PYTHON_READER = {
   "long":   "readLong",
   "short":  "readShort",
   "string": "readString",
+  "ubyte":  "readUnsignedByte",
+  "ushort": "readUnsignedShort",
 }
 
 def header(out, data):

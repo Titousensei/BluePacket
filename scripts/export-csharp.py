@@ -7,7 +7,10 @@ from libexport import Parser, println, versionHash
 DEFAULT_INDENT = "    "
 INNER_INDENT = DEFAULT_INDENT + "  "
 
-CS_TYPE = { "byte": "sbyte" }
+CS_TYPE = {
+  "byte": "sbyte",
+  "ubyte": "byte",
+}
 
 CS_WRITER = {
   "bool":   "WriteBool",
@@ -18,6 +21,8 @@ CS_WRITER = {
   "long":   "WriteLong",
   "short":  "WriteShort",
   "string": "WriteString",
+  "ubyte":  "WriteByte",
+  "ushort": "WriteUShort",
 }
 
 CS_READER = {
@@ -29,6 +34,8 @@ CS_READER = {
   "long":   "ReadLong",
   "short":  "ReadShort",
   "string": "ReadString",
+  "ubyte":  "ReadByte",
+  "ushort": "ReadUShort",
 }
 
 def header(out, namespace, data):

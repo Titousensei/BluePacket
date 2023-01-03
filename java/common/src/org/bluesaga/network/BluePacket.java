@@ -60,6 +60,14 @@ public abstract class BluePacket
     PACKETID_TO_CLASS.put(id, bp);
   }
 
+  public static int unsigned(byte x) {
+    return 255 & x;
+  }
+
+  public static int unsigned(short x) {
+    return 65535 & x;
+  }
+
   /*
    * From object to bytes
    *
@@ -361,6 +369,20 @@ public abstract class BluePacket
     }
   }
 
+  public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, byte obj)
+  {
+    if(isNotEmpty(obj)) {
+      sb.append(' ').append(fname).append('=').append(unsigned(obj));
+    }
+  }
+
+  public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, short obj)
+  {
+    if(isNotEmpty(obj)) {
+      sb.append(' ').append(fname).append('=').append(unsigned(obj));
+    }
+  }
+
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, BluePacket[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -388,6 +410,15 @@ public abstract class BluePacket
 
     sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
     for (byte p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, String ftype, byte[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (byte p : obj) sb.append('|').append(unsigned(p));
     sb.append('}');
   }
 
@@ -433,6 +464,15 @@ public abstract class BluePacket
 
     sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
     for (short p : obj) sb.append('|').append(p);
+    sb.append('}');
+  }
+
+  public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, String ftype, short[] obj)
+  {
+    if (obj == null || obj.length == 0) return;
+
+    sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
+    for (short p : obj) sb.append('|').append(unsigned(p));
     sb.append('}');
   }
 

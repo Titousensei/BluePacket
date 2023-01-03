@@ -9,8 +9,13 @@ INNER_INDENT = DEFAULT_INDENT + "  "
 
 JAVA_TYPE = {
   "bool": "boolean",
+  "ubyte": "byte",
+  "ushort": "short",
   "string": "String",
 }
+
+SIGNED_TYPE = { "byte", "short" }
+UNSIGNED_TYPE = { "ubyte", "ushort" }
 
 JAVA_WRITER = {
   "bool":   "s.writeBoolean(",
@@ -21,6 +26,8 @@ JAVA_WRITER = {
   "long":   "s.writeLong(",
   "short":  "s.writeShort(",
   "string": "writeString(s, ",
+  "ubyte":  "s.writeByte(",
+  "ushort": "s.writeShort(",
 }
 
 JAVA_READER = {
@@ -32,6 +39,8 @@ JAVA_READER = {
   "long":   "s.readLong()",
   "short":  "s.readShort()",
   "string": "readString(s)",
+  "ubyte":  "s.readByte()",
+  "ushort": "s.readShort()",
 }
 
 
@@ -84,6 +93,22 @@ def produceSetters(out, name, fields, indent):
       out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
       out.write(f"({ftype} val)")
       println(out, f" {{ {fname} = val; return this; }}")
+
+
+def produceGetters(out, name, fields, indent):
+  println(out)
+  for fname, ftype, *opt in fields:
+    if not fname:
+      continue
+    if 'list' in opt:
+      continue
+
+    if ftype in UNSIGNED_TYPE:
+      out.write(f"{indent}public int get{fname[0].upper()}{fname[1:]}AsInt()")
+      println(out, f" {{ return unsigned({fname}); }}")
+    elif ftype in SIGNED_TYPE:
+      out.write(f"{indent}public int get{fname[0].upper()}{fname[1:]}AsInt()")
+      println(out, f" {{ return {fname}; }}")
 
 
 def produceSerializer(out, fields, indent, field_is_enum):
@@ -156,10 +181,11 @@ def produceFieldsToString(out, name, fields, indent):
   for fname, ftype, *opt in fields:
     if not fname:
       continue
+    fn = "appendIfNotEmptyUnsigned" if ftype in UNSIGNED_TYPE else "appendIfNotEmpty"
     if 'list' not in opt:
-      println(out, f'{indent}  appendIfNotEmpty(sb, "{fname}", {fname});')
+      println(out, f'{indent}  {fn}(sb, "{fname}", {fname});')
     else:
-      println(out, f'{indent}  appendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
+      println(out, f'{indent}  {fn}(sb, "{fname}", "{ftype}", {fname});')
 
   println(out, indent + "}")
 
@@ -196,6 +222,7 @@ def exportInnerClass(out, data, field_is_enum):
   println(out, INNER_INDENT + "/*** HELPER FUNCTIONS ***/")
   sorted_fields = list(sorted(data.fields))
   produceSetters(out, data.name, sorted_fields, INNER_INDENT)
+  produceGetters(out, data.name, sorted_fields, INNER_INDENT)
   produceSerializer(out, sorted_fields, INNER_INDENT, field_is_enum)
   produceDeserializer(out, data.name, sorted_fields, INNER_INDENT, field_is_enum)
   produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT)
@@ -222,6 +249,7 @@ def exportClass(out_dir, package, data, version):
     println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
     sorted_fields = list(sorted(data.fields))
     produceSetters(out, data.name, sorted_fields, DEFAULT_INDENT)
+    produceGetters(out, data.name, sorted_fields, DEFAULT_INDENT)
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT)
