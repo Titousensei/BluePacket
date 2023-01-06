@@ -29,6 +29,8 @@
 - converters: automatically build converter functions.
   Exact field types, all source fields must map.
     convert MyPacket => NewPacket
+    NewPacket:
+       from MyPacket
     -> NewPacket p = NewPacket.fromMyPacket(myPacket);
     -> p = MyPacket_to_NewPacket(myPacket)
   Cast field types when necessary, source fields not in dest ignored
@@ -41,13 +43,31 @@
 - interfaces
   - composition of fields for subtyping
   - might be implemented as getters and setters
-
+- exporters --enforceCamelCase or --enforceSnakeCase for all languages
+  - else keep original spelling of field names
+  - implemented in libexport
+- encrypted bp
+- distributions
+  - pip install
+  - jar
+  - c# assembly?
+- gen python __eq__
+- packet sorting order by field as they are declared
+- define .bpbin format:
+  - BPk\0 header = single type, N packets
+    - 8 bytes hash of the packet type
+    - repeat:
+      - X bytes for every packet
+  - BPk\1 header = multi types, N packets
+    - repeat:
+      - 8 bytes hash of the packet type
+      - X bytes for one packet
 
 === Languages ===
 - HIPRI: rust, C, C++
 - MEDPRI: nim, ocaml, zig, lua, javascript, typescript, kotlin, swift
 - LOPRI: nelua, odin, roc, F#, io, Elixir, julia, haskell, crystal, gforth, Factor, reforth
-- ?: SQL
+- ?: SQL for automatic schemas (migrations ?)
 - rpc client: pico-8 (lua), godot 4.x (python-like / C#)
 
 === Demos ===
@@ -56,6 +76,7 @@
 - rpc client + server
 - plain text API
   - load/save from text config .bptxt
-  - same format as .bp
+  - same format as toString with or without \n
   - intermediate variables
+  - https://en.wikipedia.org/wiki/Recursive_descent_parser
 - subclass extends packet with utils (list of pairs to HashMap)
