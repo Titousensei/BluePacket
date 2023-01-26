@@ -1,0 +1,6 @@
+# Expected to fail because fields have the same name
+# @what DemoPacket.data
+
+DemoPacket:
+    bool data
+    int data

@@ -1,0 +1,11 @@
+# Expected to fail because of wrong type
+# @what OtherPacket
+
+DemoPacket:
+    OtherPacket data
+
+    OtherPacket: enum
+        Yes, No
+
+OtherPacket:
+    short sData

@@ -1,0 +1,5 @@
+# Expected to fail because of capitalization of string
+# @what String data
+
+DemoPacket:
+    String data

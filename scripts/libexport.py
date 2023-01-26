@@ -22,6 +22,21 @@ FORBIDDEN_NAMES = {
   "uint", "ulong", "ushort",
 }
 
+
+class SourceException(Exception):
+  def __init__(self, message, what=None, filename=None, line_number=0):
+    self.message = message
+    self.what = what
+    self.filename = filename
+    self.line_number = line_number
+
+  def __str__(self):
+    if self.what:
+      return self.message + ": " + self.what
+    else:
+      return self.message
+
+
 class PacketData:
   def __init__(self):
     self.name = None
@@ -31,6 +46,7 @@ class PacketData:
     self.inner = {}
     self.enums = {}
     self.field_is_enum = set()
+    self.field_names = set()
 
   def __repr__(self):
     return f"{{{self.name}/{'E' if self.is_enum else 'C'} F={self.fields} C{list(self.inner.values())} E{list(self.enums.values())}}}"
@@ -44,7 +60,7 @@ def println(out, line=''):
 def _mergeUniquely(a, b, msg):
   overlap = a.keys() & b.keys()
   if overlap:
-    raise Exception(f"Duplicate definition of in {msg}: " + ", ".join(overlap))
+    raise SourceException(f"Duplicate definition of in {msg}", what=", ".join(sorted(overlap)))
   ret = {}
   ret.update(a)
   ret.update(b)
@@ -81,14 +97,16 @@ def versionString(data, all_data, my_enums, my_inner, seen):
       elif ftype in PRIMITIVE_TYPES:
         ret += "[]" + ftype
       else:
-        raise Exception(f"Unknown list field type in {ftype} {fname} in {ret}")
+        # Should never happen, but we raise in case of a bug in this lib
+        raise SourceException("Unexpected: Unknown list field type", what=f"list {ftype} {fname}")
     elif ftype in data.field_is_enum:
       if ftype in my_enums:
         ret += f"{{{ftype}+" + "+".join(my_enums[ftype].fields) + "}"
       elif ftype in all_data:
         ret += f"{{{ftype}+" + "+".join(all_data[ftype].fields) + "}"
       else:
-        raise Exception(f"Unknown enum type in {ftype} {fname} in {ret}")
+        # Should never happen, but we raise in case of a bug in this lib
+        raise SourceException("Unexpected: Unknown enum type", what=f"{ftype} {fname}")
     elif ftype in PRIMITIVE_TYPES:
         ret += ftype
     elif ftype in my_inner:
@@ -98,7 +116,8 @@ def versionString(data, all_data, my_enums, my_inner, seen):
     elif ftype in all_data:
         ret += "{" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
     elif not data.is_enum:
-      raise Exception(f"Unknown field type in {ftype} {fname} in {ret}")
+      # Should never happen, but we raise in case of a bug in this lib
+      raise SourceException("Unexpected: Unknown field type", what=f"{ftype} {fname}")
   return ret
 
 
@@ -123,7 +142,11 @@ class Parser:
       return
 
     for en in line.strip().split(','):
-      self.data.fields.append(en.strip())
+      en = en.strip()
+      if en in self.data.field_names:
+        raise SourceException(f"Duplicate enum value", what=f"{self.data.name}.{en}")
+      self.data.fields.append(en)
+      self.data.field_names.add(en)
 
   def read_field(self, line, indent):
     if indent == 0 or ':' in line:
@@ -132,12 +155,15 @@ class Parser:
 
     info = line.strip().split()[::-1]
     if info[1] == "String":
-      raise Exception(f"Forbidden fields type  'String': should be 'string' (lowercase)")
+      raise SourceException("Forbidden fields type  'String': should be 'string' (lowercase)", what=info[1] + ' ' + info[0])
     elif info[1][0].islower() and info[1] not in PRIMITIVE_TYPES:
-      raise Exception(f"Unknown primitive field type: {info[1]} {info[0]}")
+      raise SourceException("Unknown primitive field type", what=info[1] + ' ' + info[0])
+    elif info[0] in self.data.field_names:
+      raise SourceException("Duplicate field name", what=f"{self.data.name}.{info[0]}")
     elif info[0] in FORBIDDEN_NAMES:
-      raise Exception(f"Field name can't be reserved keyword: {ftype} {fname}")
+      raise SourceException("Field name can't be reserved keyword", what=info[1] + ' ' + info[0])
     self.data.fields.append(info)
+    self.data.field_names.add(info[0])
 
   def read_class(self, line, indent):
     current = self.data
@@ -149,6 +175,8 @@ class Parser:
     self.data.name = name
 
     if indent == 0:
+      if name in self.packet_list:
+        raise SourceException("Duplicate Packet name", what=name)
       self.packet_list[name] = self.data
       self.top = self.data
     elif option == "enum":
@@ -162,22 +190,30 @@ class Parser:
     else:
       self.state = self.read_field
 
-  def parse(self, files):
+  def parse(self, files, annotations=None):
     for path in files:
       print("[Export] Reading", path, file=sys.stderr)
       with open(path) as f:
         self.state = self.read_class
         for lnum, line in enumerate(f, 1):
           sline = line.strip()
+          if annotations is not None and sline.startswith('# @'):
+            _, key, value = sline.split(' ', 2)
+            annotations[key] = value
+            continue
           if not sline or sline.startswith('#'):
-            if not self.data.is_enum:
+            if self.data and not self.data.is_enum:
               self.data.fields.append(['', sline, None])
             continue
           try:
             indent = len(line) - len(line.lstrip())
             self.state(line, indent)
+          except SourceException as ex:
+            ex.filename = path
+            ex.line_number = lnum
+            raise ex
           except Exception as ex:
-            raise Exception(f"Error at {path}:{lnum} - {''.join(ex.args)}")
+            raise SourceException(''.join(ex.args), filename=path, line_number=lnum)
 
     #find all enum type fields
     for _, data in self.packet_list.items():

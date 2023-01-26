@@ -1,0 +1,5 @@
+# Expected to fail because enum labels have the same name
+# @what DemoEnum.TRUE
+
+DemoEnum: enum
+    TRUE, FALSE, TRUE

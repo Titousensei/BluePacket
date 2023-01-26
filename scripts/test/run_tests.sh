@@ -3,4 +3,9 @@
 set -e
 
 echo "=== TESTING ==="
-./test-libexport.py
+if (( $# == 0 ))
+then
+  python3 -m unittest test-libexport
+else
+  python3 -m unittest test-libexport.TestLibExport.$1
+fi

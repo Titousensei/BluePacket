@@ -1,0 +1,11 @@
+# Expected to fail because of inner enum has the same name as outer enum
+# @what OtherPacket
+
+DemoPacket:
+    OtherPacket data
+
+    OtherPacket: enum
+        Yes, No
+
+OtherPacket: enum
+    A, B

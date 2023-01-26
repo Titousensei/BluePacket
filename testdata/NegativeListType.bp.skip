@@ -1,0 +1,6 @@
+# Expected to fail because wrong list type
+# @what SomeType
+
+DemoPacket:
+    list SomeType data
+

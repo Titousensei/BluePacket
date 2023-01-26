@@ -1,0 +1,8 @@
+# Expected to fail because packets have the same name
+# @what DemoPacket
+
+DemoPacket:
+    bool fBoolean
+
+DemoPacket:
+    list bool aBoolean

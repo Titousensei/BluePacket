@@ -1,0 +1,13 @@
+# Expected to fail because enum not found
+# @what DemoPacket2.DemoEnum1
+
+DemoPacket1:
+    DemoEnum1 data
+    
+    DemoEnum1: enum
+        FALSE, TRUE
+
+DemoPacket2:
+    DemoEnum1 data
+
+

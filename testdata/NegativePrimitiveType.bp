@@ -1,0 +1,5 @@
+# Expected to fail because wrong type
+# @what type data
+
+DemoPacket:
+    type data
