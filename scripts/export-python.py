@@ -70,7 +70,7 @@ def produceTypeInfo(out, fields, indent):
 def produceConstructor(out, fields, indent):
   println(out)
   println(out, indent + f"def __init__(")
-  println(out, f"{indent}    self,")
+  println(out, f"{indent}    self, *,")
 
   for fname, ftype, *opt in fields:
     if not fname:
@@ -84,10 +84,10 @@ def produceConstructor(out, fields, indent):
   println(out, indent + f"):")
 
   for fname, ftype, *opt in fields:
-    if not fname:
-      continue
-    println(out, f"{indent}  self.{fname} = {fname}")
-
+    if fname:
+      println(out, f"{indent}  self.{fname} = {fname}")
+    else:
+      println(out, f"{indent}  {ftype}")
 
 def produceSetAttr(out, name, indent):
   println(out)
@@ -223,7 +223,7 @@ def exportClass(out_dir, data, version):
     produceTypeInfo(out, data.fields, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "### CONSTRUCTOR ###")
-    produceConstructor(out, sorted_fields, DEFAULT_INDENT)
+    produceConstructor(out, data.fields, DEFAULT_INDENT)
     produceSetAttr(out, data.name, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "### HELPER FUNCTIONS ###")

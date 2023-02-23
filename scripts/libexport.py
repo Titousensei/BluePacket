@@ -150,6 +150,8 @@ class Parser:
 
   def read_field(self, line, indent):
     if indent == 0 or ':' in line:
+      if self.data.fields[-1][1] == '':
+        self.data.fields.pop()
       self.read_class(line, indent)
       return
 
@@ -202,8 +204,8 @@ class Parser:
             annotations[key] = value
             continue
           if not sline or sline.startswith('#'):
-            if self.data and not self.data.is_enum:
-              self.data.fields.append(['', sline, None])
+            if self.data and not self.data.is_enum and (sline or self.data.fields[-1][1] != ''):
+                self.data.fields.append(['', sline, None])
             continue
           try:
             indent = len(line) - len(line.lstrip())

@@ -336,6 +336,10 @@ class TestBluePacket(unittest.TestCase):
     self.assertEqual(200, toUnsignedByte(-56))
     self.assertEqual(45678, toUnsignedShort(-19858))
 
+  def testForceInitNamedParamsNegative(self):
+    with self.assertRaises(TypeError) as ex:
+      _ = t.DemoOuter(282, ":-)")
+
 
 if __name__ == '__main__':
     unittest.main()

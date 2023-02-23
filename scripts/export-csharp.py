@@ -200,6 +200,7 @@ def exportClass(out_dir, namespace, data, version):
 
     println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")
     produceFields(out, data.fields, DEFAULT_INDENT)
+    println(out)
     sorted_fields = list(sorted(data.fields))
     println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)

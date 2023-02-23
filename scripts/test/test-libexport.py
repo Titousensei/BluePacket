@@ -35,6 +35,14 @@ class TestLibExport(unittest.TestCase):
       vs = versionString(data, self.all_data, {}, {}, set())
       self.assertEqual(expected, vs)
 
+  def test_intermediate_representation(self):
+    for cl, data in self.all_data.items():
+        self.assertNotEqual(data.fields[0][1], '', f"{cl} fields have empty leading data: {data.fields}")
+        self.assertNotEqual(data.fields[-1][1], '', f"{cl} fields have empty trailing data: {data.fields}")
+        for inner, inner_data in data.inner.items():
+            self.assertNotEqual(inner_data.fields[0][1], '', f"{cl}.{inner} fields have empty leading data: {inner_data.fields}")
+            self.assertNotEqual(inner_data.fields[-1][1], '', f"{cl}.{inner} fields have empty trailing data: {inner_data.fields}")
+
   def test_negatives(self):
     path = os.path.join(TESTDATA_DIR, "Negative*.bp")
     for filepath in glob.glob(path):
