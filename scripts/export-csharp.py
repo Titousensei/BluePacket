@@ -196,6 +196,7 @@ def exportClass(out_dir, namespace, data, version):
     println(out, f"  public sealed class {data.name} : BluePacket")
     println(out,  "  {")
     println(out, f"    override public long GetPacketHash() {{ return {version}; }}")
+    println(out, f'    override public string GetPacketHex() {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"; }}')
     println(out)
 
     println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")

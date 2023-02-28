@@ -165,6 +165,10 @@ def produceToString(out, name, fields, field_is_enum):
   println(out, f"func (bp *{name}) String() string {{")
   println(out,  "\tsb := strings.Builder{}")
   println(out, f'\tsb.WriteString("{{{name}")')
+  println(out,  '\tif bp.GetPacketHex() != "" {')
+  println(out, f'\t\tsb.WriteString(" ")')
+  println(out, f'\t\tsb.WriteString(bp.GetPacketHex())')
+  println(out,  '\t}')
   println(out, f'\tbp.AppendFields(&sb)')
   println(out,  '\tsb.WriteString("}")')
   println(out,  '\treturn sb.String()')
@@ -231,6 +235,7 @@ def exportStruct(out_dir, package, data, version):
 
     produceStructDef(out, data.name, data.fields, data.field_is_enum)
     println(out, f"func (bp *{data.name}) GetPacketHash() int64 {{ return {version} }}")
+    println(out, f'func (bp *{data.name}) GetPacketHex() string {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}" }}')
     println(out)
     exportStructFunc(out, data, data.field_is_enum, "")
 
@@ -241,6 +246,7 @@ def exportStruct(out_dir, package, data, version):
       x.fields = list(_innerFieldsWithNamespace(x))
       produceStructDef(out, data.name + x.name, x.fields, data.field_is_enum)
       println(out, f"func (bp *{data.name}{x.name}) GetPacketHash() int64 {{ return 0 }}")
+      println(out, f'func (bp *{data.name}{x.name}) GetPacketHex() string {{ return "" }}')
       println(out)
       exportStructFunc(out, x, data.field_is_enum, data.name)
 

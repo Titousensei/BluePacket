@@ -35,6 +35,7 @@ public abstract class BluePacket
   }
 
   public long getPacketHash() { return 0L; }
+  public String getPacketHex() { return null; }
   public void fieldsToString(StringBuilder sb) {}
   public void serializeData(DataOutputStream dos) throws IOException {}
   public void populateData(DataInputStream dis) throws IOException {}
@@ -268,6 +269,9 @@ public abstract class BluePacket
   {
     StringBuilder sb = new StringBuilder();
     sb.append('{').append(getClass().getSimpleName());
+    if (getPacketHex() != null) {
+      sb.append(' ').append(getPacketHex());
+    }
     fieldsToString(sb);
     sb.append('}');
     return sb.toString();

@@ -26,6 +26,7 @@ namespace BluePackets
     }
 
     virtual public long GetPacketHash() { return 0; }
+    virtual public string GetPacketHex() { return null; }
     abstract public void FieldsToString(StringBuilder sb);
     abstract public void SerializeData(Stream ms);
     abstract public void PopulateData(Stream ms);
@@ -330,6 +331,9 @@ namespace BluePackets
       var cl = GetType();
       StringBuilder sb = new StringBuilder();
       sb.Append('{').Append(cl.Name);
+      if (GetPacketHex() != null) {
+        sb.Append(' ').Append(GetPacketHex());
+      }
       FieldsToString(sb);
       sb.Append('}');
       return sb.ToString();

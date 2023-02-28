@@ -156,7 +156,7 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
       println(out, f"{indent}    self.{fname}.populateData(bpr)")
 
 
-def produceFieldsToString(out, name, fields, indent, field_is_enum):
+def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=False):
   println(out)
   println(out, indent + "def fieldsStr(self):")
 
@@ -185,7 +185,10 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
 
   println(out)
   println(out, indent + "def __str__(self):")
-  println(out, f'{indent}  return "{{{name}" + "".join(self.fieldsStr()) + "}}"')
+  if is_inner:
+    println(out, f'{indent}    return "{{{name}" + "".join(self.fieldsStr()) + "}}"')
+  else:
+    println(out, f'{indent}    return "{{{name} " + self.packetHex + "".join(self.fieldsStr()) + "}}"')
 
 
 def exportInnerEnum(out, data):
@@ -208,7 +211,7 @@ def exportInnerClass(out, data, field_is_enum, parentName):
   println(out, INNER_INDENT + "### HELPER FUNCTIONS ###")
   produceSerializer(out, sorted_fields, INNER_INDENT, field_is_enum)
   produceDeserializer(out, data, sorted_fields, INNER_INDENT, field_is_enum)
-  produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT, field_is_enum)
+  produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT, field_is_enum, is_inner=True)
 
 
 def exportClass(out_dir, data, version):
@@ -220,6 +223,7 @@ def exportClass(out_dir, data, version):
     sorted_fields = list(sorted(data.fields))
     println(out, f"class {data.name}:")
     println(out, f"  packetHash = {version}")
+    println(out, f'  packetHex = "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"')
     produceTypeInfo(out, data.fields, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "### CONSTRUCTOR ###")

@@ -241,6 +241,8 @@ def exportClass(out_dir, package, data, version):
     println(out,  "{")
     println(out,  "  @Override")
     println(out, f"  public long getPacketHash() {{ return {version}L; }}")
+    println(out,  "  @Override")
+    println(out, f'  public String getPacketHex() {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"; }}')
     println(out)
 
     println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")
