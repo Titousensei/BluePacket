@@ -75,7 +75,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if 'list' in opt:
       println(out, f"{indent}  if ({fname} == null) s.WriteByte(0); else {{")
       println(out, f"{indent}    WriteSequenceLength(s, {fname}.Length);")
-      if ftype in CS_READER:
+      if ftype in CS_WRITER:
         println(out, f"{indent}    for (int i = 0; i < {fname}.Length; ++i)")
         println(out, f"{indent}      {CS_WRITER[ftype]}(s, {fname}[i]);")
       elif ftype in field_is_enum:

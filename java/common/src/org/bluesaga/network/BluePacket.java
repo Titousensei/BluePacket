@@ -16,8 +16,6 @@ public abstract class BluePacket
 
   private static final int MAX_UNSIGNED_BYTE = 255;
 
-  public String sequenceId = null;
-
   public static void init(String pkg)
   {
     if (PACKETID_TO_CLASS != null) {
@@ -72,9 +70,7 @@ public abstract class BluePacket
    * From object to bytes
    *
    * Serialization format:
-   * - 2 bytes: packet ID, mapping to a Packet class
-   * - 4 bytes: version hash representing the class name and the public field names in order
-   * - (optional) 10 bytes: sequenceId (only for BluePacket from client to server)
+   * - 8 bytes: version hash representing the class name and the public field names in order
    * - N*x bytes: field values in field names alphabetical order.
    */
   public final byte[] serialize()
@@ -83,13 +79,7 @@ public abstract class BluePacket
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     DataOutputStream dos = new DataOutputStream(out);
 
-    // Header
     dos.writeLong(getPacketHash());
-    if (sequenceId != null) {
-      dos.writeBytes(sequenceId);
-    }
-
-    // Body
     serializeData(dos);
 
     dos.flush();
@@ -227,7 +217,7 @@ public abstract class BluePacket
    * If the message contains a SequenceID (only for packets from client to server),
    * there should be 10 extra bytes for this purpose.
    */
-  public static BluePacket deserialize(byte[] data, boolean containsSequenceId)
+  public static BluePacket deserialize(byte[] data)
   throws IOException, ReflectiveOperationException
   {
     ByteArrayInputStream in = new ByteArrayInputStream(data);
@@ -240,16 +230,6 @@ public abstract class BluePacket
       throw new RuntimeException("Unknown packetHash received: " + packetHash);
     }
     BluePacket packet = proto.getClass().getDeclaredConstructor().newInstance();
-
-    if (containsSequenceId) {
-      byte[] sequenceIdBytes = new byte[10];
-      int sequenceIdcount = dis.read(sequenceIdBytes, 0, 10);
-      if (sequenceIdcount != 10) {
-        throw new RuntimeException("Can't read enough bytes for sequenceId " + packet.getClass().getSimpleName()
-            + ": " + Arrays.toString(data));
-      }
-      packet.sequenceId = new String(sequenceIdBytes);
-    }
 
     // Body
     packet.populateData(dis);

@@ -101,7 +101,7 @@ class TestBluePacket(unittest.TestCase):
     ("DemoPacketU.bin", "DemoPacketU"),
   )
   def testDeserialize(self, bin, packet):
-    bp = BluePacket.deserialize(_TEST_DATA[bin], False)
+    bp = BluePacket.deserialize(_TEST_DATA[bin])
     self.assertEqual(str(_TEST_DATA[packet]), str(bp))
 
   @parameters(

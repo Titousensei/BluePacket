@@ -110,8 +110,8 @@ class TestBluePacket
   private void TestDeserialize(String name, BluePacket packet, byte[] bin)
   {
     Console.Write(name + ": ");
-    BluePacket bp = BluePacket.Deserialize(bin, false);
-    AssertEquals(packet.ToString(), bp.ToString(), "ToString()");
+    BluePacket bp = BluePacket.Deserialize(bin);
+    AssertEquals(packet.ToString(), bp.ToString(), "Deserialize()");
     Console.WriteLine("PASS");
   }
 

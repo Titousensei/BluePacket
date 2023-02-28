@@ -106,7 +106,7 @@ class BluePacket(bytearray):
     _assertType(value, ftype, is_list)
 
   @classmethod
-  def deserialize(cls, buffer, hasSequenceId):
+  def deserialize(cls, buffer):
     bpr = _BluePacketReader(buffer)
 
     # Header
@@ -116,20 +116,13 @@ class BluePacket(bytearray):
 
     packet = cls.PACKETID_TO_CLASS[packetHash]()
 
-    if hasSequenceId:
-      packet.sequenceId = bpr.readLong()
-
     # Body
     packet.populateData(bpr)
 
     return packet
 
-  def serialize(self, packet, sequenceId = None):
-    # Header
+  def serialize(self, packet):
     self.writeLong(packet.packetHash)
-    if sequenceId is not None:
-      self.writeLong(sequenceId)
-    # Body
     packet.serializeData(self)
 
   def writeBool(self, field):

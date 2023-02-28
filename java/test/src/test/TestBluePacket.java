@@ -147,8 +147,8 @@ class TestBluePacket
   throws Exception
   {
     System.out.print(name + ": ");
-    BluePacket bp = BluePacket.deserialize(bin, false);
-    assertEquals(packet.toString(), bp.toString(), "toString()");
+    BluePacket bp = BluePacket.deserialize(bin);
+    assertEquals(packet.toString(), bp.toString(), "deserialize()");
     System.out.println("PASS");
   }
 

@@ -16,8 +16,6 @@ namespace BluePackets
 
     private const int MAX_UNSIGNED_BYTE = 255;
 
-    public string sequenceId = null;
-
     static BluePacket()
     {
       PACKETID_TO_CLASS = new Dictionary<long, BluePacket>();
@@ -85,13 +83,7 @@ namespace BluePackets
     {
       using (MemoryStream ms = new MemoryStream())
       {
-        // Header
         WriteLong(ms, GetPacketHash());
-        if (sequenceId != null)
-        {
-          WriteStringBytes(ms, sequenceId);
-        }
-
         SerializeData(ms);
 
         ms.Flush();
@@ -196,7 +188,7 @@ namespace BluePackets
      * If the message contains a SequenceID (only for packets from client to server),
      * there should be 10 extra bytes for this purpose.
      */
-    public static BluePacket Deserialize(byte[] data, bool containsSequenceId)
+    public static BluePacket Deserialize(byte[] data)
     {
       using (MemoryStream ms = new MemoryStream(data))
       {
@@ -209,22 +201,8 @@ namespace BluePackets
         }
         BluePacket packet = (BluePacket)NewInstance(proto.GetType());
 
-        string sequenceId = null;
-        if (containsSequenceId)
-        {
-          byte[] sequenceIdBytes = new byte[10];
-          int sequenceIdcount = ms.Read(sequenceIdBytes, 0, 10);
-          if (sequenceIdcount != 10)
-          {
-            throw new EndOfStreamException("Can't read enough bytes for " + packet.GetType()
-                + " sequenceId: " + sequenceIdcount);
-          }
-          sequenceId = ENCODING.GetString(sequenceIdBytes, 0, 10);
-        }
-
         // Body
         packet.PopulateData(ms);
-        packet.sequenceId = sequenceId;
 
         return packet;
       }
