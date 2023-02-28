@@ -182,6 +182,8 @@ def produceToString(out, name, fields, field_is_enum):
     if 'list' in opt:
       if ftype == "bool":
         println(out, f'\tbluepacket.AppendIfNotEmptyListBool(sb, "{fname}", bp.{fname})')
+      elif ftype == "string":
+        println(out, f'\tbluepacket.AppendIfNotEmptyListString(sb, "{fname}", bp.{fname})')
       elif ftype in GO_EMPTY or ftype in field_is_enum:
         println(out, f'\tbluepacket.AppendIfNotEmptyList(sb, "{fname}", "{ftype}", bp.{fname})')
       else:
@@ -190,6 +192,8 @@ def produceToString(out, name, fields, field_is_enum):
       println(out, f'\tbluepacket.AppendIfNotEmptyEnum(sb, "{fname}", bp.{fname}, bp.{fname})')
     elif ftype == "bool":
       println(out, f'\tbluepacket.AppendIfNotEmptyBool(sb, "{fname}", bp.{fname})')
+    elif ftype == "string":
+      println(out, f'\tbluepacket.AppendIfNotEmptyString(sb, "{fname}", bp.{fname})')
     elif ftype in GO_EMPTY:
       println(out, f'\tbluepacket.AppendIfNotEmpty(sb, "{fname}", bp.{fname}, {GO_EMPTY[ftype]})')
     else:

@@ -87,6 +87,10 @@ def toUnsignedShort(x):
   raise FieldTypeException("short", x)
 
 
+def toQuotedString(x):
+  return f'"{x}"' if x else ""
+
+
 class BluePacket(bytearray):
 
   PACKETID_TO_CLASS = {}

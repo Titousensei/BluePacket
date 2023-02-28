@@ -353,6 +353,13 @@ public abstract class BluePacket
     }
   }
 
+  public static void appendIfNotEmpty(StringBuilder sb, String fname, String obj)
+  {
+    if(isNotEmpty(obj)) {
+      sb.append(' ').append(fname).append('=').append('"').append(obj).append('"');
+    }
+  }
+
   public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, byte obj)
   {
     if(isNotEmpty(obj)) {
@@ -479,7 +486,7 @@ public abstract class BluePacket
     sb.append(' ').append(fname).append("={").append(ftype).append(" *").append(obj.length);
     for (String p : obj) {
         sb.append('|');
-        if (p!=null) sb.append(p);
+        if (p!=null && !p.isEmpty()) sb.append('"').append(p).append('"');
     }
     sb.append('}');
   }

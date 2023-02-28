@@ -43,7 +43,7 @@ def header(out, data):
     println(out, "import enum")
     println(out)
     if not data.is_enum:
-      println(out, "from blue_packet import BluePacket as bp")
+      println(out, "from blue_packet import BluePacket as bp, toQuotedString")
       not_import = { data.name }
       not_import.update(PYTHON_READER)
       not_import.update(data.inner)
@@ -169,7 +169,7 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
       if ftype == 'bool':
         println(out, f'{indent}      yield "|".join("1" if x else "0" for x in self.{fname}) + "}}"')
       elif ftype == 'string':
-        println(out, f'{indent}      yield "|".join(x or "" for x in self.{fname}) + "}}"')
+        println(out, f'{indent}      yield "|".join(toQuotedString(x) for x in self.{fname}) + "}}"')
       elif ftype in PYTHON_WRITER:
         println(out, f'{indent}      yield "|".join(str(x) for x in self.{fname}) + "}}"')
       elif ftype in field_is_enum:
@@ -180,6 +180,8 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
       println(out, f'{indent}    if self.{fname}.value: yield " {fname}=" + self.{fname}.name')
     elif ftype == 'bool':
       println(out, f'{indent}    if self.{fname}: yield " {fname}=1"')
+    elif ftype == 'string':
+      println(out, f'{indent}    if self.{fname}: yield " {fname}=" + toQuotedString(self.{fname})')
     else:
       println(out, f'{indent}    if self.{fname}: yield " {fname}=" + str(self.{fname})')
 

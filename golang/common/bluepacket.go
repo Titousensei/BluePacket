@@ -230,6 +230,25 @@ func AppendIfNotEmptyListBP[T BluePacket](sb *strings.Builder, fname string, fty
 	sb.WriteString("}")
 }
 
+func AppendIfNotEmptyListString(sb *strings.Builder, fname string, values []string) {
+	if len(values) == 0 {
+		return
+	}
+	sb.WriteString(" ")
+	sb.WriteString(fname)
+	sb.WriteString("={string *")
+	sb.WriteString(fmt.Sprint(len(values)))
+	for _, v := range values {
+		sb.WriteString("|")
+		if v != "" {
+			sb.WriteString("\"")
+			sb.WriteString(v)
+			sb.WriteString("\"")
+		}
+	}
+	sb.WriteString("}")
+}
+
 func AppendIfNotEmptyListBool(sb *strings.Builder, fname string, values []bool) {
 	if len(values) == 0 {
 		return
@@ -247,6 +266,17 @@ func AppendIfNotEmptyListBool(sb *strings.Builder, fname string, values []bool) 
 		}
 	}
 	sb.WriteString("}")
+}
+
+func AppendIfNotEmptyString(sb *strings.Builder, fname string, value string) {
+	if value == "" {
+		return
+	}
+	sb.WriteString(" ")
+	sb.WriteString(fname)
+	sb.WriteString("=\"")
+	sb.WriteString(value)
+	sb.WriteString("\"")
 }
 
 func AppendIfNotEmpty(sb *strings.Builder, fname string, value any, emptyValue any) {
