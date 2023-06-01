@@ -30,14 +30,11 @@ func Register(bp BluePacket) {
 // Serialization format:
 // - 8 bytes: version hash representing the class name and the public field names in order
 // - N*x bytes: field values in field names alphabetical order.
-func Serialize(packet *BluePacket, sequenceId string) []byte {
+func Serialize(packet *BluePacket) []byte {
 	w := bytes.NewBuffer(nil)
 
 	// Header
 	WriteLong(w, (*packet).GetPacketHash())
-	if sequenceId != "" {
-		w.Write([]byte(sequenceId))
-	}
 
 	// Body
 	(*packet).SerializeData(w)

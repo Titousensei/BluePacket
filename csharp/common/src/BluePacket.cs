@@ -106,7 +106,6 @@ namespace BluePackets
     /// From object to bytes
     /// Serialization format:
     /// - 8 bytes: packetHash representing the class name and the public field names in order
-    /// - (optional) 10 bytes: sequenceId (only for BluePacket from client to server)
     /// - N*x bytes: field values in field names alphabetical order.
     /// <summary>
     /// <returns>packet instance serialized</returns>
@@ -255,8 +254,6 @@ namespace BluePackets
     ///
     /// Knowing the class packetHash, this will create an instance
     /// and populate all the fields in order by reading the correct number of bytes.
-    /// If the message contains a SequenceID (only for packets from client to server),
-    /// there should be 10 extra bytes for this purpose.
     /// </summary>
     /// <param name="data">the bytes to read</param>
     /// <returns>an instance of the packet</returns>

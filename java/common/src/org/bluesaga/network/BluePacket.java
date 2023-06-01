@@ -390,8 +390,6 @@ public abstract class BluePacket
    *
    * Knowing the class ID, this will create an instance and populate all the fields
    * in order by reading the correct number of bytes.
-   * If the message contains a SequenceID (only for packets from client to server),
-   * there should be 10 extra bytes for this purpose.
    *
    * @param data the bytes to deserialize
    * @return the deserialized BluePacket

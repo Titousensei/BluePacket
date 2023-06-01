@@ -41,9 +41,10 @@
 
 === Languages ===
 - HIPRI: rust, C, C++
-- MEDPRI: nim, ocaml, zig, lua, javascript
-- LOPRI: nelua, odin
-- pico-8 (lua)
+- MEDPRI: nim, ocaml, zig, lua, javascript, typescript, kotlin, swift
+- LOPRI: nelua, odin, roc, F#, io, Elixir, julia, haskell
+- ?: SQL
+- pico-8 (lua), godot 4.x (python-like)
 
 === Demos ===
 - random access file  .bpbin

@@ -137,7 +137,7 @@ func testPacketHash(t *testing.T, testname string, packet bluepacket.BluePacket,
 
 func testSerialize(t *testing.T, testname string, packet bluepacket.BluePacket, expected []byte) {
 	t.Log("-- " + testname)
-	data := bluepacket.Serialize(&packet, "")
+	data := bluepacket.Serialize(&packet)
 	os.WriteFile("gen/"+testname+".bin", data, 0666)
 	assertEquals(t, "Serialize()", hex.EncodeToString(expected), hex.EncodeToString(data))
 }
