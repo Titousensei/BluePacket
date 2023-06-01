@@ -66,25 +66,41 @@ def header(out, package, data):
     println(out)
 
 
+def produceDocstring(out, indent, docstring):
+  for line in docstring:
+    out.write(indent)
+    out.write("// ")
+    out.write(line)
+    out.write("\n")
+
+
 def produceStructDef(out, name, fields, field_is_enum):
   println(out, f"type {name} struct {{")
-  for fname, ftype, *opt in fields:
+  first = True
+  for fname, ftype, opt, docstring in fields:
     if 'list' in opt:
+      produceDocstring(out, "\t", docstring)
       if ftype in GO_WRITER:  # native type
         println(out, f"\t{fname} []{GO_TYPE.get(ftype, ftype)}")
       elif ftype in field_is_enum:
         println(out, f"\t{fname} []{ftype}")
       else:
         println(out, f"\t{fname} []*{ftype}")
+      first = False
     elif fname:
+      produceDocstring(out, "\t", docstring)
       if ftype in GO_WRITER:  # native type
         println(out, f"\t{fname} {GO_TYPE.get(ftype, ftype)}")
       elif ftype in field_is_enum:
         println(out, f"\t{fname} {ftype}")
       else:
         println(out, f"\t{fname} *{ftype}")
-    elif ftype.startswith('#'):
-      println(out, "\t//" + ftype[1:])
+      first = False
+    elif docstring:
+      if not first:
+        println(out)
+      produceDocstring(out, "\t", docstring)
+      println(out)
     else:
       println(out)
   println(out, "}")
@@ -95,7 +111,7 @@ def produceSerializer(out, name, fields, field_is_enum):
   println(out)
   println(out, f"func (bp *{name}) SerializeData(w *bytes.Buffer) {{")
 
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, _ in fields:
     if not fname:
       continue
     if 'list' in opt:
@@ -127,7 +143,7 @@ def produceDeserializer(out, name, fields, field_is_enum):
   println(out)
   println(out, f"func (bp *{name}) PopulateData(r *bytes.Reader) {{")
 
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, _ in fields:
     if not fname:
       continue
     if 'list' in opt:
@@ -237,6 +253,7 @@ def exportStruct(out_dir, package, data, version):
   with open(path, "w") as out:
     header(out, package, data)
 
+    produceDocstring(out, "", data.docstring)
     produceStructDef(out, data.name, data.fields, data.field_is_enum)
     println(out, f"func (bp *{data.name}) GetPacketHash() int64 {{ return {version} }}")
     println(out, f'func (bp *{data.name}) GetPacketHex() string {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}" }}')
@@ -246,8 +263,10 @@ def exportStruct(out_dir, package, data, version):
     if data.inner:
       println(out)
       println(out, "///// INNER CLASSES /////")
+      println(out)
     for x in data.inner.values():
       x.fields = list(_innerFieldsWithNamespace(x))
+      produceDocstring(out, "", x.docstring)
       produceStructDef(out, data.name + x.name, x.fields, data.field_is_enum)
       println(out, f"func (bp *{data.name}{x.name}) GetPacketHash() int64 {{ return 0 }}")
       println(out, f'func (bp *{data.name}{x.name}) GetPacketHex() string {{ return "" }}')
@@ -257,7 +276,9 @@ def exportStruct(out_dir, package, data, version):
     if data.enums:
       println(out)
       println(out, "///// INNER ENUMS /////")
+      println(out)
       for x in data.enums.values():
+        produceDocstring(out, "", x.docstring)
         exportEnumDef(out, x, data.name)
 
 
@@ -266,22 +287,30 @@ def exportEnum(out_dir, package, data):
   print("[ExporterGo] BluePacket enum", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, package, data)
+    produceDocstring(out, "", data.docstring)
     exportEnumDef(out, data, "")
-
+    
 
 def exportEnumDef(out, data, namespace):
     println(out, f"type {namespace}{data.name} byte")
     println(out, f"const (")
     suffix =  f"  {namespace}{data.name} = iota"
-    for f in data.fields:
-      println(out, f"\t{namespace}{data.name}{f}  {suffix}")
-      suffix = ""
+    for f, _, _, docstring in data.fields:
+      if not f and not suffix:
+        println(out)
+      produceDocstring(out, "\t", docstring)
+      if f:
+        println(out, f"\t{namespace}{data.name}{f}  {suffix}")
+        suffix = ""
+      else:
+        println(out)
     println(out, ")")
     println(out)
     println(out, f"func (en {namespace}{data.name}) String() string {{")
     println(out, f"\tshortName{namespace}{data.name} := [{len(data.fields)}]string {{")
-    for f in data.fields:
-      println(out, f'\t\t"{f}",')
+    for f, *_ in data.fields:
+      if f:
+        println(out, f'\t\t"{f}",')
     println(out, "\t}")
     println(out, f"\treturn shortName{namespace}{data.name}[int(en)]")
     println(out, "}")

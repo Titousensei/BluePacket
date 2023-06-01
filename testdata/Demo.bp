@@ -1,3 +1,7 @@
+# Just a local comment, will not show in code
+
+# This is a docstring for this packet doc:DemoPacket
+# Multi-line, for doc:DemoPacket
 DemoPacket:
     bool fBoolean
     byte fByte
@@ -9,35 +13,49 @@ DemoPacket:
     string fString
     string fLongstring
 
-    # Inner class with just one int
+    # Inner field with just one int doc:fInner
     MyInner fInner
     list MyInner aInner
 
+    # External class and enum, show in code comment
 
-    # External class
     DemoOuter fOuter
     list DemoOuter aOuter
 
-    # Enum test labels
+    # Enum test labels doc:fEnum
+    # Multi-line inner doc:fEnum
     MyEnum fEnum
     DemoEnum oEnum
 
+    # Docstring for inner class doc:MyInner
     MyInner:
+        # field comment inner class
         int iInteger
 
     MyEnum: enum
         DUNNO, MAYBE, POSSIBLE, WHOKNOWS
 
+# Another local comment
+# Will not show in code
+
+# Enum also have docstring doc:DemoEnum
 DemoEnum: enum
+    # local shown as code comment
+
     YES
     SURE
+
     ABSOLUTELY
+    # enum label doc:NO_DOUBT
     NO_DOUBT
 
 DemoOuter:
     int oInt
     string oString
 
+    # last line show as code comment
+
+# node doc:BinaryTreeNode
 BinaryTreeNode:
     string data
     BinaryTreeNode left

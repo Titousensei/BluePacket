@@ -48,24 +48,39 @@ def header(out, namespace, data):
       println(out)
     println(out, f"namespace {namespace}")
     println(out, "{")
-    println(out)
+
+
+def produceDocstring(out, indent, summary, docstring=None):
+  if summary:
+    println(out, f"{indent}/// <summary>")
+    println(out, f"{indent}/// {summary[0]}")
+    for line in summary[1:]:
+      println(out, f"{indent}/// <para>{line}</para>")
+    println(out, f"{indent}/// </summary>")
+  for line in docstring or []:
+    println(out, f"{indent}/// {line}")
 
 
 def produceFields(out, fields, indent):
-  println(out)
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, docstring in fields:
     if 'list' in opt:
+      produceDocstring(out, indent, docstring)
       println(out, f"{indent}public {CS_TYPE.get(ftype, ftype)}[] {fname};")
     elif fname:
+      produceDocstring(out, indent, docstring)
       println(out, f"{indent}public {CS_TYPE.get(ftype, ftype)} {fname};")
-    elif ftype.startswith('#'):
-      println(out, indent + "//" + ftype[1:])
+    elif docstring:
+      println(out)
+      for line in docstring:
+        println(out, indent + "// " + line)
+      println(out)
     else:
       println(out)
 
 
 def produceSerializer(out, fields, indent, field_is_enum):
   println(out)
+  produceDocstring(out, indent, ["Internal method to serialize to bytes"], ['<param name="s">stream to write the bytes to</param>'])
   println(out, f"{indent}override public void SerializeData(Stream s)")
   println(out, indent + "{")
 
@@ -101,6 +116,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
 
 def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out)
+  produceDocstring(out, indent, ["Internal method to deserialize from bytes into this object fields"], ['<param name="s">stream to read the bytes from</param>'])
   println(out, f"{indent}override public void PopulateData(Stream s)")
   println(out, indent + "{")
 
@@ -134,6 +150,7 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
 
 def produceFieldsToString(out, name, fields, indent, field_is_enum):
   println(out)
+  produceDocstring(out, indent, ["Internal helper method for ToString()"], ['<param name="sb">builder to write the fields and their values</param>'])
   println(out, indent + "override public void FieldsToString(StringBuilder sb)")
   println(out, indent + "{")
 
@@ -157,17 +174,30 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
   println(out, indent + "}")
 
 
-def exportInnerEnum(out, data):
-  println(out)
-  println(out, f"{DEFAULT_INDENT}public enum {data.name} : byte")
-  println(out, DEFAULT_INDENT + "{")
-  sep = INNER_INDENT
-  for f in data.fields:
-    out.write(sep)
-    sep = ", "
-    out.write(f)
-  println(out)
-  println(out, DEFAULT_INDENT + "}")
+def exportInnerEnum(out, data, indent0):
+  produceDocstring(out, indent0, data.docstring)
+  println(out, f"{indent0}public enum {data.name} : byte")
+  println(out, indent0 + "{")
+  indent =  indent0 + "  "
+  last = [f for f, *_ in data.fields if f][-1]
+  for f, _, _, docstring in data.fields:
+    if f:
+      produceDocstring(out, indent, docstring)
+      out.write(indent)
+      out.write(f)
+      if f == last:
+        out.write("\n")
+      else:
+        out.write(",\n")
+    else:
+      out.write("\n")
+      for line in docstring:
+        out.write(indent)
+        out.write("// ")
+        out.write(line)
+        out.write("\n")
+      out.write("\n")
+  println(out, indent0 + "}")
 
 
 def exportInnerClass(out, data, field_is_enum):
@@ -193,32 +223,37 @@ def exportClass(out_dir, namespace, data, version):
   with open(path, "w") as out:
     header(out, namespace, data)
 
+    produceDocstring(out, "  ", data.docstring)
     println(out, f"  public sealed class {data.name} : BluePacket")
     println(out,  "  {")
+    produceDocstring(out, DEFAULT_INDENT, ["Internal method to get the hash version number of this packet."], ["<returns>version hash</returns>"])
     println(out, f"    override public long GetPacketHash() {{ return {version}; }}")
+    println(out)
+    produceDocstring(out, DEFAULT_INDENT, ["Internal method to get the hash version number of this packet."], ["<returns>version hash hexadecimal</returns>"])
     println(out, f'    override public string GetPacketHex() {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"; }}')
     println(out)
 
-    println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")
+    println(out, DEFAULT_INDENT + "/* --- DATA FIELDS --- */")
+    println(out)
     produceFields(out, data.fields, DEFAULT_INDENT)
     println(out)
+    println(out, DEFAULT_INDENT + "/* --- HELPER FUNCTIONS --- */")
     sorted_fields = list(sorted(data.fields))
-    println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
 
     if data.inner:
       println(out)
-      println(out, DEFAULT_INDENT + "/*** INNER CLASSES ***/")
+      println(out, DEFAULT_INDENT + "/* --- INNER CLASSES --- */")
     for x in data.inner.values():
       exportInnerClass(out, x, data.field_is_enum)
 
     if data.enums:
       println(out)
-      println(out, DEFAULT_INDENT + "/*** INNER ENUMS ***/")
+      println(out, DEFAULT_INDENT + "/* --- INNER ENUMS --- */")
     for x in data.enums.values():
-      exportInnerEnum(out, x)
+      exportInnerEnum(out, x, DEFAULT_INDENT)
 
     println(out, "  }")
     println(out, "}")
@@ -229,17 +264,7 @@ def exportEnum(out_dir, namespace, data):
   print("[ExporterCSharp] BluePacket enum", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, namespace, data)
-
-    println(out, f"  public enum {data.name} : byte")
-    println(out,  "  {")
-    sep =  "    "
-    for f in data.fields:
-      out.write(sep)
-      sep = ", "
-      out.write(f)
-    println(out)
-
-    println(out, "  }")
+    exportInnerEnum(out, data, "  ")
     println(out, "}")
 
 

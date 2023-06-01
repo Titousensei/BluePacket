@@ -18,6 +18,12 @@ class TestLibExport(unittest.TestCase):
       for line in f:
         name, value = line.split(" ", 1)
         cls.versions[name] = value.strip()
+        
+    cls.intermediateRepresentation = {}
+    with open(os.path.join(TESTDATA_DIR, "intermediateRepresentation.txt")) as f:
+      for line in f:
+        name, value = line.split(" ", 1)
+        cls.intermediateRepresentation[name] = value.strip()
 
     p = Parser()
     cls.all_data = p.parse(
@@ -37,16 +43,17 @@ class TestLibExport(unittest.TestCase):
 
   def test_intermediate_representation(self):
     for cl, data in self.all_data.items():
-        self.assertNotEqual(data.fields[0][1], '', f"{cl} fields have empty leading data: {data.fields}")
-        self.assertNotEqual(data.fields[-1][1], '', f"{cl} fields have empty trailing data: {data.fields}")
+        self.assertTrue(any(data.fields[0]), f"{cl} fields have empty leading data: {data.fields}")
+        self.assertTrue(any(data.fields[-1]), f"{cl} fields have empty trailing data: {data.fields}")
         for inner, inner_data in data.inner.items():
-            self.assertNotEqual(inner_data.fields[0][1], '', f"{cl}.{inner} fields have empty leading data: {inner_data.fields}")
-            self.assertNotEqual(inner_data.fields[-1][1], '', f"{cl}.{inner} fields have empty trailing data: {inner_data.fields}")
+            self.assertTrue(any(inner_data.fields[0]), f"{cl}.{inner} fields have empty leading data: {inner_data.fields}")
+            self.assertTrue(any(inner_data.fields[-1]), f"{cl}.{inner} fields have empty trailing data: {inner_data.fields}")
+        expected = self.intermediateRepresentation[data.name]
+        self.assertEqual(expected, repr(data))
 
   def test_negatives(self):
     path = os.path.join(TESTDATA_DIR, "Negative*.bp")
     for filepath in glob.glob(path):
-      print("...", filepath)
       with self.subTest(filename=filepath):
         p = Parser()
         annotations = {}

@@ -38,6 +38,7 @@ PYTHON_READER = {
   "ushort": "readUnsignedShort",
 }
 
+
 def header(out, data):
     println(out, "# WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
     println(out, "import enum")
@@ -58,12 +59,30 @@ def header(out, data):
       println(out)
 
 
+def produceDocstring(out, indent, docstring):
+  if docstring:
+    first = docstring[0]
+    if first[-1] != '.':
+      first += '.'
+    if len(docstring) == 1:
+      println(out, f'{indent}"""{first}"""')
+    else:
+      println(out, f'{indent}"""{first}')
+      if len(docstring) > 1:
+        println(out)
+        for line in docstring[1:]:
+          println(out, f"{indent}{line}")
+      println(out, f'{indent}"""')
+    println(out)
+    
+
 def produceTypeInfo(out, fields, indent):
   println(out, indent + "TYPE_INFO = {")
-  for fname, ftype, *opt in fields:
+  println(out, indent + "  # name: (type, is_list)")
+  for fname, ftype, opt, _ in fields:
     if not fname:
       continue
-    println(out, f'{indent}  "{fname}": ("{ftype}", {"list" in opt}),')
+    println(out, f'{indent}  "{fname}": ("{ftype}", {opt=="list"}),')
   println(out, indent + "}")
 
 
@@ -72,22 +91,23 @@ def produceConstructor(out, fields, indent):
   println(out, indent + f"def __init__(")
   println(out, f"{indent}    self, *,")
 
-  for fname, ftype, *opt in fields:
-    if not fname:
-      continue
-    if ftype.startswith('#'):
-      println(out, indent + ftype)
-      continue
-    ft = f"list ftype" if 'list' in opt else ftype
-    println(out, f"{indent}    {fname} = None,  # {ft}")
+  for fname, ftype, opt, _ in fields:
+    if fname:
+      fopt = "[]" if opt == "list" else ""
+      println(out, f"{indent}    {fname} = None,  # {ftype}{fopt}")
 
   println(out, indent + f"):")
 
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, docstring in fields:
+    if docstring:
+      println(out)
+    for line in docstring:
+      println(out, f"{indent}  # {line}")
     if fname:
       println(out, f"{indent}  self.{fname} = {fname}")
     else:
-      println(out, f"{indent}  {ftype}")
+      println(out)
+
 
 def produceSetAttr(out, name, indent):
   println(out)
@@ -100,7 +120,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out)
   println(out, indent + "def serializeData(self, bpw):")
 
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, _ in fields:
     if not fname:
       continue
     if 'list' in opt:
@@ -126,7 +146,7 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
   println(out)
   println(out, indent + "def populateData(self, bpr):")
 
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, _ in fields:
     if not fname:
       continue
     if ftype in data.inner:
@@ -160,7 +180,7 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
   println(out)
   println(out, indent + "def fieldsStr(self):")
 
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, _ in fields:
     if not fname:
       continue
     if 'list' in opt:
@@ -193,17 +213,28 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
     println(out, f'{indent}    return "{{{name} " + self.packetHex + "".join(self.fieldsStr()) + "}}"')
 
 
-def exportInnerEnum(out, data):
-  println(out, f"  class {data.name}(enum.Enum):")
-  for i, f in enumerate(data.fields):
-    println(out, f"      {f} = {i}")
-  println(out)
-
+def exportInnerEnum(out, data, indent0):
+  println(out, f"{indent0}class {data.name}(enum.Enum):")
+  indent = indent0 + "    "
+  produceDocstring(out, indent, data.docstring)
+  i = 0
+  for f, _, _, d in data.fields:
+    if d:
+      println(out)
+      for line in d:
+        println(out, f"{indent}# {line}")
+    if f:
+      println(out, f"{indent}{f} = {i}")
+      i += 1
+    elif d:
+      println(out)
+      
 
 def exportInnerClass(out, data, field_is_enum, parentName):
   sorted_fields = list(sorted(data.fields))
   println(out)
   println(out, f"{DEFAULT_INDENT}class {data.name}:")
+  produceDocstring(out, INNER_INDENT, data.docstring)
   produceTypeInfo(out, sorted_fields, INNER_INDENT)
   println(out)
   println(out, INNER_INDENT + "### CONSTRUCTOR ###")
@@ -224,6 +255,7 @@ def exportClass(out_dir, data, version):
 
     sorted_fields = list(sorted(data.fields))
     println(out, f"class {data.name}:")
+    produceDocstring(out, "  ", data.docstring)
     println(out, f"  packetHash = {version}")
     println(out, f'  packetHex = "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"')
     produceTypeInfo(out, data.fields, DEFAULT_INDENT)
@@ -247,7 +279,7 @@ def exportClass(out_dir, data, version):
       println(out)
       println(out, DEFAULT_INDENT + "### INNER ENUMS ###")
     for x in data.enums.values():
-      exportInnerEnum(out, x)
+      exportInnerEnum(out, x, DEFAULT_INDENT)
 
 
 def exportEnum(out_dir, data):
@@ -255,11 +287,8 @@ def exportEnum(out_dir, data):
   print("[ExporterPython] BluePacket enum", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, data)
+    exportInnerEnum(out, data, "")
 
-    println(out, f"class {data.name}(enum.Enum):")
-    for i, f in enumerate(data.fields):
-      println(out, f"  {f} = {i}")
-    println(out)
 
 def exportInit(out_dir, all_data):
   path = os.path.join(out_dir, "__init__.py")

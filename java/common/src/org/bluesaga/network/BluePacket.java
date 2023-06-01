@@ -5,17 +5,36 @@ import java.util.*;
 import java.util.zip.*;
 import java.lang.reflect.*;
 
+/**
+ * The base class for all generated BluePackets
+ * Provides many util methods to serialize, deserialized, toString, etc.
+ */
 public abstract class BluePacket
 {
+  /**
+   */
   public static final int MASK_COMPRESSED = 1;
+
+  /**
+   */
   public static final int MASK_LEGACY = 128;
 
+  /**
+   */
   public static boolean DEBUG = true;
 
+  /**
+   */
   public static Map<Long, BluePacket> PACKETID_TO_CLASS = null;
 
+  /**
+   */
   private static final int MAX_UNSIGNED_BYTE = 255;
 
+  /**
+   * Initialize the packet registry
+   * @param pkg package contening all the generated BluePacket classes
+   */
   public static void init(String pkg)
   {
     if (PACKETID_TO_CLASS != null) {
@@ -34,16 +53,60 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to get the hash version number of this packet.
+   * To be overridden by generated classes.
+   * @return version hash
+   */
   public long getPacketHash() { return 0L; }
+
+  /**
+   * Internal method to get the hash version number of this packet.
+   * To be overridden by generated classes.
+   * @return version hash hexadecimal
+   */
   public String getPacketHex() { return null; }
+
+  /**
+   * Internal helper method for toString()
+   * To be overridden by generated classes.
+   * @param sb to write the fields and their values
+   */
   public void fieldsToString(StringBuilder sb) {}
+
+  /**
+   * Internal method to serialize to bytes
+   * To be overridden by generated classes.
+   * @param dos stream to write the bytes to
+   * @throws IOException if output stream cannot write the next byte
+   */
   public void serializeData(DataOutputStream dos) throws IOException {}
+
+  /**
+   * Internal method to deserialize from bytes into this object fields
+   * To be overridden by generated classes.
+   * @param dis stream to read the bytes from
+   * @throws IOException if input stream cannot read the next byte
+   */
   public void populateData(DataInputStream dis) throws IOException {}
 
+  /**
+   * Internal method to see if a packet class was registered.
+   * @param bp the packet instance to lookup
+   * @return whether this BluePacket is registered or not
+   */
   public static boolean isKnown(BluePacket bp) {
     return PACKETID_TO_CLASS.containsKey(bp.getPacketHash());
   }
 
+  /**
+   * Internal method to register a packet class
+   * @param clazz the generater packet class to register
+   * @throws NoSuchMethodException if packet class does not have a constructor
+   * @throws InstantiationException if packet class cannot be instantiated
+   * @throws IllegalAccessException if packet constructor is not public
+   * @throws InvocationTargetException if packet class constructor throws an exception
+   */
   private static void recognize(Class<? extends BluePacket> clazz)
   throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException
   {
@@ -59,20 +122,34 @@ public abstract class BluePacket
     PACKETID_TO_CLASS.put(id, bp);
   }
 
+  /**
+   * Internal method to get unsigned byte
+   * @param x the byte
+   * @return the unsigned byte as an int
+   */
   public static int unsigned(byte x) {
     return 255 & x;
   }
 
+  /**
+   * Internal method to get unsigned short
+   * @param x the short
+   * @return the unsigned short as an int
+   */
   public static int unsigned(short x) {
     return 65535 & x;
   }
 
-  /*
+  /**
    * From object to bytes
    *
    * Serialization format:
    * - 8 bytes: version hash representing the class name and the public field names in order
    * - N*x bytes: field values in field names alphabetical order.
+   *
+   * @return packet instance serialized
+   * @throws IOException if cannot write to byte stream
+   * @throws IllegalAccessException if serialization uses non-public methods
    */
   public final byte[] serialize()
   throws IOException, IllegalAccessException
@@ -87,6 +164,16 @@ public abstract class BluePacket
     return out.toByteArray();
   }
 
+  /**
+   * Internal method to start serializing a sequence.
+   * If length is small (byte), write just one byte.
+   * If lenght is bigger than a byte, first write a max byte marker, then 
+   * write actual length as an int (4 bytes).
+   *
+   * @param dos the byte output stream
+   * @param length the size of the sequence that will be written next
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeSequenceLength(DataOutputStream dos, int length)
   throws IOException
   {
@@ -98,6 +185,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a String.
+   * First write the length, then the bytes of the String.
+   *
+   * @param dos the byte output stream
+   * @param val the String to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeString(DataOutputStream dos, String val)
   throws IOException
   {
@@ -109,6 +204,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a BluePacket array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, BluePacket[] arr)
   throws IOException
   {
@@ -119,6 +222,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize an Enum array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, Enum<?>[] arr)
   throws IOException
   {
@@ -129,6 +240,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a boolean array
+   * First write the length, then serialize each array element as one byte.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, boolean[] arr)
   throws IOException
   {
@@ -139,6 +258,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a byte array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, byte[] arr)
   throws IOException
   {
@@ -149,6 +276,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a double array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, double[] arr)
   throws IOException
   {
@@ -159,6 +294,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a float array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, float[] arr)
   throws IOException
   {
@@ -169,6 +312,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize an int array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, int[] arr)
   throws IOException
   {
@@ -179,6 +330,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a long array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, long[] arr)
   throws IOException
   {
@@ -189,6 +348,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a short array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, short[] arr)
   throws IOException
   {
@@ -199,6 +366,14 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to serialize a String array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
   protected void writeArray(DataOutputStream dos, String[] arr)
   throws IOException
   {
@@ -217,6 +392,11 @@ public abstract class BluePacket
    * in order by reading the correct number of bytes.
    * If the message contains a SequenceID (only for packets from client to server),
    * there should be 10 extra bytes for this purpose.
+   *
+   * @param data the bytes to deserialize
+   * @return the deserialized BluePacket
+   * @throws IOException if cannot write to byte stream
+   * @throws ReflectiveOperationException if cannot instantiate a new BluePacket of this class
    */
   public static BluePacket deserialize(byte[] data)
   throws IOException, ReflectiveOperationException
@@ -238,6 +418,13 @@ public abstract class BluePacket
     return packet;
   }
 
+  /**
+   * Internal method to start deserializing a sequence.
+   *
+   * @param dis the input stream containing the bytes of the serialized BluePacket
+   * @return the length of the sequence following
+   * @throws IOException if cannot write to byte stream
+   */
   protected int readSequenceLength(DataInputStream dis)
   throws IOException
   {
@@ -248,6 +435,14 @@ public abstract class BluePacket
     return length;
   }
 
+  /**
+   * Internal method to read a String.
+   * First read the length of the String, then the bytes.
+   *
+   * @param dis the input stream containing the bytes of the serialized BluePacket
+   * @return the String
+   * @throws IOException if cannot write to byte stream
+   */
   protected String readString(DataInputStream dis)
   throws IOException
   {
@@ -264,6 +459,10 @@ public abstract class BluePacket
     return null;
   }
 
+  /**
+   * Standard String representation of this packet and its data.
+   * @return a string representation of this BluePacket
+   */
   @Override
   public String toString()
   {
@@ -277,6 +476,11 @@ public abstract class BluePacket
     return sb.toString();
   }
 
+  /**
+   * Internal method to compress a serialized packet
+   * @param data the uncompressed bytes
+   * @return the compressed bytes
+   */
   public static byte[] gzipCompress(byte[] data)
   {
     try (
@@ -292,6 +496,11 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to uncompress a serialized packet
+   * @param data the compressed bytes
+   * @return the uncompressed bytes
+   */
   public static byte[] gzipUncompress(byte[] data)
   {
     try (
@@ -309,6 +518,12 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to check if a field is empty.
+   * Empty fields are skipped during toString.
+   * @param obj the field value to check
+   * @return whether the value represents "empty" or not
+   */
   private static boolean isNotEmpty(Object obj)
   {
     if (obj == null) {
@@ -339,6 +554,12 @@ public abstract class BluePacket
     return true;
   }
 
+  /**
+   * Internal method to construct the toString value of a boolean field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not false
+   * @param obj the field value to append if it's not false
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, boolean obj)
   {
     if(isNotEmpty(obj)) {
@@ -346,6 +567,12 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to construct the toString value of a Object field (non-native).
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, Object obj)
   {
     if(isNotEmpty(obj)) {
@@ -353,6 +580,12 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to construct the toString value of a String field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not null
+   * @param obj the field value to append if it's not null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String obj)
   {
     if(isNotEmpty(obj)) {
@@ -360,6 +593,12 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to construct the toString value of an unsigned byte field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not 0
+   * @param obj the field value to append if it's not 0
+   */
   public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, byte obj)
   {
     if(isNotEmpty(obj)) {
@@ -367,6 +606,12 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to construct the toString value of a short field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not 0
+   * @param obj the field value to append if it's not 0
+   */
   public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, short obj)
   {
     if(isNotEmpty(obj)) {
@@ -374,6 +619,13 @@ public abstract class BluePacket
     }
   }
 
+  /**
+   * Internal method to construct the toString value of a BluePacket array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field class name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, BluePacket[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -386,6 +638,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of a boolean array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, boolean[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -395,6 +654,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of a byte array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, byte[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -404,6 +670,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of an unsigned byte array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, String ftype, byte[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -413,6 +686,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of a double array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, double[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -422,6 +702,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of a float array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, float[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -431,6 +718,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of an int array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, int[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -440,6 +734,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of a long array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, long[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -449,6 +750,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of a short array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, short[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -458,6 +766,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of an unsigned short array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmptyUnsigned(StringBuilder sb, String fname, String ftype, short[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -467,6 +782,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of an Enum array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, Enum<?>[] obj)
   {
     if (obj == null || obj.length == 0) return;
@@ -479,6 +801,13 @@ public abstract class BluePacket
     sb.append('}');
   }
 
+  /**
+   * Internal method to construct the toString value of a String array field.
+   * @param sb the buffer for toString
+   * @param fname the field name to append if it's not empty or null
+   * @param ftype the field element type name to append if it's not empty or null
+   * @param obj the field value to append if it's not empty or null
+   */
   public static void appendIfNotEmpty(StringBuilder sb, String fname, String ftype, String[] obj)
   {
     if (obj == null || obj.length == 0) return;

@@ -1,0 +1,5 @@
+# Expected to fail because of inline comments are forbidden
+# @what comment should not be here
+
+DemoPacket:
+    string data # comment should not be here

@@ -54,27 +54,44 @@ def header(out, package, data):
       println(out)
 
 
+def produceDocstring(out, indent, docstring):
+  out.write(indent)
+  out.write(f"/**\n")
+  for line in docstring:
+    out.write(indent)
+    out.write(" * ")
+    out.write(line)
+    out.write("<br/>\n")
+  out.write(indent)
+  out.write(" */\n")
+
+
 def produceFields(out, fields, indent):
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, docstring in fields:
     ftype = JAVA_TYPE.get(ftype, ftype)
-    if 'list' in opt:
+    if opt == 'list':
+      produceDocstring(out, indent, docstring)
       println(out, f"{indent}public {ftype}[] {fname};")
     elif fname:
+      produceDocstring(out, indent, docstring)
       println(out, f"{indent}public {ftype} {fname};")
-    elif ftype.startswith('#'):
-      println(out, indent + "//" + ftype[1:])
+    elif docstring:
+      for line in docstring:
+        println(out, indent + "// " + line)
     else:
       println(out)
 
 
 def produceListSetters(out, name, fname, ftype, indent):
   # Array
+  produceDocstring(out, indent, [f"Chaining setter for {fname} from an array or varargs.", "@param val value", "@return this"])
   out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
   out.write(f"({ftype}... val)")
   println(out, f" {{ {fname} = val; return this; }}")
 
   if ftype == "String" or (ftype not in JAVA_WRITER and ftype != 'boolean'):
     # Collection
+    produceDocstring(out, indent, [f"Chaining setter for {fname} from a collection.", "@param val value", "@return this"])
     out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
     out.write(f"(Collection<{ftype}> val)")
     println(out, f" {{ {fname} = val.toArray(new {ftype}[0]); return this; }}")
@@ -82,14 +99,15 @@ def produceListSetters(out, name, fname, ftype, indent):
 
 def produceSetters(out, name, fields, indent):
   println(out)
-  for fname, ftype, *opt in fields:
+  for fname, ftype, opt, _ in fields:
     if not fname:
       continue
 
     ftype = JAVA_TYPE.get(ftype, ftype)
-    if 'list' in opt:
+    if opt == 'list':
       produceListSetters(out, name, fname, ftype, indent)
     else:
+      produceDocstring(out, indent, [f"Chaining setter for {fname}.", "@param val value", "@return this"])
       out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
       out.write(f"({ftype} val)")
       println(out, f" {{ {fname} = val; return this; }}")
@@ -104,15 +122,18 @@ def produceGetters(out, name, fields, indent):
       continue
 
     if ftype in UNSIGNED_TYPE:
+      produceDocstring(out, indent, [f"Getter for {fname} unsigned as an int.", "@return unsigned value as int"])
       out.write(f"{indent}public int get{fname[0].upper()}{fname[1:]}AsInt()")
       println(out, f" {{ return unsigned({fname}); }}")
     elif ftype in SIGNED_TYPE:
+      produceDocstring(out, indent, [f"Getter for {fname} signed as an int.", "@return signed value as int"])
       out.write(f"{indent}public int get{fname[0].upper()}{fname[1:]}AsInt()")
       println(out, f" {{ return {fname}; }}")
 
 
 def produceSerializer(out, fields, indent, field_is_enum):
   println(out)
+  produceDocstring(out, indent, ["Internal method to serialize to bytes", "@param s stream to write the bytes to"])
   println(out, indent + "@Override")
   println(out, indent + "public void serializeData(java.io.DataOutputStream s)")
   println(out, indent + "throws java.io.IOException")
@@ -139,6 +160,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
 
 def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out)
+  produceDocstring(out, indent, ["Internal method to deserialize from bytes into this object fields", "@param s stream to read the bytes from"])
   println(out, indent + "@Override")
   println(out, indent + "public void populateData(java.io.DataInputStream s)")
   println(out, indent + "throws java.io.IOException")
@@ -174,6 +196,7 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
 
 def produceFieldsToString(out, name, fields, indent):
   println(out)
+  produceDocstring(out, indent, ["Internal helper method for toString()", "@param sb builder to write the fields and their values"])
   println(out, indent + "@Override")
   println(out, indent + "public void fieldsToString(StringBuilder sb)")
   println(out, indent + "{")
@@ -190,36 +213,52 @@ def produceFieldsToString(out, name, fields, indent):
   println(out, indent + "}")
 
 
-def exportInnerEnum(out, data):
+def exportInnerEnum(out, data, indent0):
   println(out)
-  println(out, f"  public enum {data.name}")
-  println(out,  "{")
-  sep =  "    "
-  for f in data.fields:
-    out.write(sep)
-    sep = ", "
-    out.write(f)
-  println(out, ";")
+  produceDocstring(out, indent0, data.docstring)
+  println(out, f"{indent0}public enum {data.name}")
+  println(out, f"{indent0}{{")
+  indent =  indent0 + "  "
+  last = [f for f, *_ in data.fields if f][-1]
+  for f, _, _, docstring in data.fields:
+    if f:
+      produceDocstring(out, indent, docstring)
+      out.write(indent)
+      out.write(f)
+      if f == last:
+        out.write("\n")
+      else:
+        out.write(",\n")
+    else:
+      for line in docstring:
+        out.write(indent)
+        out.write("// ")
+        out.write(line)
+        out.write("\n")
+  println(out, f"{indent0};")
   println(out)
-  println(out, f"    private static java.util.Map<Integer, {data.name}> map = new java.util.HashMap<>();")
-  println(out,  "    static {")
-  println(out, f"      for ({data.name} en : {data.name}.values()) map.put(en.ordinal(), en);")
-  println(out,  "    }")
-  println(out, f"    public static {data.name} valueOf(int v) {{ return map.get(v); }}")
-  println(out,  "  }")
+  println(out, f"{indent}private static java.util.Map<Integer, {data.name}> map = new java.util.HashMap<>();")
+  println(out, f"{indent}static {{")
+  println(out, f"{indent}  for ({data.name} en : {data.name}.values()) map.put(en.ordinal(), en);")
+  println(out, f"{indent}}}")
+  println(out)
+  produceDocstring(out, indent, ["Helper to lookup enum.", "@param v ordinal value ", "@return enum type value"])
+  println(out, f"{indent}public static {data.name} valueOf(int v) {{ return map.get(v); }}")
+  println(out, f"{indent0}}}")
 
 
 def exportInnerClass(out, data, field_is_enum):
   println(out)
+  produceDocstring(out, DEFAULT_INDENT, data.docstring)
   println(out, f"{DEFAULT_INDENT}public static class {data.name}")
   println(out, f"{DEFAULT_INDENT}extends BluePacket")
   println(out, DEFAULT_INDENT + "{")
 
-  println(out, INNER_INDENT + "/*** DATA FIELDS ***/")
+  println(out, INNER_INDENT + "/* --- DATA FIELDS --- */")
   println(out)
   produceFields(out, data.fields, INNER_INDENT)
   println(out)
-  println(out, INNER_INDENT + "/*** HELPER FUNCTIONS ***/")
+  println(out, INNER_INDENT + "/* --- HELPER FUNCTIONS --- */")
   sorted_fields = list(sorted(data.fields))
   produceSetters(out, data.name, sorted_fields, INNER_INDENT)
   produceGetters(out, data.name, sorted_fields, INNER_INDENT)
@@ -236,20 +275,24 @@ def exportClass(out_dir, package, data, version):
   with open(path, "w") as out:
     header(out, package, data)
 
+    produceDocstring(out, "", data.docstring)
     println(out, f"public final class {data.name}")
     println(out,  "extends BluePacket")
     println(out,  "{")
+    produceDocstring(out, "  ", ["Internal method to get the hash version number of this packet.", "@return version hash"])
     println(out,  "  @Override")
     println(out, f"  public long getPacketHash() {{ return {version}L; }}")
+    println(out)
+    produceDocstring(out, "  ", ["Internal method to get the hash version number of this packet.", "@return version hash hexadecimal"])
     println(out,  "  @Override")
     println(out, f'  public String getPacketHex() {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"; }}')
     println(out)
 
-    println(out, DEFAULT_INDENT + "/*** DATA FIELDS ***/")
+    println(out, DEFAULT_INDENT + "/* --- DATA FIELDS --- */")
     println(out)
     produceFields(out, data.fields, DEFAULT_INDENT)
     println(out)
-    println(out, DEFAULT_INDENT + "/*** HELPER FUNCTIONS ***/")
+    println(out, DEFAULT_INDENT + "/* --- HELPER FUNCTIONS --- */")
     sorted_fields = list(sorted(data.fields))
     produceSetters(out, data.name, sorted_fields, DEFAULT_INDENT)
     produceGetters(out, data.name, sorted_fields, DEFAULT_INDENT)
@@ -259,15 +302,15 @@ def exportClass(out_dir, package, data, version):
 
     if data.inner:
       println(out)
-      println(out, DEFAULT_INDENT + "/*** INNER CLASSES ***/")
+      println(out, DEFAULT_INDENT + "/* --- INNER CLASSES --- */")
     for x in data.inner.values():
       exportInnerClass(out, x, data.field_is_enum)
 
     if data.enums:
       println(out)
-      println(out, DEFAULT_INDENT + "/*** INNER ENUMS ***/")
+      println(out, DEFAULT_INDENT + "/* --- INNER ENUMS --- */")
     for x in data.enums.values():
-      exportInnerEnum(out, x)
+      exportInnerEnum(out, x, "  ")
 
     println(out, "}")
 
@@ -277,22 +320,7 @@ def exportEnum(out_dir, package, data):
   print("[ExporterJava] BluePacket enum", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, package, data)
-
-    println(out, f"public enum {data.name}")
-    println(out,  "{")
-    sep =  "  "
-    for f in data.fields:
-      out.write(sep)
-      sep = ", "
-      out.write(f)
-    println(out, ";")
-    println(out)
-    println(out, f"  private static java.util.Map<Integer, {data.name}> map = new java.util.HashMap<>();")
-    println(out,  "  static {")
-    println(out, f"    for ({data.name} en : {data.name}.values()) map.put(en.ordinal(), en);")
-    println(out,  "  }")
-    println(out, f"  public static {data.name} valueOf(int v) {{ return map.get(v); }}")
-    println(out,  "}")
+    exportInnerEnum(out, data, "")
 
 
 def get_args():

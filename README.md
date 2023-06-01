@@ -1,4 +1,3 @@
-
 # BluePackets
 
 BluePackets is a serialization / deserialization library for many programing languages, focused on simple native data structures.
@@ -8,8 +7,9 @@ BluePackets is a serialization / deserialization library for many programing lan
 - All BluePacket definitions are compiled into simple data structures (classes or structs) native to each language.
 - Serialization and deserialization into binary is fast and compact. The binary representations can be further compacted using common compression algorithms, such as gzip.
 - BluePacket definitions are composed of common basic data types (byte, int, string, etc.), arrays, and enums.
+- BluePacket definitions are compiled into structs or classes source code for your language and are easy to read.
+- BluePacket definitions can contain comments that are carried over the generated source code in their native docstring format.
 - BluePackets can reference each other (even recursively) within their namespace.
-- BluePacket definitions are compiled into structs or classes source code for your language and are easy to read (comments are preserved).
 - Compiled BluePackets are native data structures and can be extended or sub-classed normally.
 
 ## Usage

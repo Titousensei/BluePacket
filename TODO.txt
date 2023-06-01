@@ -1,10 +1,8 @@
 === Unit Tests ===
-- versionString DONE
+- negative tests for parser
 
 === Export Tests ===
 - hash version
-- load from binary DONE
-- save to binary DONE
 - to string
 - load from text (yaml)
 - save to text (yaml)
@@ -42,7 +40,7 @@
   - might be implemented as getters and setters
 
 === Languages ===
-- HIPRI: rust, go, C, C++
+- HIPRI: rust, C, C++
 - MEDPRI: nim, ocaml, zig, lua, javascript
 - LOPRI: nelua, odin
 - pico-8 (lua)

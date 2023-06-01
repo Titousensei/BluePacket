@@ -14,5 +14,8 @@ pushd $go_package
 go mod init $go_import
 popd
 
+echo "=== DOCUMENTATION ==="
+go doc
+
 echo "=== TESTING ==="
 go test

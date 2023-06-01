@@ -8,9 +8,16 @@ import java.net.JarURLConnection;
 import java.util.jar.*;
 import java.util.zip.*;
 
-
+/**
+ * Util class to with methods to find classes in the classpath.
+ */
 public interface ClassUtils
 {
+  /**
+   * Internal method to retrieve class fields sorted using reflection.
+   * @param cl the class
+   * @return the list of fields
+   */
   public static List<Field> getSortedFields(Class<?> cl)
   {
     List<Field> lf = Arrays.asList(cl.getDeclaredFields());
@@ -19,49 +26,13 @@ public interface ClassUtils
   }
 
   /**
-   * From https://github.com/tnm/murmurhash-java/blob/master/src/main/java/ie/ucd/murmur/MurmurHash.java
-   * Public Domain
+   * Internal method to collect a class if it's a subclass of another.
+   * Used to find all the generated classes extending BluePacket.
+   * @param result the collection to update if class is a subclass
+   * @param classname the name of the class to test
+   * @param <T> the base class type that should be extended
+   * @param baseclass the base class that should be extended
    */
-  @SuppressWarnings({"fallthrough"})
-  public static int murmur32(final byte[] data)
-  {
-    // 'm' and 'r' are mixing constants generated offline.
-    // They're not really 'magic', they just happen to work well.
-    final int m = 0x5bd1e995;
-    final int r = 24;
-
-    int length = data.length;
-    int seed = 0x9747b28c;
-    // Initialize the hash to a random value
-    int h = seed^length;
-    int length4 = length/4;
-
-    for (int i=0; i<length4; i++) {
-        final int i4 = i*4;
-        int k = (data[i4+0]&0xff) +((data[i4+1]&0xff)<<8)
-                +((data[i4+2]&0xff)<<16) +((data[i4+3]&0xff)<<24);
-        k *= m;
-        k ^= k >>> r;
-        k *= m;
-        h *= m;
-        h ^= k;
-    }
-
-    // Handle the last few bytes of the input array
-    switch (length%4) {
-    case 3: h ^= (data[(length&~3) +2]&0xff) << 16;
-    case 2: h ^= (data[(length&~3) +1]&0xff) << 8;
-    case 1: h ^= (data[length&~3]&0xff);
-            h *= m;
-    }
-
-    h ^= h >>> 13;
-    h *= m;
-    h ^= h >>> 15;
-
-    return h;
-  }
-
   static <T> void addIfSubClass(Collection<Class<? extends T>> result, String classname, Class<T> baseclass)
   {
     try {
@@ -79,6 +50,15 @@ public interface ClassUtils
     }
   }
 
+  /**
+   * Internal method to find all classes in a build directory, recursively.
+   * Used to find all the generated classes extending BluePacket.
+   * @param result the collection to update if class is a subclass
+   * @param rootDirLength the number of characters to truncate in the absolute path
+   * @param directory the directory to start looking into
+   * @param <T> the base class type that should be extended
+   * @param baseclass the base class that should be extended
+   */
   static <T> void findInDirectory(Collection<Class<? extends T>> result,
         int rootDirLength, File directory, Class<T> baseclass)
   {
@@ -97,6 +77,14 @@ public interface ClassUtils
     }
   }
 
+  /**
+   * Internal method to find all subclasses in a package
+   * Used to find all the generated classes extending BluePacket.
+   * @param root_package the java package containing the classes to search
+   * @param <T> the base class type that should be extended
+   * @param baseclass the base class that should be extended
+   * @return the collection of classes found
+   */
   public static <T> Collection<Class<? extends T>> findSubClasses(String root_package, Class<T> baseclass)
   {
     Collection<Class<? extends T>> result = new ArrayList<>();
