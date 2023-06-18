@@ -89,7 +89,7 @@ class TestBluePacket
         .setFInt(987654321)
         .setFLong(101112131415L)
         .setFShort((short)2345)
-        .setFString("abcdef")
+        .setFString("abcdefåäöàê")
         .setFEnum(DemoPacket.MyEnum.MAYBE)
         .setOEnum(DemoEnum.NO_DOUBT)
         .setFInner(new DemoPacket.MyInner().setIInteger(88));
@@ -100,6 +100,9 @@ class TestBluePacket
     inner[1] = new DemoPacket.MyInner();
     inner[1].iInteger = 6666;
     demoPacket.setAInner(inner);
+
+byte[] data = new byte[]{97, 98, 99, 100, 101, 102, -61, -91, -61, -92, -61, -74, -61, -96, -61, -86};
+System.out.println("+++" + new String(data) + "+++");
 
     demoPacket.fOuter = new DemoOuter().setOInt(191);
 

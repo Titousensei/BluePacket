@@ -4,6 +4,8 @@ import java.io.*;
 import java.util.*;
 import java.util.zip.*;
 import java.lang.reflect.*;
+import java.nio.charset.StandardCharsets;
+
 
 /**
  * The base class for all generated BluePackets
@@ -199,8 +201,9 @@ public abstract class BluePacket
     if (val == null) {
       dos.writeByte(0);
     } else {
-      writeSequenceLength(dos, val.length());
-      dos.writeBytes(val);
+      byte[] data = val.getBytes(StandardCharsets.UTF_8);
+      writeSequenceLength(dos, data.length);
+      dos.write(data, 0, data.length);
     }
   }
 
@@ -452,7 +455,7 @@ public abstract class BluePacket
         throw new RuntimeException("Can't read enough bytes for String of " + getClass().getSimpleName()
           + ": got " + actual + ", expected " + length);
       }
-      return new String(strBytes);
+      return new String(strBytes, StandardCharsets.UTF_8);
     }
     return null;
   }

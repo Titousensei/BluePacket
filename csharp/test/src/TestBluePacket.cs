@@ -50,7 +50,7 @@ class TestBluePacket
       fInt = 987654321,
       fLong = 101112131415L,
       fShort = (short) 2345,
-      fString = "abcdef",
+      fString = "abcdefåäöàê",
       fEnum = DemoPacket.MyEnum.MAYBE,
       oEnum = DemoEnum.NO_DOUBT,
       fInner = new DemoPacket.MyInner { iInteger = 88 }

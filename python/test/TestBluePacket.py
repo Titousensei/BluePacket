@@ -38,7 +38,7 @@ class TestBluePacket(unittest.TestCase):
     demoPacket.fInt = 987654321
     demoPacket.fLong = 101112131415
     demoPacket.fShort = 2345
-    demoPacket.fString = "abcdef"
+    demoPacket.fString = "abcdefåäöàê"
     demoPacket.fEnum = t.DemoPacket.MyEnum.MAYBE
     demoPacket.oEnum = t.DemoEnum.NO_DOUBT
     demoPacket.fInner = t.DemoPacket.MyInner(iInteger=88)

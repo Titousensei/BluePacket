@@ -217,8 +217,8 @@ namespace BluePackets
       }
       else
       {
-        WriteSequenceLength(ms, data.Length);
         byte[] b = ENCODING.GetBytes(data);
+        WriteSequenceLength(ms, b.Length);
         ms.Write(b, 0, b.Length);
       }
     }

@@ -64,7 +64,7 @@ func setUp(t *testing.T) testData {
 			FInt:     987654321,
 			FLong:    101112131415,
 			FShort:   2345,
-			FString:  "abcdef",
+			FString:  "abcdefåäöàê",
 			FEnum:    DemoPacketMyEnumMAYBE,
 			OEnum:    DemoEnumNO_DOUBT,
 			FInner:   &DemoPacketMyInner{IInteger: 88},
