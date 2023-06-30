@@ -1,4 +1,4 @@
-package org.bluesaga.network;
+package org.bluepacket.network;
 
 import java.io.*;
 import java.util.*;

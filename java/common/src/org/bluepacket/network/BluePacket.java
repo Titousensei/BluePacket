@@ -1,4 +1,4 @@
-package org.bluesaga.network;
+package org.bluepacket.network;
 
 import java.io.*;
 import java.util.*;
@@ -15,45 +15,7 @@ public abstract class BluePacket
 {
   /**
    */
-  public static final int MASK_COMPRESSED = 1;
-
-  /**
-   */
-  public static final int MASK_LEGACY = 128;
-
-  /**
-   */
-  public static boolean DEBUG = true;
-
-  /**
-   */
-  public static Map<Long, BluePacket> PACKETID_TO_CLASS = null;
-
-  /**
-   */
   private static final int MAX_UNSIGNED_BYTE = 255;
-
-  /**
-   * Initialize the packet registry
-   * @param pkg package contening all the generated BluePacket classes
-   */
-  public static void init(String pkg)
-  {
-    if (PACKETID_TO_CLASS != null) {
-      throw new RuntimeException("BluePacket already initialized.");
-    }
-    PACKETID_TO_CLASS = new HashMap<>();
-
-    for (Class<? extends BluePacket> cl : ClassUtils.findSubClasses(pkg, BluePacket.class)) {
-      try {
-        recognize(cl);
-      } catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException ex) {
-        throw new RuntimeException("Class " + cl.getSimpleName() + " must have a public constructor without parameters");
-      } catch (InstantiationException | InvocationTargetException ex) {
-        throw new RuntimeException("Class " + cl.getSimpleName() + " can't be instantiated: " + ex);
-      }
-    }
-  }
 
   /**
    * Internal method to get the hash version number of this packet.
@@ -74,7 +36,7 @@ public abstract class BluePacket
    * To be overridden by generated classes.
    * @param sb to write the fields and their values
    */
-  public void fieldsToString(StringBuilder sb) {}
+  protected void fieldsToString(StringBuilder sb) {}
 
   /**
    * Internal method to serialize to bytes
@@ -82,7 +44,7 @@ public abstract class BluePacket
    * @param dos stream to write the bytes to
    * @throws IOException if output stream cannot write the next byte
    */
-  public void serializeData(DataOutputStream dos) throws IOException {}
+  protected void serializeData(DataOutputStream dos) throws IOException {}
 
   /**
    * Internal method to deserialize from bytes into this object fields
@@ -90,39 +52,7 @@ public abstract class BluePacket
    * @param dis stream to read the bytes from
    * @throws IOException if input stream cannot read the next byte
    */
-  public void populateData(DataInputStream dis) throws IOException {}
-
-  /**
-   * Internal method to see if a packet class was registered.
-   * @param bp the packet instance to lookup
-   * @return whether this BluePacket is registered or not
-   */
-  public static boolean isKnown(BluePacket bp) {
-    return PACKETID_TO_CLASS.containsKey(bp.getPacketHash());
-  }
-
-  /**
-   * Internal method to register a packet class
-   * @param clazz the generater packet class to register
-   * @throws NoSuchMethodException if packet class does not have a constructor
-   * @throws InstantiationException if packet class cannot be instantiated
-   * @throws IllegalAccessException if packet constructor is not public
-   * @throws InvocationTargetException if packet class constructor throws an exception
-   */
-  private static void recognize(Class<? extends BluePacket> clazz)
-  throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException
-  {
-    BluePacket bp = clazz.getDeclaredConstructor().newInstance();
-    long id = bp.getPacketHash();
-    if (PACKETID_TO_CLASS.containsKey(id)) {
-      throw new RuntimeException("ID " + id + " reserved for multiple Packets: "
-          + clazz.getSimpleName() + " & " + PACKETID_TO_CLASS.get(id).getClass().getSimpleName());
-    }
-    if (DEBUG) {
-      System.err.println("DEBUG - BluePacket recognized " + clazz.getSimpleName());
-    }
-    PACKETID_TO_CLASS.put(id, bp);
-  }
+  protected void populateData(DataInputStream dis) throws IOException {}
 
   /**
    * Internal method to get unsigned byte
@@ -150,20 +80,36 @@ public abstract class BluePacket
    * - N*x bytes: field values in field names alphabetical order.
    *
    * @return packet instance serialized
-   * @throws IOException if cannot write to byte stream
-   * @throws IllegalAccessException if serialization uses non-public methods
    */
   public final byte[] serialize()
-  throws IOException, IllegalAccessException
   {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
+    serialize(out);
+    return out.toByteArray();
+  }
+
+  /**
+   * From object to bytes stream
+   *
+   * Serialization format:
+   * - 8 bytes: version hash representing the class name and the public field names in order
+   * - N*x bytes: field values in field names alphabetical order.
+   *
+   * @param out the stream where the bytes will be written
+   */
+  public final void serialize(OutputStream out)
+  {
     DataOutputStream dos = new DataOutputStream(out);
 
-    dos.writeLong(getPacketHash());
-    serializeData(dos);
+    try {
+      dos.writeLong(getPacketHash());
+      serializeData(dos);
 
-    dos.flush();
-    return out.toByteArray();
+      dos.flush();
+    }
+    catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /**
@@ -389,34 +335,49 @@ public abstract class BluePacket
 
 
   /**
+   * From byte stream to object.
+   *
+   * Knowing the class ID, this will create an instance and populate all the fields
+   * in order by reading the correct number of bytes.
+   *
+   * @param registry where the packet hash was registered
+   * @param data the bytes to deserialize
+   * @return the deserialized BluePacket
+   */
+  public static BluePacket deserialize(BluePacketRegistry registry, byte[] data)
+  {
+    InputStream in = new ByteArrayInputStream(data);
+    return deserialize(registry, in);
+  }
+  
+  /**
    * From bytes to object.
    *
    * Knowing the class ID, this will create an instance and populate all the fields
    * in order by reading the correct number of bytes.
    *
-   * @param data the bytes to deserialize
+   * @param registry where the packet hash was registered
+   * @param in the bytes stream to deserialize
    * @return the deserialized BluePacket
-   * @throws IOException if cannot write to byte stream
-   * @throws ReflectiveOperationException if cannot instantiate a new BluePacket of this class
    */
-  public static BluePacket deserialize(byte[] data)
-  throws IOException, ReflectiveOperationException
+  public static BluePacket deserialize(BluePacketRegistry registry, InputStream in)
   {
-    ByteArrayInputStream in = new ByteArrayInputStream(data);
     DataInputStream dis = new DataInputStream(in);
+    
+    try {
+      long packetHash = dis.readLong();
+   
+      // Header
+      BluePacket packet = registry.newInstance(packetHash);
 
-    // Header
-    long packetHash = dis.readLong();
-    BluePacket proto = PACKETID_TO_CLASS.get(packetHash);
-    if (proto == null) {
-      throw new RuntimeException("Unknown packetHash received: " + packetHash);
+      // Body
+      packet.populateData(dis);
+
+      return packet;
     }
-    BluePacket packet = proto.getClass().getDeclaredConstructor().newInstance();
-
-    // Body
-    packet.populateData(dis);
-
-    return packet;
+    catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /**
@@ -475,48 +436,6 @@ public abstract class BluePacket
     fieldsToString(sb);
     sb.append('}');
     return sb.toString();
-  }
-
-  /**
-   * Internal method to compress a serialized packet
-   * @param data the uncompressed bytes
-   * @return the compressed bytes
-   */
-  public static byte[] gzipCompress(byte[] data)
-  {
-    try (
-      ByteArrayOutputStream buffer = new ByteArrayOutputStream(data.length * 2);
-      GZIPOutputStream os = new GZIPOutputStream(buffer)
-    ) {
-      os.write(data);
-      os.finish();
-      os.flush();
-      return buffer.toByteArray();
-    } catch (IOException ex) {
-      throw new RuntimeException(ex);
-    }
-  }
-
-  /**
-   * Internal method to uncompress a serialized packet
-   * @param data the compressed bytes
-   * @return the uncompressed bytes
-   */
-  public static byte[] gzipUncompress(byte[] data)
-  {
-    try (
-      ByteArrayOutputStream os = new ByteArrayOutputStream();
-      InputStream is = new GZIPInputStream(new ByteArrayInputStream(data))
-    ) {
-      byte[] buffer = new byte[1024];
-      int len = 0;
-      while ((len = is.read(buffer)) >= 0) {
-        os.write(buffer, 0, len);
-      }
-      return os.toByteArray();
-    } catch (IOException ex) {
-      throw new RuntimeException(ex);
-    }
   }
 
   /**

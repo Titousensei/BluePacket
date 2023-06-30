@@ -5,11 +5,14 @@ import java.util.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import org.bluesaga.network.BluePacket;
+import org.bluepacket.network.BluePacket;
+import org.bluepacket.network.BluePacketRegistry;
 
 class TestBluePacket
 {
   private static final String TESTDATA_DIR = "../../testdata/";
+
+  private BluePacketRegistry registry_;
 
   private DemoPacket demoPacket;
   private byte[] demoPacketBin;
@@ -79,7 +82,8 @@ class TestBluePacket
   private void setUp()
   throws Exception
   {
-    BluePacket.init("test");
+    registry_ = new BluePacketRegistry();
+    registry_.register("test");
 
     demoPacket = new DemoPacket()
         .setFBoolean(true)
@@ -100,9 +104,6 @@ class TestBluePacket
     inner[1] = new DemoPacket.MyInner();
     inner[1].iInteger = 6666;
     demoPacket.setAInner(inner);
-
-byte[] data = new byte[]{97, 98, 99, 100, 101, 102, -61, -91, -61, -92, -61, -74, -61, -96, -61, -86};
-System.out.println("+++" + new String(data) + "+++");
 
     demoPacket.fOuter = new DemoOuter().setOInt(191);
 
@@ -150,7 +151,7 @@ System.out.println("+++" + new String(data) + "+++");
   throws Exception
   {
     System.out.print(name + ": ");
-    BluePacket bp = BluePacket.deserialize(bin);
+    BluePacket bp = BluePacket.deserialize(registry_, bin);
     assertEquals(packet.toString(), bp.toString(), "deserialize()");
     System.out.println("PASS");
   }

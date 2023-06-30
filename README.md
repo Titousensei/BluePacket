@@ -1,6 +1,7 @@
 # BluePackets
 
 BluePackets is a serialization / deserialization library for many programing languages, focused on simple native data structures.
+We aim to support as many languages as possible, from the mainstream ones to the more experimental.
 
 ## Features
 
@@ -55,3 +56,10 @@ Date:
 All types (built-in and defined) can be in a `list`.
 
 Enums are encoded as a byte and start a zero.
+
+## F.A.Q.
+
+- (java) why are the generated files final? I want to subclass some of them.
+  - subclasses would not be de/serializable while still being of type BluePacket, so we have to prevent subclassing.
+  - if what you want is to add information (member variables): you can create your own class that has your BluePacket as one member variable (composition)
+  - if what you want is to add methods: you can have util static methods that use your BluePacket class as one input parameter
