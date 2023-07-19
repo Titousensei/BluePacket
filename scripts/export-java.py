@@ -50,7 +50,7 @@ def header(out, package, data):
     println(out)
     if not data.is_enum:
       println(out, "import java.util.Collection;")
-      println(out, "import org.bluepacket.network.BluePacket;")
+      println(out, "import org.bluepacket.BluePacket;")
       println(out)
 
 

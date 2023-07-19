@@ -10,8 +10,8 @@ mkdir -p gen/test build doc
 ../../scripts/export-java.py --package test --output_dir gen/test ../../testdata/Demo.bp
 
 echo "=== COMPILING ==="
-javac -d build ../../java/common/src/org/bluepacket/network/* src/test/* gen/test/*
-javadoc -exclude org.bluepacket.network -d doc ../../java/common/src/org/bluepacket/network/* gen/test/*
+javac -d build ../../java/common/src/org/bluepacket/* src/test/* gen/test/*
+javadoc -exclude org.bluepacket -d doc ../../java/common/src/org/bluepacket/* gen/test/*
 
 echo "=== TESTING ==="
 java -cp build test.TestBluePacket

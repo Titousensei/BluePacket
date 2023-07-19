@@ -1,4 +1,4 @@
-package org.bluepacket.network;
+package org.bluepacket;
 
 import java.io.*;
 import java.util.*;
@@ -25,6 +25,10 @@ public class BluePacketRegistry
    */
   public void register(String pkg)
   {
+    pkg = pkg.replace('.','/');
+    if (DEBUG) {
+      System.err.println("[BluePacketRegistry] DEBUG - Searching BluePacket classes in path: " + pkg);
+    }
     for (Class<? extends BluePacket> cl : ClassUtils.findSubClasses(pkg, BluePacket.class)) {
       register(cl);
     }
@@ -61,7 +65,7 @@ public class BluePacketRegistry
           + clazz.getSimpleName() + " & " + packet_id_to_class_.get(id).getClass().getSimpleName());
     }
     if (DEBUG) {
-      System.err.println("DEBUG - BluePacket recognized " + clazz.getSimpleName());
+      System.err.println("[BluePacketRegistry] DEBUG - Registered: " + clazz.getSimpleName());
     }
     packet_id_to_class_.put(id, bp);
   }

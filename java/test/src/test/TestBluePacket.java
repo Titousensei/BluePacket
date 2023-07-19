@@ -5,8 +5,8 @@ import java.util.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import org.bluepacket.network.BluePacket;
-import org.bluepacket.network.BluePacketRegistry;
+import org.bluepacket.BluePacket;
+import org.bluepacket.BluePacketRegistry;
 
 class TestBluePacket
 {

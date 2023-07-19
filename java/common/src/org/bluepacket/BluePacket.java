@@ -1,4 +1,4 @@
-package org.bluepacket.network;
+package org.bluepacket;
 
 import java.io.*;
 import java.util.*;
