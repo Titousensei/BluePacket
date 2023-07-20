@@ -57,6 +57,20 @@ All types (built-in and defined) can be in a `list`.
 
 Enums are encoded as a byte and start a zero.
 
+## Implemented Features
+
+| Language | de/ser | const | bptext | bpbin | distri | rpc client | rpc server | connected client | connected server |
+| -------- | ------ | ----- | ------ | ----- | ------ | ---------- | ---------- | ---------------- | ---------------- | 
+| Java     |    Y   |       |        |       |        |     Y      |            |                  |                  |
+| Python   |    Y   |       |        |       |        |            |            |                  |                  |
+| C#       |    Y   |       |        |       |        |            |            |                  |                  |
+| Go       |    Y   |       |        |       |        |            |            |                  |                  |
+| C / C++  |        |       |        |       |        |            |            |                  |                  |
+| Rust     |        |       |        |       |        |            |            |                  |                  |
+| Zig      |        |       |        |       |        |            |            |                  |                  |
+| Javascript |      |       |        |       |        |            |            |                  |                  |
+| Lua      |        |       |        |       |        |            |            |                  |                  |
+
 ## F.A.Q.
 
 - (java) why are the generated files final? I want to subclass some of them.
