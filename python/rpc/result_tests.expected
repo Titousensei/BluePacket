@@ -1,0 +1,7 @@
+10.0
+42.0
+30.0
+15.0
+Exception: ERROR - Unknown operation: Fake
+Exception: ERROR - Unknown CalcMean.Type: Quantic
+Exception: ERROR - RpcError: No values provided

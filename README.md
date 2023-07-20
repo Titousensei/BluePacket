@@ -60,7 +60,7 @@ Enums are encoded as a byte or a short, start a zero and are auto-incremented.
 | Language | de/ser | const | bptext | bpbin | distri | rpc client | rpc server | connected client | connected server |
 | -------- | ------ | ----- | ------ | ----- | ------ | ---------- | ---------- | ---------------- | ---------------- |
 | Java     |    Y   |       |        |       |        |     Y      |     Y      |                  |                  |
-| Python   |    Y   |       |        |       |        |            |            |                  |                  |
+| Python   |    Y   |       |        |       |        |     Y      |            |                  |                  |
 | C#       |    Y   |       |        |       |        |            |            |                  |                  |
 | Go       |    Y   |       |        |       |        |            |            |                  |                  |
 | C / C++  |        |       |        |       |        |            |            |                  |                  |
