@@ -1,1 +1,1 @@
-{DemoUnsigned 0xDD841D6FFB238B9F lub={ubyte *2|201|5} lus={ushort *2|43210|1234} ub=200 us=45678}
+{DemoUnsigned 0x3D92FD2EB4685BFF a0=1 a2=1 a4=1 a6=1 b1=1 b3=1 b5=1 b7=1 c2=1 lub={ubyte *2|201|5} lus={ushort *2|43210|1234} ub=200 us=45678}

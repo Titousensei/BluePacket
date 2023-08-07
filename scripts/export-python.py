@@ -74,7 +74,7 @@ def produceDocstring(out, indent, docstring):
           println(out, f"{indent}{line}")
       println(out, f'{indent}"""')
     println(out)
-    
+
 
 def produceTypeInfo(out, fields, indent):
   println(out, indent + "TYPE_INFO = {")
@@ -120,8 +120,27 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out)
   println(out, indent + "def serializeData(self, bpw):")
 
+  bool_counter = 0
+  for fname, ftype, *opt in fields:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"{indent}  # boolean fields are packed into bytes")
+      println(out, f"{indent}  bin = 0")
+    elif  bool_counter % 8 == 0:
+      println(out, f"{indent}  bpw.writeUnsignedByte(bin)")
+      println(out, f"{indent}  bin = 0")
+
+    println(out, f"{indent}  if self.{fname}: bin |= {1<<(bool_counter%8)}")
+    println(out, f"{indent}  else: bin &= {255 & ~(1<<(bool_counter%8))}")
+    bool_counter += 1
+
+  if  bool_counter % 8 != 0:
+    println(out, f"{indent}  bpw.writeUnsignedByte(bin)")
+
+  println(out, f"{indent}  # Non-boolean fields")
   for fname, ftype, opt, _ in fields:
-    if not fname:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
       if ftype in PYTHON_WRITER:
@@ -146,8 +165,21 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
   println(out)
   println(out, indent + "def populateData(self, bpr):")
 
+  bool_counter = 0
+  for fname, ftype, *opt in fields:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"{indent}  # boolean fields are packed into bytes")
+    if  bool_counter % 8 == 0:
+      println(out, f"{indent}  bin = bpr.readByte()")
+
+    println(out, f"{indent}  self.{fname} = (bin & {1<<(bool_counter%8)}) != 0")
+    bool_counter += 1
+
+  println(out, f"{indent}  # Non-boolean fields")
   for fname, ftype, opt, _ in fields:
-    if not fname:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if ftype in data.inner:
       ftype = "self." + ftype
@@ -228,7 +260,7 @@ def exportInnerEnum(out, data, indent0):
       i += 1
     elif d:
       println(out)
-      
+
 
 def exportInnerClass(out, data, field_is_enum, parentName):
   sorted_fields = list(sorted(data.fields))

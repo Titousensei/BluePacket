@@ -111,8 +111,26 @@ def produceSerializer(out, name, fields, field_is_enum):
   println(out)
   println(out, f"func (bp *{name}) SerializeData(w *bytes.Buffer) {{")
 
+  bool_counter = 0
+  for fname, ftype, *opt in fields:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"\t// boolean fields are packed into bytes")
+      println(out, f"\tbin := byte(0)")
+    elif  bool_counter % 8 == 0:
+      println(out, f"\tw.WriteByte(bin)")
+      println(out, f"\tbin = 0")
+
+    println(out, f"\tif bp.{fname} {{ bin |= {1<<(bool_counter%8)} }} else {{ bin &= {255 & ~(1<<(bool_counter%8))} }}")
+    bool_counter += 1
+
+  if  bool_counter % 8 != 0:
+    println(out, f"\tw.WriteByte(bin)")
+
+  println(out, f"\t// Non-boolean fields")
   for fname, ftype, opt, _ in fields:
-    if not fname:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
       println(out, f"\tbluepacket.WriteSequenceLength(w, len(bp.{fname}))")
@@ -143,8 +161,22 @@ def produceDeserializer(out, name, fields, field_is_enum):
   println(out)
   println(out, f"func (bp *{name}) PopulateData(r *bytes.Reader) {{")
 
+  bool_counter = 0
+  for fname, ftype, *opt in fields:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"\t// boolean fields are packed into bytes")
+      println(out, f"\tvar bin byte")
+    if  bool_counter % 8 == 0:
+      println(out, f"\tbin = bluepacket.ReadByte(r)")
+
+    println(out, f"\tbp.{fname} = (bin & {1<<(bool_counter%8)}) != 0")
+    bool_counter += 1
+
+  println(out, f"\t// Non-boolean fields")
   for fname, ftype, opt, _ in fields:
-    if not fname:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
       println(out, f"\tsize{fname} := bluepacket.ReadSequenceLength(r)")
@@ -289,7 +321,7 @@ def exportEnum(out_dir, package, data):
     header(out, package, data)
     produceDocstring(out, "", data.docstring)
     exportEnumDef(out, data, "")
-    
+
 
 def exportEnumDef(out, data, namespace):
     println(out, f"type {namespace}{data.name} byte")

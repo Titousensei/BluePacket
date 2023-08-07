@@ -84,31 +84,49 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out, f"{indent}override public void SerializeData(Stream s)")
   println(out, indent + "{")
 
+  bool_counter = 0
   for fname, ftype, *opt in fields:
-    if not fname:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"{indent}  // boolean fields are packed into bytes")
+      println(out, f"{indent}  byte bin = 0;")
+    elif  bool_counter % 8 == 0:
+      println(out, f"{indent}  s.WriteByte(bin);")
+      println(out, f"{indent}  bin = 0;")
+
+    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }} else {{ bin &= {255 & ~(1<<(bool_counter%8))}; }}")
+    bool_counter += 1
+
+  if  bool_counter % 8 != 0:
+    println(out, f"{indent}  s.WriteByte(bin);")
+
+  println(out, f"{indent}  // Non-boolean fields")
+  for fname, ftype, *opt in fields:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
-      println(out, f"{indent}  if ({fname} == null) s.WriteByte(0); else {{")
-      println(out, f"{indent}    WriteSequenceLength(s, {fname}.Length);")
+      println(out, f"{indent}  if (this.{fname} == null) s.WriteByte(0); else {{")
+      println(out, f"{indent}    WriteSequenceLength(s, this.{fname}.Length);")
       if ftype in CS_WRITER:
-        println(out, f"{indent}    for (int i = 0; i < {fname}.Length; ++i)")
-        println(out, f"{indent}      {CS_WRITER[ftype]}(s, {fname}[i]);")
+        println(out, f"{indent}    for (int i = 0; i < this.{fname}.Length; ++i)")
+        println(out, f"{indent}      {CS_WRITER[ftype]}(s, this.{fname}[i]);")
       elif ftype in field_is_enum:
-        println(out, f"{indent}    foreach ({ftype} p in {fname})")
+        println(out, f"{indent}    foreach ({ftype} p in this.{fname})")
         println(out, f"{indent}      WriteEnum(s, p);")
       else:
-        println(out, f"{indent}    foreach (BluePacket p in {fname})")
+        println(out, f"{indent}    foreach (BluePacket p in this.{fname})")
         println(out, f"{indent}      p.SerializeData(s);")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  WriteEnum(s, {fname});")
+      println(out, f"{indent}  WriteEnum(s, this.{fname});")
     elif ftype in CS_WRITER:
-      println(out, f"{indent}  {CS_WRITER[ftype]}(s, {fname});")
+      println(out, f"{indent}  {CS_WRITER[ftype]}(s, this.{fname});")
     else:
-      println(out, f"{indent}  if ({fname} == null) s.WriteByte(0);")
+      println(out, f"{indent}  if (this.{fname} == null) s.WriteByte(0);")
       println(out, indent + "  else {")
       println(out, f"{indent}    s.WriteByte(1);")
-      println(out, f"{indent}    {fname}.SerializeData(s);")
+      println(out, f"{indent}    this.{fname}.SerializeData(s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")
@@ -120,8 +138,22 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out, f"{indent}override public void PopulateData(Stream s)")
   println(out, indent + "{")
 
+  bool_counter = 0
   for fname, ftype, *opt in fields:
-    if not fname:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"{indent}  // boolean fields are packed into bytes")
+      println(out, f"{indent}  int bin;")
+    if  bool_counter % 8 == 0:
+      println(out, f"{indent}  bin = s.ReadByte();")
+
+    println(out, f"{indent}  this.{fname} = (bin & {1<<(bool_counter%8)}) != 0;")
+    bool_counter += 1
+
+  println(out, f"{indent}  // Non-boolean fields")
+  for fname, ftype, *opt in fields:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
       println(out, f"{indent}  {fname} = new {CS_TYPE.get(ftype, ftype)}[ReadSequenceLength(s)];")

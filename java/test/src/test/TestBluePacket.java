@@ -134,7 +134,26 @@ class TestBluePacket
         .setUb((byte) 200)
         .setUs((short) 45678)
         .setLub(new byte[] {(byte) 201, (byte) 5})
-        .setLus(new short[] {(short) 43210, (short) 1234});
+        .setLus(new short[] {(short) 43210, (short) 1234})
+        .setA0(true)
+        .setA1(false)
+        .setA2(true)
+        .setA3(false)
+        .setA4(true)
+        .setA5(false)
+        .setA6(true)
+        .setA7(false)
+        .setB0(false)
+        .setB1(true)
+        .setB2(false)
+        .setB3(true)
+        .setB4(false)
+        .setB5(true)
+        .setB6(false)
+        .setB7(true)
+        .setC0(false)
+        .setC1(false)
+        .setC2(true);
 
     demoPacketUBin = readBinary(TESTDATA_DIR + "DemoPacketU.bin");
   }
@@ -235,7 +254,7 @@ class TestBluePacket
     test.testPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
     test.testPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
     test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
-    test.testPacketHash("testVersionHashU", test.demoPacketU, -2484828727609685089L);
+    test.testPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);
     test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.testSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
     test.testSerialize("testSerialize3", test.demoPacket3, test.demoPacket3Bin);

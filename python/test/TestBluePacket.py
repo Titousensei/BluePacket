@@ -81,6 +81,26 @@ class TestBluePacket(unittest.TestCase):
     demoPacketU.lub = [201, 5]
     demoPacketU.lus = [43210, 1234]
 
+    demoPacketU.a0 = True
+    demoPacketU.a1 = False
+    demoPacketU.a2 = True
+    demoPacketU.a3 = False
+    demoPacketU.a4 = True
+    demoPacketU.a5 = False
+    demoPacketU.a6 = True
+    demoPacketU.a7 = False
+    demoPacketU.b0 = False
+    demoPacketU.b1 = True
+    demoPacketU.b2 = False
+    demoPacketU.b3 = True
+    demoPacketU.b4 = False
+    demoPacketU.b5 = True
+    demoPacketU.b6 = False
+    demoPacketU.b7 = True
+    demoPacketU.c0 = False
+    demoPacketU.c1 = False
+    demoPacketU.c2 = True
+
     with open(TESTDATA_DIR + "DemoPacketU.bin", "rb") as f:
       _TEST_DATA['DemoPacketU.bin'] = f.read()
 
@@ -88,7 +108,7 @@ class TestBluePacket(unittest.TestCase):
     (3909449246358733856, "DemoPacket"),
     (-7277881074505903123, "DemoPacket2"),
     (3706623474888074790, "DemoPacket3"),
-    (-2484828727609685089, "DemoPacketU"),
+    (4436886959950420991, "DemoPacketU"),
   )
   def testPacketHash(self, expected, packet):
     hash = _TEST_DATA[packet].packetHash

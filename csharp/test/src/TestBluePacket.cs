@@ -93,7 +93,26 @@ class TestBluePacket
         ub = 200,
         us = 45678,
         lub = new byte[] {201, 5},
-        lus = new ushort[] {43210, 1234}
+        lus = new ushort[] {43210, 1234},
+        a0 = true,
+        a1 = false,
+        a2 = true,
+        a3 = false,
+        a4 = true,
+        a5 = false,
+        a6 = true,
+        a7 = false,
+        b0 = false,
+        b1 = true,
+        b2 = false,
+        b3 = true,
+        b4 = false,
+        b5 = true,
+        b6 = false,
+        b7 = true,
+        c0 = false,
+        c1 = false,
+        c2 = true
     };
 
     demoPacketUBin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacketU.bin");
@@ -165,7 +184,7 @@ class TestBluePacket
     test.TestPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
     test.TestPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
     test.TestPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
-    test.TestPacketHash("testVersionHashU", test.demoPacketU, -2484828727609685089L);
+    test.TestPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);
     test.TestSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.TestSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
     test.TestSerialize("testSerialize3", test.demoPacket3, test.demoPacket3Bin);

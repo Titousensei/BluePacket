@@ -3,4 +3,4 @@ DemoOuter DemoOuter+oInt:int+oString:string
 BinaryTreeNode BinaryTreeNode+data:string+left:{BinaryTreeNode+...}+right:{BinaryTreeNode+...}
 DemoPacket2 DemoPacket2+aBoolean:[]bool+aByte:[]byte+aDouble:[]double+aEmpty:[]string+aFloat:[]float+aInt:[]int+aLong:[]long+aNull:{[]DemoOuter+oInt:int+oString:string}+aShort:[]short+aString:[]string+aZero:[]int
 DemoPacket3 DemoPacket3+possible:[]{DemoEnum+YES+SURE+ABSOLUTELY+NO_DOUBT}
-DemoUnsigned DemoUnsigned+lub:[]ubyte+lus:[]ushort+ub:ubyte+us:ushort
+DemoUnsigned DemoUnsigned+a0:bool+a1:bool+a2:bool+a3:bool+a4:bool+a5:bool+a6:bool+a7:bool+b0:bool+b1:bool+b2:bool+b3:bool+b4:bool+b5:bool+b6:bool+b7:bool+c0:bool+c1:bool+c2:bool+lub:[]ubyte+lus:[]ushort+ub:ubyte+us:ushort

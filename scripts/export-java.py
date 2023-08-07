@@ -139,20 +139,38 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out, indent + "throws java.io.IOException")
   println(out, indent + "{")
 
+  bool_counter = 0
   for fname, ftype, *opt in fields:
-    if not fname:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"{indent}  // boolean fields are packed into bytes")
+      println(out, f"{indent}  byte bin = 0;")
+    elif  bool_counter % 8 == 0:
+      println(out, f"{indent}  s.writeByte(bin);")
+      println(out, f"{indent}  bin = 0;")
+
+    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }} else {{ bin &= {255 & ~(1<<(bool_counter%8))}; }}")
+    bool_counter += 1
+
+  if  bool_counter % 8 != 0:
+    println(out, f"{indent}  s.writeByte(bin);")
+
+  println(out, f"{indent}  // Non-boolean fields")
+  for fname, ftype, *opt in fields:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
-      println(out, f"{indent}  writeArray(s, {fname});")
+      println(out, f"{indent}  writeArray(s, this.{fname});")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  s.writeByte({fname} == null ? 0 : {fname}.ordinal());")
+      println(out, f"{indent}  s.writeByte(this.{fname} == null ? 0 : this.{fname}.ordinal());")
     elif ftype in JAVA_WRITER:
-      println(out, f"{indent}  {JAVA_WRITER[ftype]}{fname});")
+      println(out, f"{indent}  {JAVA_WRITER[ftype]}this.{fname});")
     else:
       println(out, f"{indent}  if ({fname} == null) s.writeByte(0);")
       println(out, f"{indent}  else {{")
       println(out, f"{indent}    s.writeByte(1);")
-      println(out, f"{indent}    {fname}.serializeData(s);")
+      println(out, f"{indent}    this.{fname}.serializeData(s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")
@@ -166,29 +184,43 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out, indent + "throws java.io.IOException")
   println(out, indent + "{")
 
+  bool_counter = 0
   for fname, ftype, *opt in fields:
-    if not fname:
+    if ftype != 'bool' or 'list' in opt:
+      continue
+    if bool_counter == 0:
+      println(out, f"{indent}  // boolean fields are packed into bytes")
+      println(out, f"{indent}  int bin;")
+    if  bool_counter % 8 == 0:
+      println(out, f"{indent}  bin = s.readByte();")
+
+    println(out, f"{indent}  this.{fname} = (bin & {1<<(bool_counter%8)}) != 0;")
+    bool_counter += 1
+
+  println(out, f"{indent}  // Non-boolean fields")
+  for fname, ftype, *opt in fields:
+    if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
-      println(out, f"{indent}  {fname} = new {JAVA_TYPE.get(ftype, ftype)}[readSequenceLength(s)];")
-      println(out, f"{indent}  for (int i = 0; i < {fname}.length; ++i) {{")
+      println(out, f"{indent}  this.{fname} = new {JAVA_TYPE.get(ftype, ftype)}[readSequenceLength(s)];")
+      println(out, f"{indent}  for (int i = 0; i < this.{fname}.length; ++i) {{")
       if ftype in JAVA_READER:
-        println(out, f"{indent}    {fname}[i] = {JAVA_READER[ftype]};")
+        println(out, f"{indent}    this.{fname}[i] = {JAVA_READER[ftype]};")
       elif ftype in field_is_enum:
-        println(out, f"{indent}    {fname}[i] = {ftype}.valueOf(s.readUnsignedByte());")
+        println(out, f"{indent}    this.{fname}[i] = {ftype}.valueOf(s.readUnsignedByte());")
       else:
         println(out, f"{indent}    {ftype} obj = new {ftype}();")
         println(out, f"{indent}    obj.populateData(s);")
-        println(out, f"{indent}    {fname}[i] = obj;")
+        println(out, f"{indent}    this.{fname}[i] = obj;")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  {fname} = {ftype}.valueOf(s.readUnsignedByte());")
+      println(out, f"{indent}  this.{fname} = {ftype}.valueOf(s.readUnsignedByte());")
     elif ftype in JAVA_READER:
-      println(out, f"{indent}  {fname} = {JAVA_READER[ftype]};")
+      println(out, f"{indent}  this.{fname} = {JAVA_READER[ftype]};")
     else:
       println(out, f"{indent}  if (s.readUnsignedByte() > 0) {{")
-      println(out, f"{indent}    {fname} = new {ftype}();")
-      println(out, f"{indent}    {fname}.populateData(s);")
+      println(out, f"{indent}    this.{fname} = new {ftype}();")
+      println(out, f"{indent}    this.{fname}.populateData(s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")

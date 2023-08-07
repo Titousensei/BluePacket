@@ -97,6 +97,25 @@ func setUp(t *testing.T) testData {
 			Us:  45678,
 			Lub: []byte{201, 5},
 			Lus: []uint16{43210, 1234},
+			A0: true,
+			A1: false,
+			A2: true,
+			A3: false,
+			A4: true,
+			A5: false,
+			A6: true,
+			A7: false,
+			B0: false,
+			B1: true,
+			B2: false,
+			B3: true,
+			B4: false,
+			B5: true,
+			B6: false,
+			B7: true,
+			C0: false,
+			C1: false,
+			C2: true,
 		},
 
 		demoPacketUBin: readFile(t, "DemoPacketU.bin"),
@@ -188,7 +207,7 @@ func TestDemoBluePacketHash(t *testing.T) {
 	testPacketHash(t, "testVersionHash", &test.demoPacket, 3909449246358733856)
 	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -7277881074505903123)
 	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 3706623474888074790)
-	testPacketHash(t, "testVersionHashU", &test.demoPacketU, -2484828727609685089)
+	testPacketHash(t, "testVersionHashU", &test.demoPacketU, 4436886959950420991)
 }
 
 func TestDemoBluePacketSerialize(t *testing.T) {
