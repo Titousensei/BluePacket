@@ -129,9 +129,6 @@ class BluePacket(bytearray):
     self.writeLong(packet.packetHash)
     packet.serializeData(self)
 
-  def writeBool(self, field):
-    self.extend(struct.pack('!b', 1 if field else 0))
-
   def writeByte(self, field):
     self.extend(struct.pack('!b', field))
 
@@ -195,6 +192,21 @@ class BluePacket(bytearray):
         for b in field:
             self.writeByte(b.value)
 
+  def writeListBool(self, field):
+    if field is None:
+        self.writeByte(0)
+    else:
+        self._writeSeqLength(len(field))
+        bin = 0
+        for i, b in enumerate(field):
+          if b:
+            bin |= (1 << (i % 8))
+          if (i % 8) == 7:
+            self.writeUnsignedByte(bin)
+            bin = 0
+        if (len(field) % 8) != 0:
+          self.writeUnsignedByte(bin)
+
 
 class _BluePacketReader(deque):
 
@@ -206,9 +218,6 @@ class _BluePacketReader(deque):
     i = self.offset
     self.offset += size
     return struct.unpack_from(format, self.buffer, i)[0]
-
-  def readBoolean(self):
-    return self.readByte() != 0
 
   def readUnsignedByte(self):
     return self._readStruct('!B', 1)
@@ -235,6 +244,18 @@ class _BluePacketReader(deque):
 
   def readUnsignedShort(self):
     return self._readStruct('!H', 2)
+
+  def readListBool(self):
+    l = self.readUnsignedByte()
+    if l == _MAX_UNSIGNED_BYTE:
+      l = self.readLong()
+    ret = []
+    for i in range(l):
+      if i % 8 == 0:
+        bin = self.readUnsignedByte()
+      masked = bin & (1 << (i % 8))
+      ret.append(masked != 0)
+    return ret
 
   def readString(self):
     l = self.readUnsignedByte()

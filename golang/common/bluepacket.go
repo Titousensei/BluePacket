@@ -41,14 +41,6 @@ func Serialize(packet *BluePacket) []byte {
 	return w.Bytes()
 }
 
-func WriteBool(w *bytes.Buffer, val bool) {
-	if val {
-		w.WriteByte(1)
-	} else {
-		w.WriteByte(0)
-	}
-}
-
 func WriteShort(w *bytes.Buffer, val int16) {
 	w.WriteByte(byte(val >> 8))
 	w.WriteByte(byte(val))
@@ -91,6 +83,24 @@ func WriteString(w *bytes.Buffer, val string) {
 	w.Write([]byte(val))
 }
 
+func WriteListBool(w *bytes.Buffer, val []bool) {
+	l := len(val)
+	WriteSequenceLength(w, l)
+	bin := byte(0)
+	for i := 0 ; i < l ; i++ {
+		if val[i] {
+			bin |= 1 << (i % 8)
+		}
+		if i % 8 == 7 {
+			w.WriteByte(bin)
+			bin = byte(0)
+		}
+	}
+	if l % 8 != 0 {
+		w.WriteByte(bin)
+	}
+}
+
 func WriteFloat(w *bytes.Buffer, val float32) {
 	WriteInt(w, int32(math.Float32bits(val)))
 }
@@ -128,11 +138,6 @@ func ReadByte(r *bytes.Reader) byte {
 func ReadSByte(r *bytes.Reader) int8 {
 	b, _ := r.ReadByte()
 	return int8(b)
-}
-
-func ReadBool(r *bytes.Reader) bool {
-	b, _ := r.ReadByte()
-	return b == 1
 }
 
 func ReadShort(r *bytes.Reader) int16 {
@@ -181,6 +186,21 @@ func ReadString(r *bytes.Reader) string {
 	buf := make([]byte, length)
 	r.Read(buf)
 	return string(buf)
+}
+
+func ReadListBool(r *bytes.Reader) []bool {
+	length := ReadSequenceLength(r)
+	ret := make([]bool, length)
+	bin := byte(0)
+	for i := 0 ; i < length ; i++ {
+		if i % 8 == 0 {
+			bin, _ = r.ReadByte()
+		}
+		if bin & (1 << (i % 8)) != 0 {
+			ret[i] = true
+		}
+	}
+	return ret
 }
 
 func ReadFloat(r *bytes.Reader) float32 {

@@ -113,7 +113,11 @@ class TestBluePacket
     demoPacketBin = readBinary(TESTDATA_DIR + "DemoPacket.bin");
 
     demoPacket2 = new DemoPacket2()
-        .setABoolean(new boolean[] {true, false, true})
+        .setABoolean(new boolean[] {
+            true, false, true, false, true, false, true, false,
+            false, true, false, true, false, true, false, true,
+            false, false, true
+        })
         .setAByte(new byte[] {99, 98, 97, 96})
         .setADouble(new double[] {1.23456789, 2.3456789})
         .setAFloat(new float[] {3.14f})

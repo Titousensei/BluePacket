@@ -13,7 +13,6 @@ PYTHON_TYPE = {
 }
 
 PYTHON_WRITER = {
-  "bool":   "writeBool",
   "byte":   "writeByte",
   "double": "writeDouble",
   "float":  "writeFloat",
@@ -26,7 +25,6 @@ PYTHON_WRITER = {
 }
 
 PYTHON_READER = {
-  "bool":   "readBoolean",
   "byte":   "readByte",
   "double": "readDouble",
   "float":  "readFloat",
@@ -45,7 +43,7 @@ def header(out, data):
     println(out)
     if not data.is_enum:
       println(out, "from blue_packet import BluePacket as bp, toQuotedString")
-      not_import = { data.name }
+      not_import = { data.name, 'bool' }
       not_import.update(PYTHON_READER)
       not_import.update(data.inner)
       not_import.update(data.enums)
@@ -132,7 +130,6 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  bin = 0")
 
     println(out, f"{indent}  if self.{fname}: bin |= {1<<(bool_counter%8)}")
-    println(out, f"{indent}  else: bin &= {255 & ~(1<<(bool_counter%8))}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
@@ -143,7 +140,9 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
-      if ftype in PYTHON_WRITER:
+      if ftype == 'bool':
+        println(out, f"{indent}  bpw.writeListBool(self.{fname})")
+      elif ftype in PYTHON_WRITER:
         println(out, f"{indent}  bpw.writeArrayNative(self.{fname}, bpw.{PYTHON_WRITER[ftype]})")
       elif ftype in field_is_enum:
         println(out, f"{indent}  bpw.writeArrayEnum(self.{fname})")
@@ -184,6 +183,9 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
     if ftype in data.inner:
       ftype = "self." + ftype
     if 'list' in opt:
+      if ftype == 'bool':
+        println(out, f"{indent}  self.{fname} = bpr.readListBool();")
+        continue
       println(out, f"{indent}  self.{fname} = []")
       println(out, f"{indent}  for _ in range(bpr.readUnsignedByte()):")
       if ftype in PYTHON_READER:

@@ -73,7 +73,11 @@ func setUp(t *testing.T) testData {
 		demoPacketBin: readFile(t, "DemoPacket.bin"),
 
 		demoPacket2: DemoPacket2{
-			ABoolean: []bool{true, false, true},
+			ABoolean: []bool{
+				true, false, true, false, true, false, true, false,
+				false, true, false, true, false, true, false, true,
+				false, false, true,
+			},
 			AByte:    []int8{99, 98, 97, 96},
 			ADouble:  []float64{1.23456789, 2.3456789},
 			AFloat:   []float32{3.14},

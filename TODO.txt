@@ -8,7 +8,6 @@
 - save to text (yaml)
 
 === Possible Future Features ===
-- bool -> pack bits in a byte automatically
 - java helper BitSet for boolean[]
 - enum automatically in 2 bytes if more than 255 elements
 - xint: variable length int, mostly small.

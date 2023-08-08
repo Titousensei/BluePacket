@@ -70,7 +70,11 @@ class TestBluePacket
     demoPacketBin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket.bin");
 
     demoPacket2 = new DemoPacket2 {
-        aBoolean = new bool[] {true, false, true},
+        aBoolean = new bool[] {
+            true, false, true, false, true, false, true, false,
+            false, true, false, true, false, true, false, true,
+            false, false, true
+        },
         aByte = new sbyte[] {99, 98, 97, 96},
         aDouble = new double[] {1.23456789, 2.3456789},
         aFloat = new float[] {3.14f},

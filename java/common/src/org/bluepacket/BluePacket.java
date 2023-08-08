@@ -115,7 +115,7 @@ public abstract class BluePacket
   /**
    * Internal method to start serializing a sequence.
    * If length is small (byte), write just one byte.
-   * If lenght is bigger than a byte, first write a max byte marker, then 
+   * If lenght is bigger than a byte, first write a max byte marker, then
    * write actual length as an int (4 bytes).
    *
    * @param dos the byte output stream
@@ -203,7 +203,19 @@ public abstract class BluePacket
     if (arr == null) { dos.writeByte(0);
     } else {
       writeSequenceLength(dos, arr.length);
-      for(boolean p : arr) dos.writeBoolean(p);
+      byte bin = 0;
+      for(int i = 0 ; i < arr.length ; i ++) {
+        if (arr[i]) {
+          bin |= 1 << (i%8);
+        }
+        if (i % 8 == 7) {
+          dos.writeByte(bin);
+          bin = 0;
+        }
+      }
+      if (arr.length % 8 != 0) {
+        dos.writeByte(bin);
+     }
     }
   }
 
@@ -349,7 +361,7 @@ public abstract class BluePacket
     InputStream in = new ByteArrayInputStream(data);
     return deserialize(registry, in);
   }
-  
+
   /**
    * From bytes to object.
    *
@@ -363,10 +375,10 @@ public abstract class BluePacket
   public static BluePacket deserialize(BluePacketRegistry registry, InputStream in)
   {
     DataInputStream dis = new DataInputStream(in);
-    
+
     try {
       long packetHash = dis.readLong();
-   
+
       // Header
       BluePacket packet = registry.newInstance(packetHash);
 
@@ -417,6 +429,32 @@ public abstract class BluePacket
           + ": got " + actual + ", expected " + length);
       }
       return new String(strBytes, StandardCharsets.UTF_8);
+    }
+    return null;
+  }
+
+  /**
+   * Internal method to read a list bool.
+   * First read the length of the list, then the bytes that pack the bits.
+   *
+   * @param dis the input stream containing the bytes of the serialized BluePacket
+   * @return the boolean array
+   * @throws IOException if cannot write to byte stream
+   */
+  protected boolean[] readListBool(DataInputStream dis)
+  throws IOException
+  {
+    int length = readSequenceLength(dis);
+    if (length > 0) {
+      boolean[] ret = new boolean[length];
+      int bin = 0;
+      for (int i = 0; i < length; ++i) {
+        if (i % 8 == 0) {
+          bin = dis.readByte();
+        }
+        ret[i] = (bin & (1 << (i % 8))) != 0;
+      }
+      return ret;
     }
     return null;
   }

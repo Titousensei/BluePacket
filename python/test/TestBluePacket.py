@@ -56,7 +56,11 @@ class TestBluePacket(unittest.TestCase):
     cls.maxDiff = None
 
     _TEST_DATA['DemoPacket2'] = demoPacket2 = t.DemoPacket2()
-    demoPacket2.aBoolean = [True, False, True]
+    demoPacket2.aBoolean = [
+        True, False, True, False, True, False, True, False,
+        False, True, False, True, False, True, False, True,
+        False, False, True
+    ]
     demoPacket2.aByte = [99, 98, 97, 96]
     demoPacket2.aDouble = [1.23456789, 2.3456789]
     demoPacket2.aFloat = [3.14]

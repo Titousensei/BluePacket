@@ -13,7 +13,6 @@ CS_TYPE = {
 }
 
 CS_WRITER = {
-  "bool":   "WriteBool",
   "byte":   "WriteSByte",
   "double": "WriteDouble",
   "float":  "WriteFloat",
@@ -26,7 +25,6 @@ CS_WRITER = {
 }
 
 CS_READER = {
-  "bool":   "ReadBool",
   "byte":   "ReadSByte",
   "double": "ReadDouble",
   "float":  "ReadFloat",
@@ -95,7 +93,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  s.WriteByte(bin);")
       println(out, f"{indent}  bin = 0;")
 
-    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }} else {{ bin &= {255 & ~(1<<(bool_counter%8))}; }}")
+    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
@@ -106,6 +104,9 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
+      if ftype == 'bool':
+        println(out, f"{indent}  WriteListBool(s, this.{fname});")
+        continue
       println(out, f"{indent}  if (this.{fname} == null) s.WriteByte(0); else {{")
       println(out, f"{indent}    WriteSequenceLength(s, this.{fname}.Length);")
       if ftype in CS_WRITER:
@@ -156,6 +157,9 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
+      if ftype == 'bool':
+        println(out, f"{indent}  this.{fname} = ReadListBool(s);")
+        continue
       println(out, f"{indent}  {fname} = new {CS_TYPE.get(ftype, ftype)}[ReadSequenceLength(s)];")
       println(out, f"{indent}  for (int i = 0; i < {fname}.Length; ++i) {{")
       if ftype in CS_READER:
@@ -190,7 +194,7 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
     if not fname:
       continue
     if 'list' in opt:
-      if ftype in CS_READER:
+      if ftype in CS_READER or ftype == 'bool':
         println(out, f'{indent}  AppendIfNotEmptyArray<{CS_TYPE.get(ftype, ftype)}>(sb, "{fname}", "{ftype}", {fname});')
       elif ftype in field_is_enum:
         println(out, f'{indent}  AppendIfNotEmptyArray<String>(sb, "{fname}", "{ftype}", Array.ConvertAll({fname}, value => value.ToString()));')

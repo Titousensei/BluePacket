@@ -122,7 +122,7 @@ def produceSerializer(out, name, fields, field_is_enum):
       println(out, f"\tw.WriteByte(bin)")
       println(out, f"\tbin = 0")
 
-    println(out, f"\tif bp.{fname} {{ bin |= {1<<(bool_counter%8)} }} else {{ bin &= {255 & ~(1<<(bool_counter%8))} }}")
+    println(out, f"\tif bp.{fname} {{ bin |= {1<<(bool_counter%8)} }}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
@@ -133,6 +133,9 @@ def produceSerializer(out, name, fields, field_is_enum):
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
+      if ftype == 'bool':
+        println(out, f"\tbluepacket.WriteListBool(w, bp.{fname})")
+        continue
       println(out, f"\tbluepacket.WriteSequenceLength(w, len(bp.{fname}))")
       println(out, f"\tfor _, p := range bp.{fname} {{")
       if ftype in GO_WRITER:
@@ -179,6 +182,9 @@ def produceDeserializer(out, name, fields, field_is_enum):
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
+      if ftype == 'bool':
+        println(out, f"\tbp.{fname} = bluepacket.ReadListBool(r)")
+        continue
       println(out, f"\tsize{fname} := bluepacket.ReadSequenceLength(r)")
       if ftype in GO_TYPE or ftype in field_is_enum:
         gotype = GO_TYPE.get(ftype, ftype)

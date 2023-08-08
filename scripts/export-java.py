@@ -18,7 +18,6 @@ SIGNED_TYPE = { "byte", "short" }
 UNSIGNED_TYPE = { "ubyte", "ushort" }
 
 JAVA_WRITER = {
-  "bool":   "s.writeBoolean(",
   "byte":   "s.writeByte(",
   "double": "s.writeDouble(",
   "float":  "s.writeFloat(",
@@ -31,7 +30,6 @@ JAVA_WRITER = {
 }
 
 JAVA_READER = {
-  "bool":   "s.readBoolean()",
   "byte":   "s.readByte()",
   "double": "s.readDouble()",
   "float":  "s.readFloat()",
@@ -150,7 +148,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  s.writeByte(bin);")
       println(out, f"{indent}  bin = 0;")
 
-    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }} else {{ bin &= {255 & ~(1<<(bool_counter%8))}; }}")
+    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
@@ -202,6 +200,9 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
+      if ftype == 'bool':
+        println(out, f"{indent}  this.{fname} = readListBool(s);")
+        continue
       println(out, f"{indent}  this.{fname} = new {JAVA_TYPE.get(ftype, ftype)}[readSequenceLength(s)];")
       println(out, f"{indent}  for (int i = 0; i < this.{fname}.length; ++i) {{")
       if ftype in JAVA_READER:

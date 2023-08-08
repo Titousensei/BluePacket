@@ -131,14 +131,6 @@ namespace BluePackets
       ms.Write(data, 0, data.Length);
     }
 
-    /// <summary>Internal method to write a bool</summary>
-    /// <param name="ms">the byte output stream</param>
-    /// <param name="data">the bool to write</param>
-    protected static void WriteBool(Stream ms, bool data)
-    {
-      ms.WriteByte(data ? (byte)1 : (byte)0);
-    }
-
     /// <summary>Internal method to write a signed byte</summary>
     /// <param name="ms">the byte output stream</param>
     /// <param name="data">the byte to write</param>
@@ -197,7 +189,7 @@ namespace BluePackets
 
     /// <summary>Internal method to write a double</summary>
     /// <param name="ms">the byte output stream</param>
-    /// <param name="data">the float to double</param>
+    /// <param name="data">the double to write</param>
     protected static void WriteDouble(Stream ms, double data)
     {
       WriteBytesBigEndian(ms, BitConverter.GetBytes(data));
@@ -205,10 +197,10 @@ namespace BluePackets
 
     /// <summary>
     /// Internal method to write a string.
-    /// First write the lenght, the bytes of the string.
+    /// First write the lenght, then bytes of the string.
     /// </summary>
     /// <param name="ms">the byte output stream</param>
-    /// <param name="data">the string to double</param>
+    /// <param name="data">the string to write</param>
     protected static void WriteString(Stream ms, string data)
     {
       if (data == null)
@@ -220,6 +212,37 @@ namespace BluePackets
         byte[] b = ENCODING.GetBytes(data);
         WriteSequenceLength(ms, b.Length);
         ms.Write(b, 0, b.Length);
+      }
+    }
+
+    /// <summary>
+    /// Internal method to write a list bool.
+    /// First write the lenght, then bytes of packet bits.
+    /// </summary>
+    /// <param name="ms">the byte output stream</param>
+    /// <param name="data">the boolean array to write</param>
+    protected static void WriteListBool(Stream ms, bool[] data)
+    {
+      if (data == null)
+      {
+        ms.WriteByte(0);
+      }
+      else
+      {
+        WriteSequenceLength(ms, data.Length);
+        int bin = 0;
+        for(int i = 0 ; i < data.Length ; i++) {
+          if (data[i]) {
+            bin |= 1 << (i % 8);
+          }
+          if ((i % 8) == 7) {
+            ms.WriteByte((byte) bin);
+            bin = 0;
+          }
+        }
+        if ((data.Length % 8) != 0) {
+          ms.WriteByte((byte) bin);
+        }
       }
     }
 
@@ -323,20 +346,6 @@ namespace BluePackets
       return (sbyte)data;
     }
 
-    /// <summary>Internal method to read one boolean from a stream, encoded as one byte</summary>
-    /// <param name="ms">the byte input stream</param>
-    /// <returns>the boolean</returns>
-    /// <exception cref="EndOfStreamException">when there's not enough bytes in the stream</exception>
-    protected static bool ReadBool(Stream ms)
-    {
-      int data = ms.ReadByte();
-      if (data == -1)
-      {
-        throw new EndOfStreamException("EOF reached in ReadBool");
-      }
-      return (data != 0);
-    }
-
     /// <summary>Internal method to read one signed short from a stream, encoded as two bytes</summary>
     /// <param name="ms">the byte input stream</param>
     /// <returns>the signed short</returns>
@@ -413,6 +422,27 @@ namespace BluePackets
         throw new EndOfStreamException("EOF reached in ReadString: got " + actual + ", expected " + length);
       }
       return ENCODING.GetString(strBytes, 0, length);
+    }
+
+    /// <summary>Internal method to read list bool from a stream, encoded as the length then the packed bytes</summary>
+    /// <param name="ms">the byte input stream</param>
+    /// <returns>the bool array</returns>
+    /// <exception cref="EndOfStreamException">when there's not enough bytes in the stream</exception>
+    protected static bool[] ReadListBool(Stream ms)
+    {
+      int length = ReadSequenceLength(ms);
+      if (length == 0) return null;
+      bool[] ret = new bool[length];
+      int bin = 0;
+      for (int i = 0 ; i < length ; i++) {
+        if ((i % 8) == 0) {
+          bin = ms.ReadByte();
+        }
+        if ((bin & (1<<(i % 8))) != 0) {
+          ret[i] = true;
+        }
+      }
+      return ret;
     }
 
     /// <summary>
@@ -562,7 +592,7 @@ namespace BluePackets
           } else {
             sb.Append(p);
           }
-          
+
         }
       }
       sb.Append('}');
