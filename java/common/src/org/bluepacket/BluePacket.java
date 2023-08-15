@@ -49,10 +49,11 @@ public abstract class BluePacket
   /**
    * Internal method to deserialize from bytes into this object fields
    * To be overridden by generated classes.
+   * @param registry the BluePacketRegistry to create instances of "packet" fields
    * @param dis stream to read the bytes from
    * @throws IOException if input stream cannot read the next byte
    */
-  protected void populateData(DataInputStream dis) throws IOException {}
+  protected void populateData(BluePacketRegistry registry, DataInputStream dis) throws IOException {}
 
   /**
    * Internal method to get unsigned byte
@@ -150,6 +151,24 @@ public abstract class BluePacket
       byte[] data = val.getBytes(StandardCharsets.UTF_8);
       writeSequenceLength(dos, data.length);
       dos.write(data, 0, data.length);
+    }
+  }
+
+  /**
+   * Internal method to serialize a BluePacket field.
+   * First write the PacketHash (0L if null), then the bytes of the packet.
+   *
+   * @param dos the byte output stream
+   * @param val the BluePacket to write
+   * @throws IOException if cannot write to byte stream
+   */
+  protected void writeBluePacket(DataOutputStream dos, BluePacket val)
+  throws IOException
+  {
+    if (val == null) {
+      dos.writeLong(0L);
+    } else {
+      val.serialize(dos);
     }
   }
 
@@ -378,12 +397,13 @@ public abstract class BluePacket
 
     try {
       long packetHash = dis.readLong();
+      if (packetHash == 0L) return null;
 
       // Header
       BluePacket packet = registry.newInstance(packetHash);
 
       // Body
-      packet.populateData(dis);
+      packet.populateData(registry, dis);
 
       return packet;
     }

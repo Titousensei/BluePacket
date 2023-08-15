@@ -197,7 +197,7 @@ namespace BluePackets
 
     /// <summary>
     /// Internal method to write a string.
-    /// First write the lenght, then bytes of the string.
+    /// First write the length, then bytes of the string.
     /// </summary>
     /// <param name="ms">the byte output stream</param>
     /// <param name="data">the string to write</param>
@@ -212,6 +212,25 @@ namespace BluePackets
         byte[] b = ENCODING.GetBytes(data);
         WriteSequenceLength(ms, b.Length);
         ms.Write(b, 0, b.Length);
+      }
+    }
+
+    /// <summary>
+    /// Internal method to write a BluePacket.
+    /// First write the packet hash (0 if null), then the bytes.
+    /// </summary>
+    /// <param name="ms">the byte output stream</param>
+    /// <param name="data">the BluePacket to write</param>
+    protected static void WriteBluePacket(Stream ms, BluePacket data)
+    {
+      if (data == null)
+      {
+        WriteLong(ms, 0);
+      }
+      else
+      {
+        WriteLong(ms, data.GetPacketHash());
+        data.SerializeData(ms);
       }
     }
 
@@ -284,20 +303,34 @@ namespace BluePackets
     {
       using (MemoryStream ms = new MemoryStream(data))
       {
-        // Header
-        long packetHash = ReadLong(ms);
-        object proto = PACKETID_TO_CLASS[packetHash];
-        if (proto == null)
-        {
-          throw new InvalidOperationException("Unknown packetHash received: " + packetHash);
-        }
-        BluePacket packet = (BluePacket)NewInstance(proto.GetType());
-
-        // Body
-        packet.PopulateData(ms);
-
-        return packet;
+        return Deserialize(ms);
       }
+    }
+
+    /// <summary>
+    /// From stream to object.
+    ///
+    /// Knowing the class packetHash, this will create an instance
+    /// and populate all the fields in order by reading the correct number of bytes.
+    /// </summary>
+    /// <param name="data">the stream to read</param>
+    /// <returns>an instance of the packet</returns>
+    public static BluePacket Deserialize(Stream ms)
+    {
+      // Header
+      long packetHash = ReadLong(ms);
+      if (packetHash == 0L) return null;
+      object proto = PACKETID_TO_CLASS[packetHash];
+      if (proto == null)
+      {
+        throw new InvalidOperationException("Unknown packetHash received: " + packetHash);
+      }
+      BluePacket packet = (BluePacket)NewInstance(proto.GetType());
+
+      // Body
+      packet.PopulateData(ms);
+
+      return packet;
     }
 
     /// <summary>Internal method to read a given number of bytes from a stream</summary>

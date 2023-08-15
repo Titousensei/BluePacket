@@ -9,6 +9,7 @@ INNER_INDENT = DEFAULT_INDENT + "  "
 
 CS_TYPE = {
   "byte": "sbyte",
+  "packet": "BluePacket",
   "ubyte": "byte",
 }
 
@@ -18,6 +19,7 @@ CS_WRITER = {
   "float":  "WriteFloat",
   "int":    "WriteInt",
   "long":   "WriteLong",
+  "packet": "WriteBluePacket",
   "short":  "WriteShort",
   "string": "WriteString",
   "ubyte":  "WriteByte",
@@ -30,6 +32,7 @@ CS_READER = {
   "float":  "ReadFloat",
   "int":    "ReadInt",
   "long":   "ReadLong",
+  "packet": "Deserialize",
   "short":  "ReadShort",
   "string": "ReadString",
   "ubyte":  "ReadByte",

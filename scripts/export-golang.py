@@ -15,6 +15,7 @@ GO_TYPE = {
   "float": "float32",
   "double": "float64",
   "string": "string",
+  "packet": "*bluepacket.BluePacket",
 }
 
 GO_EMPTY = {
@@ -37,6 +38,7 @@ GO_WRITER = {
   "float":  "bluepacket.WriteFloat(w, %s)",
   "int":    "bluepacket.WriteInt(w, %s)",
   "long":   "bluepacket.WriteLong(w, %s)",
+  "packet": "bluepacket.WriteBluePacket(w, %s)",
   "short":  "bluepacket.WriteShort(w, %s)",
   "string": "bluepacket.WriteString(w, %s)",
   "ubyte":  "w.WriteByte(%s)",
@@ -50,6 +52,7 @@ GO_READER = {
   "float":  "ReadFloat(r)",
   "int":    "ReadInt(r)",
   "long":   "ReadLong(r)",
+  "packet": "ReadBluePacket(r)",
   "short":  "ReadShort(r)",
   "string": "ReadString(r)",
   "ubyte":  "ReadByte(r)",
@@ -250,6 +253,8 @@ def produceToString(out, name, fields, field_is_enum):
       println(out, f'\tbluepacket.AppendIfNotEmptyString(sb, "{fname}", bp.{fname})')
     elif ftype in GO_EMPTY:
       println(out, f'\tbluepacket.AppendIfNotEmpty(sb, "{fname}", bp.{fname}, {GO_EMPTY[ftype]})')
+    elif ftype == "packet":
+      println(out, f'\tbluepacket.AppendIfNotNilPacket(sb, "{fname}", bp.{fname})')
     else:
       println(out, f'\tbluepacket.AppendIfNotNil(sb, "{fname}", bp.{fname})')
   println(out,  "}")

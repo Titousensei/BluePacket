@@ -26,6 +26,9 @@ def _checkDouble(x, _):
 def _checkLong(x, _):
   return type(x) == int
 
+def _checkBluePacket(x, _):
+  return hasattr(x, 'packetHash')
+
 def _checkShort(x, _):
   return type(x) == int and -32768 <= x <= 32767
 
@@ -52,6 +55,7 @@ _TYPE_VALIDATOR = {
   "byte": _checkByte,
   "double": _checkDouble,
   "long": _checkLong,
+  "packet": _checkBluePacket,
   "short": _checkShort,
   "string": _checkString,
   "ubyte": _checkUByte,
@@ -112,9 +116,14 @@ class BluePacket(bytearray):
   @classmethod
   def deserialize(cls, buffer):
     bpr = _BluePacketReader(buffer)
+    return cls._deserialize(bpr)
 
+  @classmethod
+  def _deserialize(cls, bpr):
     # Header
-    packetHash = bpr.readLong();
+    packetHash = bpr.readLong()
+    if packetHash == 0:
+      return None
     if packetHash not in cls.PACKETID_TO_CLASS:
       raise Exception(f"Unknown packetHash received: {packetHash}")
 
@@ -155,7 +164,7 @@ class BluePacket(bytearray):
 
   def _writeSeqLength(self, length):
     if (length < _MAX_UNSIGNED_BYTE):
-      self.writeByte(length);
+      self.writeByte(length)
     else:
       self.writeByte(_MAX_UNSIGNED_BYTE)
       self.writeInt(length)
@@ -167,6 +176,12 @@ class BluePacket(bytearray):
         b = field.encode('utf-8')
         self._writeSeqLength(len(b))
         self.extend(b)
+
+  def writeBluePacket(self, field):
+    if field is None:
+        self.writeLong(0)
+    else:
+        self.serialize(field)
 
   def writeArray(self, field):
     if field is None:
@@ -256,6 +271,9 @@ class _BluePacketReader(deque):
       masked = bin & (1 << (i % 8))
       ret.append(masked != 0)
     return ret
+
+  def readBluePacket(self):
+    return BluePacket._deserialize(self)
 
   def readString(self):
     l = self.readUnsignedByte()

@@ -134,6 +134,8 @@ class TestBluePacket
 
     demoPacket3Bin = readBinary(TESTDATA_DIR + "DemoPacket3.bin");
 
+    demoPacket.xPacket = demoPacket3;
+
     demoPacketU = new DemoUnsigned()
         .setUb((byte) 200)
         .setUs((short) 45678)
@@ -255,7 +257,7 @@ class TestBluePacket
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
     test.testToString("testToString3", "toString3.txt", test.demoPacket3);
     test.testToString("testToStringU", "toStringU.txt", test.demoPacketU);
-    test.testPacketHash("testVersionHash", test.demoPacket, 3909449246358733856L);
+    test.testPacketHash("testVersionHash", test.demoPacket, -3377904526771042813L);
     test.testPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
     test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.testPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);

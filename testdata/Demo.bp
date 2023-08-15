@@ -12,6 +12,8 @@ DemoPacket:
     double fDouble
     string fString
     string fLongstring
+    packet xPacket
+    packet emptyPacket
 
     # Inner field with just one int doc:fInner
     MyInner fInner

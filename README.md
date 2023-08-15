@@ -53,6 +53,8 @@ Date:
 - bool
 - string
 
+In addition to built-in types, fields can be a defined BluePacket type, an Enums, as well as the type "packet" which can store any BluePacket.
+
 All types (built-in and defined) can be in a `list`.
 
 Enums are encoded as a byte and start a zero.
@@ -60,8 +62,8 @@ Enums are encoded as a byte and start a zero.
 ## Implemented Features
 
 | Language | de/ser | const | bptext | bpbin | distri | rpc client | rpc server | connected client | connected server |
-| -------- | ------ | ----- | ------ | ----- | ------ | ---------- | ---------- | ---------------- | ---------------- | 
-| Java     |    Y   |       |        |       |        |     Y      |            |                  |                  |
+| -------- | ------ | ----- | ------ | ----- | ------ | ---------- | ---------- | ---------------- | ---------------- |
+| Java     |    Y   |       |        |       |        |     Y      |     Y      |                  |                  |
 | Python   |    Y   |       |        |       |        |            |            |                  |                  |
 | C#       |    Y   |       |        |       |        |            |            |                  |                  |
 | Go       |    Y   |       |        |       |        |            |            |                  |                  |

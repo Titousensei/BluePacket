@@ -79,6 +79,8 @@ class TestBluePacket(unittest.TestCase):
     with open(TESTDATA_DIR + "DemoPacket3.bin", "rb") as f:
       _TEST_DATA['DemoPacket3.bin'] = f.read()
 
+    demoPacket.xPacket = demoPacket3
+
     _TEST_DATA['DemoPacketU'] = demoPacketU = t.DemoUnsigned()
     demoPacketU.ub = 200
     demoPacketU.us = 45678
@@ -109,7 +111,7 @@ class TestBluePacket(unittest.TestCase):
       _TEST_DATA['DemoPacketU.bin'] = f.read()
 
   @parameters(
-    (3909449246358733856, "DemoPacket"),
+    (-3377904526771042813, "DemoPacket"),
     (-7277881074505903123, "DemoPacket2"),
     (3706623474888074790, "DemoPacket3"),
     (4436886959950420991, "DemoPacketU"),
@@ -286,6 +288,14 @@ class TestBluePacket(unittest.TestCase):
       data.fDouble = "123"
     self.assertEqual(ex.exception.ftype, "double")
     self.assertEqual(ex.exception.value, "123")
+
+  def testSetPacketNegaite(self):
+    data = t.DemoPacket()
+    val = "x"
+    with self.assertRaises(FieldTypeException) as ex:
+      data.xPacket = val
+    self.assertEqual(ex.exception.ftype, "packet")
+    self.assertEqual(ex.exception.value, val)
 
   def testSetStringNegative(self):
     data = t.DemoPacket()

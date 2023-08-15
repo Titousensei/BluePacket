@@ -1,4 +1,4 @@
-DemoPacket DemoPacket+aInner:{[]MyInner+iInteger:int}+aOuter:{[]DemoOuter+oInt:int+oString:string}+fBoolean:bool+fByte:byte+fDouble:double+fEnum:{MyEnum+DUNNO+MAYBE+POSSIBLE+WHOKNOWS}+fFloat:float+fInner:{MyInner+...}+fInt:int+fLong:long+fLongstring:string+fOuter:{DemoOuter+...}+fShort:short+fString:string+oEnum:{DemoEnum+YES+SURE+ABSOLUTELY+NO_DOUBT}
+DemoPacket DemoPacket+aInner:{[]MyInner+iInteger:int}+aOuter:{[]DemoOuter+oInt:int+oString:string}+emptyPacket:packet+fBoolean:bool+fByte:byte+fDouble:double+fEnum:{MyEnum+DUNNO+MAYBE+POSSIBLE+WHOKNOWS}+fFloat:float+fInner:{MyInner+...}+fInt:int+fLong:long+fLongstring:string+fOuter:{DemoOuter+...}+fShort:short+fString:string+oEnum:{DemoEnum+YES+SURE+ABSOLUTELY+NO_DOUBT}+xPacket:packet
 DemoOuter DemoOuter+oInt:int+oString:string
 BinaryTreeNode BinaryTreeNode+data:string+left:{BinaryTreeNode+...}+right:{BinaryTreeNode+...}
 DemoPacket2 DemoPacket2+aBoolean:[]bool+aByte:[]byte+aDouble:[]double+aEmpty:[]string+aFloat:[]float+aInt:[]int+aLong:[]long+aNull:{[]DemoOuter+oInt:int+oString:string}+aShort:[]short+aString:[]string+aZero:[]int

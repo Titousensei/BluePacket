@@ -135,6 +135,11 @@ func setUp(t *testing.T) testData {
 		&DemoOuter{OInt: 282, OString: ":-)"},
 	}
 
+	// FIXME: is there a better way to cast?
+	var packet3 bluepacket.BluePacket
+	packet3 = &data.demoPacket3
+	data.demoPacket.XPacket = &packet3
+
 	bluepacket.Register(&DemoPacket{})
 	bluepacket.Register(&DemoPacket2{})
 	bluepacket.Register(&DemoPacket3{})
@@ -208,7 +213,7 @@ func TestDemoBluePacketToString(t *testing.T) {
 
 func TestDemoBluePacketHash(t *testing.T) {
 	test := setUp(t)
-	testPacketHash(t, "testVersionHash", &test.demoPacket, 3909449246358733856)
+	testPacketHash(t, "testVersionHash", &test.demoPacket, -3377904526771042813)
 	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -7277881074505903123)
 	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 3706623474888074790)
 	testPacketHash(t, "testVersionHashU", &test.demoPacketU, 4436886959950420991)

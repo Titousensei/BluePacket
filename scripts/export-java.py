@@ -11,6 +11,7 @@ JAVA_TYPE = {
   "bool": "boolean",
   "ubyte": "byte",
   "ushort": "short",
+  "packet": "BluePacket",
   "string": "String",
 }
 
@@ -23,6 +24,7 @@ JAVA_WRITER = {
   "float":  "s.writeFloat(",
   "int":    "s.writeInt(",
   "long":   "s.writeLong(",
+  "packet": "writeBluePacket(s, ",
   "short":  "s.writeShort(",
   "string": "writeString(s, ",
   "ubyte":  "s.writeByte(",
@@ -35,6 +37,7 @@ JAVA_READER = {
   "float":  "s.readFloat()",
   "int":    "s.readInt()",
   "long":   "s.readLong()",
+  "packet": "deserialize(registry, s)",
   "short":  "s.readShort()",
   "string": "readString(s)",
   "ubyte":  "s.readByte()",
@@ -178,7 +181,7 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out)
   produceDocstring(out, indent, ["Internal method to deserialize from bytes into this object fields", "@param s stream to read the bytes from"])
   println(out, indent + "@Override")
-  println(out, indent + "public void populateData(java.io.DataInputStream s)")
+  println(out, indent + "public void populateData(org.bluepacket.BluePacketRegistry registry, java.io.DataInputStream s)")
   println(out, indent + "throws java.io.IOException")
   println(out, indent + "{")
 
@@ -211,7 +214,7 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
         println(out, f"{indent}    this.{fname}[i] = {ftype}.valueOf(s.readUnsignedByte());")
       else:
         println(out, f"{indent}    {ftype} obj = new {ftype}();")
-        println(out, f"{indent}    obj.populateData(s);")
+        println(out, f"{indent}    obj.populateData(registry, s);")
         println(out, f"{indent}    this.{fname}[i] = obj;")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
@@ -221,7 +224,7 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
     else:
       println(out, f"{indent}  if (s.readUnsignedByte() > 0) {{")
       println(out, f"{indent}    this.{fname} = new {ftype}();")
-      println(out, f"{indent}    this.{fname}.populateData(s);")
+      println(out, f"{indent}    this.{fname}.populateData(registry, s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")

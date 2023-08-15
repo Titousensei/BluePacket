@@ -83,6 +83,15 @@ func WriteString(w *bytes.Buffer, val string) {
 	w.Write([]byte(val))
 }
 
+func WriteBluePacket(w *bytes.Buffer, packet *BluePacket) {
+	if (packet == nil) {
+		WriteLong(w, 0)
+	} else {
+		WriteLong(w, (*packet).GetPacketHash())
+		(*packet).SerializeData(w)
+	}
+}
+
 func WriteListBool(w *bytes.Buffer, val []bool) {
 	l := len(val)
 	WriteSequenceLength(w, l)
@@ -115,9 +124,19 @@ func WriteDouble(w *bytes.Buffer, val float64) {
 // in order by reading the correct number of bytes.
 func Deserialize(bin []byte) (*BluePacket, error) {
 	r := bytes.NewReader(bin)
+	return deserializeFromReader(r)
+}
 
+// From Reader to object.
+//
+// Knowing the class packetHash, this will create an instance and populate all the fields
+// in order by reading the correct number of bytes.
+func deserializeFromReader(r *bytes.Reader) (*BluePacket, error) {
 	// Header
 	packetHash := ReadLong(r)
+	if packetHash == 0 {
+		return nil, nil
+	}
 	proto, ok := registry[packetHash]
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("No such PacketHash: %d", packetHash))
@@ -188,6 +207,11 @@ func ReadString(r *bytes.Reader) string {
 	return string(buf)
 }
 
+func ReadBluePacket(r *bytes.Reader) *BluePacket {
+	packet, _ := deserializeFromReader(r)
+	return packet
+}
+
 func ReadListBool(r *bytes.Reader) []bool {
 	length := ReadSequenceLength(r)
 	ret := make([]bool, length)
@@ -211,7 +235,7 @@ func ReadDouble(r *bytes.Reader) float64 {
 	return math.Float64frombits(uint64(ReadLong(r)))
 }
 
-// Utils for String()
+// Utils
 
 func AppendIfNotEmptyList[T any](sb *strings.Builder, fname string, ftype string, values []T) {
 	if len(values) == 0 {
@@ -333,4 +357,14 @@ func AppendIfNotNil(sb *strings.Builder, fname string, value BluePacket) {
 	sb.WriteString(fname)
 	sb.WriteString("=")
 	sb.WriteString(value.String())
+}
+
+func AppendIfNotNilPacket(sb *strings.Builder, fname string, value *BluePacket) {
+	if value == nil {
+		return
+	}
+	sb.WriteString(" ")
+	sb.WriteString(fname)
+	sb.WriteString("=")
+	sb.WriteString((*value).String())
 }
