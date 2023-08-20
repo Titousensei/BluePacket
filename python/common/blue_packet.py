@@ -205,7 +205,15 @@ class BluePacket(bytearray):
     else:
         self._writeSeqLength(len(field))
         for b in field:
-            self.writeByte(b.value)
+            self.writeUnsignedByte(b.value)
+
+  def writeArrayLargeEnum(self, field):
+    if field is None:
+        self.writeShort(0)
+    else:
+        self._writeSeqLength(len(field))
+        for b in field:
+            self.writeUnsignedShort(b.value)
 
   def writeListBool(self, field):
     if field is None:

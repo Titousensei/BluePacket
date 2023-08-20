@@ -82,7 +82,10 @@ class TestBluePacket
         aLong = new long[] {101112131415L, 1617181920L},
         aShort = new short[] {2345, 3456, 4567},
         aString = new String[] {"abcdef", "xyz", "w", null, "asdfghjkl;"},
-        aEmpty = new String[0]
+        aEmpty = new String[0],
+        largeEnum1 = DemoEnum260.z8,
+        largeEnum2 = DemoEnum260.b3,
+        aLargeEnum = new DemoEnum260[] {DemoEnum260.z3, DemoEnum260.d7, DemoEnum260.z7}
     };
 
     demoPacket2Bin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket2.bin");
@@ -188,7 +191,7 @@ class TestBluePacket
     test.TestToString("testToString3", "toString3.txt", test.demoPacket3);
     test.TestToString("testToStringU", "toStringU.txt", test.demoPacketU);
     test.TestPacketHash("testVersionHash", test.demoPacket, -3377904526771042813L);
-    test.TestPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
+    test.TestPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
     test.TestPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.TestPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);
     test.TestSerialize("testSerialize", test.demoPacket, test.demoPacketBin);

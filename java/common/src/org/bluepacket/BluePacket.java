@@ -209,6 +209,24 @@ public abstract class BluePacket
   }
 
   /**
+   * Internal method to serialize an Enum array
+   * First write the length, then serialize each array element.
+   *
+   * @param dos the byte output stream
+   * @param arr the array to write
+   * @throws IOException if cannot write to byte stream
+   */
+  protected void writeArrayLargeEnum(DataOutputStream dos, Enum<?>[] arr)
+  throws IOException
+  {
+    if (arr == null) { dos.writeByte(0);
+    } else {
+      writeSequenceLength(dos, arr.length);
+      for(Enum<?> p : arr) dos.writeShort(p.ordinal());
+    }
+  }
+
+  /**
    * Internal method to serialize a boolean array
    * First write the length, then serialize each array element as one byte.
    *

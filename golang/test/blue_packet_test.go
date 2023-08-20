@@ -73,19 +73,22 @@ func setUp(t *testing.T) testData {
 		demoPacketBin: readFile(t, "DemoPacket.bin"),
 
 		demoPacket2: DemoPacket2{
-			ABoolean: []bool{
+			ABoolean:   []bool{
 				true, false, true, false, true, false, true, false,
 				false, true, false, true, false, true, false, true,
 				false, false, true,
 			},
-			AByte:    []int8{99, 98, 97, 96},
-			ADouble:  []float64{1.23456789, 2.3456789},
-			AFloat:   []float32{3.14},
-			AInt:     []int32{987654321, 87654321},
-			ALong:    []int64{101112131415, 1617181920},
-			AShort:   []int16{2345, 3456, 4567},
-			AString:  []string{"abcdef", "xyz", "w", "", "asdfghjkl;"},
-			AEmpty:   []string{},
+			AByte:      []int8{99, 98, 97, 96},
+			ADouble:    []float64{1.23456789, 2.3456789},
+			AFloat:     []float32{3.14},
+			AInt:       []int32{987654321, 87654321},
+			ALong:      []int64{101112131415, 1617181920},
+			AShort:     []int16{2345, 3456, 4567},
+			AString:    []string{"abcdef", "xyz", "w", "", "asdfghjkl;"},
+			AEmpty:     []string{},
+		        LargeEnum1: DemoEnum260z8,
+		        LargeEnum2: DemoEnum260b3,
+		        ALargeEnum: []DemoEnum260{DemoEnum260z3, DemoEnum260d7, DemoEnum260z7},
 		},
 
 		demoPacket2Bin: readFile(t, "DemoPacket2.bin"),
@@ -214,7 +217,7 @@ func TestDemoBluePacketToString(t *testing.T) {
 func TestDemoBluePacketHash(t *testing.T) {
 	test := setUp(t)
 	testPacketHash(t, "testVersionHash", &test.demoPacket, -3377904526771042813)
-	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -7277881074505903123)
+	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -4035910894404497038)
 	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 3706623474888074790)
 	testPacketHash(t, "testVersionHashU", &test.demoPacketU, 4436886959950420991)
 }

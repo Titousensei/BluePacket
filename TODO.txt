@@ -9,7 +9,6 @@
 
 === Possible Future Features ===
 - java helper BitSet for boolean[]
-- enum automatically in 2 bytes if more than 255 elements
 - xint: variable length int, mostly small.
   - start with a byte, if value == -128 read a short, if value == -127 read an int.
 - enum power of 2 for masking, new type mask

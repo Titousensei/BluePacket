@@ -144,12 +144,18 @@ def produceSerializer(out, name, fields, field_is_enum):
       if ftype in GO_WRITER:
         println(out,  "\t\t" + GO_WRITER[ftype] % "p")
       elif ftype in field_is_enum:
-        println(out, f"\t\tw.WriteByte(byte(p))")
+        if field_is_enum[ftype] <= 256:
+          println(out, f"\t\tw.WriteByte(byte(p))")
+        else:
+          println(out, f"\t\tbluepacket.WriteUShort(w, uint16(p))")
       else:
         println(out, f"\t\tp.SerializeData(w)")
       println(out, "\t}")
     elif ftype in field_is_enum:
-      println(out, f"\tw.WriteByte(byte(bp.{fname}))")
+      if field_is_enum[ftype] <= 256:
+        println(out, f"\tw.WriteByte(byte(bp.{fname}))")
+      else:
+        println(out, f"\tbluepacket.WriteUShort(w, uint16(bp.{fname}))")
     elif ftype in GO_WRITER:
       println(out,  "\t" + GO_WRITER[ftype] % f"bp.{fname}")
     else:
@@ -198,14 +204,20 @@ def produceDeserializer(out, name, fields, field_is_enum):
       if ftype in GO_READER:
         println(out, f"\t\tbp.{fname}[i] = bluepacket.{GO_READER[ftype]}")
       elif ftype in field_is_enum:
-        println(out, f"\t\tbp.{fname}[i] = {ftype}(bluepacket.ReadByte(r))")
+        if field_is_enum[ftype] <= 256:
+          println(out, f"\t\tbp.{fname}[i] = {ftype}(bluepacket.ReadByte(r))")
+        else:
+          println(out, f"\t\tbp.{fname}[i] = {ftype}(bluepacket.ReadUShort(r))")
       else:
         println(out, f"\t\tobj := {ftype}{{}}")
         println(out, f"\t\tobj.PopulateData(r)")
         println(out, f"\t\tbp.{fname}[i] = &obj")
       println(out, "\t}")
     elif ftype in field_is_enum:
-      println(out, f"\tbp.{fname} = {ftype}(bluepacket.ReadByte(r))")
+      if field_is_enum[ftype] <= 256:
+        println(out, f"\tbp.{fname} = {ftype}(bluepacket.ReadByte(r))")
+      else:
+        println(out, f"\tbp.{fname} = {ftype}(bluepacket.ReadUShort(r))")
     elif ftype in GO_READER:
       println(out, f"\tbp.{fname} = bluepacket.{GO_READER[ftype]}")
     else:
@@ -279,17 +291,17 @@ def _innerFieldsWithNamespace(data):
 
 
 def _innerFieldIsEnumWithNamespace(data):
-  for info in data.field_is_enum:
+  for info, num in data.field_is_enum.items():
     if info in data.inner or info in data.enums:
-      yield data.name + info
+      yield data.name + info, num
     else:
-      yield info
+      yield info, num
 
 
 def exportStruct(out_dir, package, data, version):
   # namespace inner definition by using the parent package as prefix
   data.fields = list(_innerFieldsWithNamespace(data))
-  data.field_is_enum = set(_innerFieldIsEnumWithNamespace(data))
+  data.field_is_enum = {k: v for k, v in _innerFieldIsEnumWithNamespace(data)}
 
   path = os.path.join(out_dir, data.name + ".go")
   print("[ExporterGo] BluePacket struct", path, file=sys.stderr)
@@ -335,22 +347,24 @@ def exportEnum(out_dir, package, data):
 
 
 def exportEnumDef(out, data, namespace):
-    println(out, f"type {namespace}{data.name} byte")
+    num = sum(1 for f in data.fields if f[0])
+    subtype = "byte" if num <=256 else "uint16"
+    println(out, f"type {namespace}{data.name} {subtype}")
     println(out, f"const (")
-    suffix =  f"  {namespace}{data.name} = iota"
+    i = 0
     for f, _, _, docstring in data.fields:
-      if not f and not suffix:
+      if not f:
         println(out)
       produceDocstring(out, "\t", docstring)
       if f:
-        println(out, f"\t{namespace}{data.name}{f}  {suffix}")
-        suffix = ""
+        println(out, f"\t{namespace}{data.name}{f} {namespace}{data.name} = {i}")
+        i += 1
       else:
         println(out)
     println(out, ")")
     println(out)
     println(out, f"func (en {namespace}{data.name}) String() string {{")
-    println(out, f"\tshortName{namespace}{data.name} := [{len(data.fields)}]string {{")
+    println(out, f"\tshortName{namespace}{data.name} := [{num}]string {{")
     for f, *_ in data.fields:
       if f:
         println(out, f'\t\t"{f}",')

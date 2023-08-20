@@ -125,7 +125,10 @@ class TestBluePacket
         .setALong(new long[] {101112131415L, 1617181920L})
         .setAShort(new short[] {2345, 3456, 4567})
         .setAString(myStrings)
-        .setAEmpty(new String[0]);
+        .setAEmpty(new String[0])
+        .setLargeEnum1(DemoEnum260.z8)
+        .setLargeEnum2(DemoEnum260.b3)
+        .setALargeEnum(new DemoEnum260[] {DemoEnum260.z3, DemoEnum260.d7, DemoEnum260.z7});
 
     demoPacket2Bin = readBinary(TESTDATA_DIR + "DemoPacket2.bin");
 
@@ -258,7 +261,7 @@ class TestBluePacket
     test.testToString("testToString3", "toString3.txt", test.demoPacket3);
     test.testToString("testToStringU", "toStringU.txt", test.demoPacketU);
     test.testPacketHash("testVersionHash", test.demoPacket, -3377904526771042813L);
-    test.testPacketHash("testVersionHash2", test.demoPacket2, -7277881074505903123L);
+    test.testPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
     test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.testPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);
     test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);

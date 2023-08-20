@@ -286,9 +286,24 @@ namespace BluePackets
       }
     }
 
+    /// <summary>
+    /// Write enum to stream
+    /// </summary>
+    /// <param name="ms">the byte output stream</param>
+    /// <param name="data">the enum</param>
     protected static void WriteEnum(Stream ms, Enum data)
     {
       ms.WriteByte(Convert.ToByte(data));
+    }
+
+    /// <summary>
+    /// Write large enum to stream
+    /// </summary>
+    /// <param name="ms">the byte output stream</param>
+    /// <param name="data">the enum</param>
+    protected static void WriteLargeEnum(Stream ms, Enum data)
+    {
+      WriteUShort(ms, Convert.ToUInt16(data));
     }
 
     /// <summary>
@@ -508,6 +523,15 @@ namespace BluePackets
     protected static object ReadEnum(Type t, Stream ms)
     {
       return Enum.ToObject(t, ms.ReadByte());
+    }
+
+    /// <summary>Internal method to read and enum from a stream, encoded as two bytes</summary>
+    /// <param name="ms">the byte input stream</param>
+    /// <returns>the enum value</returns>
+    /// <exception cref="EndOfStreamException">when there's not enough bytes in the stream</exception>
+    protected static object ReadLargeEnum(Type t, Stream ms)
+    {
+      return Enum.ToObject(t, ReadUShort(ms));
     }
 
     /// <summary>Internal method to get an array length, returning 0 if null</summary>

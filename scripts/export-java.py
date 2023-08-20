@@ -162,9 +162,15 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if not fname or (ftype == 'bool' and 'list' not in opt):
       continue
     if 'list' in opt:
-      println(out, f"{indent}  writeArray(s, this.{fname});")
+      if field_is_enum.get(ftype, 0) > 256:
+        println(out, f"{indent}  writeArrayLargeEnum(s, this.{fname});")
+      else:
+        println(out, f"{indent}  writeArray(s, this.{fname});")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  s.writeByte(this.{fname} == null ? 0 : this.{fname}.ordinal());")
+      if field_is_enum[ftype] <= 256:
+        println(out, f"{indent}  s.writeByte(this.{fname} == null ? 0 : this.{fname}.ordinal());")
+      else:
+        println(out, f"{indent}  s.writeShort(this.{fname} == null ? 0 : this.{fname}.ordinal());")
     elif ftype in JAVA_WRITER:
       println(out, f"{indent}  {JAVA_WRITER[ftype]}this.{fname});")
     else:
@@ -211,14 +217,20 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
       if ftype in JAVA_READER:
         println(out, f"{indent}    this.{fname}[i] = {JAVA_READER[ftype]};")
       elif ftype in field_is_enum:
-        println(out, f"{indent}    this.{fname}[i] = {ftype}.valueOf(s.readUnsignedByte());")
+        if field_is_enum[ftype] <= 256:
+          println(out, f"{indent}    this.{fname}[i] = {ftype}.valueOf(s.readUnsignedByte());")
+        else:
+          println(out, f"{indent}    this.{fname}[i] = {ftype}.valueOf(s.readUnsignedShort());")
       else:
         println(out, f"{indent}    {ftype} obj = new {ftype}();")
         println(out, f"{indent}    obj.populateData(registry, s);")
         println(out, f"{indent}    this.{fname}[i] = obj;")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  this.{fname} = {ftype}.valueOf(s.readUnsignedByte());")
+      if field_is_enum[ftype] <= 256:
+        println(out, f"{indent}  this.{fname} = {ftype}.valueOf(s.readUnsignedByte());")
+      else:
+        println(out, f"{indent}  this.{fname} = {ftype}.valueOf(s.readUnsignedShort());")
     elif ftype in JAVA_READER:
       println(out, f"{indent}  this.{fname} = {JAVA_READER[ftype]};")
     else:

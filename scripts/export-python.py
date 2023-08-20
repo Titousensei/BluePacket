@@ -147,11 +147,17 @@ def produceSerializer(out, fields, indent, field_is_enum):
       elif ftype in PYTHON_WRITER:
         println(out, f"{indent}  bpw.writeArrayNative(self.{fname}, bpw.{PYTHON_WRITER[ftype]})")
       elif ftype in field_is_enum:
-        println(out, f"{indent}  bpw.writeArrayEnum(self.{fname})")
+        if field_is_enum.get(ftype, 0) > 256:
+          println(out, f"{indent}  bpw.writeArrayLargeEnum(self.{fname})")
+        else:
+          println(out, f"{indent}  bpw.writeArrayEnum(self.{fname})")
       else:
         println(out, f"{indent}  bpw.writeArray(self.{fname})")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  bpw.writeByte(0 if self.{fname} is None else self.{fname}.value)")
+      if field_is_enum.get(ftype, 0) <= 256:
+        println(out, f"{indent}  bpw.writeUnsignedByte(0 if self.{fname} is None else self.{fname}.value)")
+      else:
+        println(out, f"{indent}  bpw.writeUnsignedShort(0 if self.{fname} is None else self.{fname}.value)")
     elif ftype in PYTHON_WRITER:
       println(out, f"{indent}  bpw.{PYTHON_WRITER[ftype]}(self.{fname})")
     else:
@@ -195,7 +201,10 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
       elif ftype in field_is_enum:
         if ftype in data.enums:
           ftype = "self." + ftype
-        println(out, f"{indent}    x = {ftype}(bpr.readByte())")
+        if field_is_enum.get(ftype, 0) <= 256:
+          println(out, f"{indent}    x = {ftype}(bpr.readUnsignedByte())")
+        else:
+          println(out, f"{indent}    x = {ftype}(bpr.readUnsignedShort())")
       else:
         println(out, f"{indent}    x = {ftype}()")
         println(out, f"{indent}    x.populateData(bpr)")
@@ -203,7 +212,10 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
     elif ftype in field_is_enum:
       if ftype in data.enums:
         ftype = "self." + ftype
-      println(out, f"{indent}  self.{fname} = {ftype}(bpr.readByte())")
+      if field_is_enum.get(ftype, 0) <= 256:
+        println(out, f"{indent}  self.{fname} = {ftype}(bpr.readUnsignedByte())")
+      else:
+        println(out, f"{indent}  self.{fname} = {ftype}(bpr.readUnsignedShort())")
     elif ftype in PYTHON_READER:
       println(out, f"{indent}  self.{fname} = bpr.{PYTHON_READER[ftype]}()")
     else:

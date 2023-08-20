@@ -117,13 +117,19 @@ def produceSerializer(out, fields, indent, field_is_enum):
         println(out, f"{indent}      {CS_WRITER[ftype]}(s, this.{fname}[i]);")
       elif ftype in field_is_enum:
         println(out, f"{indent}    foreach ({ftype} p in this.{fname})")
-        println(out, f"{indent}      WriteEnum(s, p);")
+        if field_is_enum[ftype] <= 256:
+          println(out, f"{indent}      WriteEnum(s, p);")
+        else:
+          println(out, f"{indent}      WriteLargeEnum(s, p);")
       else:
         println(out, f"{indent}    foreach (BluePacket p in this.{fname})")
         println(out, f"{indent}      p.SerializeData(s);")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  WriteEnum(s, this.{fname});")
+      if field_is_enum[ftype] <= 256:
+        println(out, f"{indent}  WriteEnum(s, this.{fname});")
+      else:
+        println(out, f"{indent}  WriteLargeEnum(s, this.{fname});")
     elif ftype in CS_WRITER:
       println(out, f"{indent}  {CS_WRITER[ftype]}(s, this.{fname});")
     else:
@@ -168,14 +174,20 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
       if ftype in CS_READER:
         println(out, f"{indent}    {fname}[i] = {CS_READER[ftype]}(s);")
       elif ftype in field_is_enum:
-        println(out, f"{indent}    {fname}[i] = ({ftype})ReadEnum(typeof({ftype}), s);")
+        if field_is_enum[ftype] <= 256:
+          println(out, f"{indent}    {fname}[i] = ({ftype})ReadEnum(typeof({ftype}), s);")
+        else:
+          println(out, f"{indent}    {fname}[i] = ({ftype})ReadLargeEnum(typeof({ftype}), s);")
       else:
         println(out, f"{indent}    {ftype} obj = new {ftype}();")
         println(out, f"{indent}    obj.PopulateData(s);")
         println(out, f"{indent}    {fname}[i] = obj;")
       println(out, indent + "  }")
     elif ftype in field_is_enum:
-      println(out, f"{indent}  {fname} = ({ftype})ReadEnum(typeof({ftype}), s);")
+      if field_is_enum[ftype] <= 256:
+        println(out, f"{indent}  {fname} = ({ftype})ReadEnum(typeof({ftype}), s);")
+      else:
+        println(out, f"{indent}  {fname} = ({ftype})ReadLargeEnum(typeof({ftype}), s);")
     elif ftype in CS_READER:
       println(out, f"{indent}  {fname} = {CS_READER[ftype]}(s);")
     else:
@@ -215,7 +227,8 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
 
 def exportInnerEnum(out, data, indent0):
   produceDocstring(out, indent0, data.docstring)
-  println(out, f"{indent0}public enum {data.name} : byte")
+  subtype = "byte" if sum(1 for f in data.fields if f[0]) <=256 else "ushort"
+  println(out, f"{indent0}public enum {data.name} : {subtype}")
   println(out, indent0 + "{")
   indent =  indent0 + "  "
   last = [f for f, *_ in data.fields if f][-1]

@@ -69,6 +69,9 @@ class TestBluePacket(unittest.TestCase):
     demoPacket2.aShort = [2345, 3456, 4567]
     demoPacket2.aString = ["abcdef", "xyz", "w", None, "asdfghjkl;"]
     demoPacket2.aEmpty = []
+    demoPacket2.largeEnum1 = t.DemoEnum260.z8
+    demoPacket2.largeEnum2 = t.DemoEnum260.b3
+    demoPacket2.aLargeEnum = [t.DemoEnum260.z3, t.DemoEnum260.d7, t.DemoEnum260.z7]
 
     with open(TESTDATA_DIR + "DemoPacket2.bin", "rb") as f:
       _TEST_DATA['DemoPacket2.bin'] = f.read()
@@ -112,7 +115,7 @@ class TestBluePacket(unittest.TestCase):
 
   @parameters(
     (-3377904526771042813, "DemoPacket"),
-    (-7277881074505903123, "DemoPacket2"),
+    (-4035910894404497038, "DemoPacket2"),
     (3706623474888074790, "DemoPacket3"),
     (4436886959950420991, "DemoPacketU"),
   )

@@ -53,7 +53,7 @@ class PacketData:
     self.fields = []
     self.inner = {}
     self.enums = {}
-    self.field_is_enum = set()
+    self.field_is_enum = {}
     self.field_names = set()
 
   def __repr__(self):
@@ -251,11 +251,13 @@ class Parser:
       inner_enums = {en.name for en in data.enums.values()}
       for _, ftype, *_ in data.fields:
         if ftype in inner_enums or (ftype in self.packet_list and self.packet_list[ftype].is_enum):
-          data.field_is_enum.add(ftype)
+          en = self.packet_list.get(ftype) or data.enums.get(ftype)
+          data.field_is_enum[ftype] = sum(1 for f in en.fields if f[0])
       for inner in data.inner.values():
         for _, ftype, *_ in inner.fields:
           if ftype in inner_enums or (ftype in self.packet_list and self.packet_list[ftype].is_enum):
-            data.field_is_enum.add(ftype)
+            en = self.packet_list.get(ftype) or data.enums.get(ftype)
+            data.field_is_enum[ftype] = sum(1 for f in en.fields if f[0])
 
     return self.packet_list
 
