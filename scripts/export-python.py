@@ -50,9 +50,9 @@ def header(out, data):
       not_import.update(data.inner)
       not_import.update(data.enums)
       needed_imports = {
-        ftype
-        for fname, ftype, *_ in data.fields
-        if fname and ftype not in not_import
+        pf.type
+        for pf in data.fields
+        if pf.name and pf.type not in not_import
       }
       for ftype in needed_imports:
         println(out, f"from .{ftype} import {ftype}")
@@ -79,10 +79,10 @@ def produceDocstring(out, indent, docstring):
 def produceTypeInfo(out, fields, indent):
   println(out, indent + "TYPE_INFO = {")
   println(out, indent + "  # name: (type, is_list)")
-  for fname, ftype, opt, _ in fields:
-    if not fname:
+  for pf in fields:
+    if not pf.name:
       continue
-    println(out, f'{indent}  "{fname}": ("{ftype}", {opt=="list"}),')
+    println(out, f'{indent}  "{pf.name}": ("{pf.type}", {pf.is_list}),')
   println(out, indent + "}")
 
 
@@ -91,20 +91,20 @@ def produceConstructor(out, fields, indent):
   println(out, indent + f"def __init__(")
   println(out, f"{indent}    self, *,")
 
-  for fname, ftype, opt, _ in fields:
-    if fname:
-      fopt = "[]" if opt == "list" else ""
-      println(out, f"{indent}    {fname} = None,  # {ftype}{fopt}")
+  for pf in fields:
+    if pf.name:
+      fopt = "[]" if pf.is_list else ""
+      println(out, f"{indent}    {pf.name} = None,  # {pf.type}{fopt}")
 
   println(out, indent + f"):")
 
-  for fname, ftype, opt, docstring in fields:
-    if docstring:
+  for pf in fields:
+    if pf.docstring:
       println(out)
-    for line in docstring:
+    for line in pf.docstring:
       println(out, f"{indent}  # {line}")
-    if fname:
-      println(out, f"{indent}  self.{fname} = {fname}")
+    if pf.name:
+      println(out, f"{indent}  self.{pf.name} = {pf.name}")
     else:
       println(out)
 
@@ -121,8 +121,8 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out, indent + "def serializeData(self, bpw):")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    if pf.is_list or pf.type != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"{indent}  # boolean fields are packed into bytes")
@@ -131,41 +131,41 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  bpw.writeUnsignedByte(bin)")
       println(out, f"{indent}  bin = 0")
 
-    println(out, f"{indent}  if self.{fname}: bin |= {1<<(bool_counter%8)}")
+    println(out, f"{indent}  if self.{pf.name}: bin |= {1<<(bool_counter%8)}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
     println(out, f"{indent}  bpw.writeUnsignedByte(bin)")
 
   println(out, f"{indent}  # Non-boolean fields")
-  for fname, ftype, opt, _ in fields:
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    if (not pf.is_list and pf.type == 'bool' or not pf.name):
       continue
-    if 'list' in opt:
-      if ftype == 'bool':
-        println(out, f"{indent}  bpw.writeListBool(self.{fname})")
-      elif ftype in PYTHON_WRITER:
-        println(out, f"{indent}  bpw.writeArrayNative(self.{fname}, bpw.{PYTHON_WRITER[ftype]})")
-      elif ftype in field_is_enum:
-        if field_is_enum.get(ftype, 0) > 256:
-          println(out, f"{indent}  bpw.writeArrayLargeEnum(self.{fname})")
+    if pf.is_list:
+      if pf.type == 'bool':
+        println(out, f"{indent}  bpw.writeListBool(self.{pf.name})")
+      elif pf.type in PYTHON_WRITER:
+        println(out, f"{indent}  bpw.writeArrayNative(self.{pf.name}, bpw.{PYTHON_WRITER[pf.type]})")
+      elif pf.type in field_is_enum:
+        if field_is_enum.get(pf.type, 0) > 256:
+          println(out, f"{indent}  bpw.writeArrayLargeEnum(self.{pf.name})")
         else:
-          println(out, f"{indent}  bpw.writeArrayEnum(self.{fname})")
+          println(out, f"{indent}  bpw.writeArrayEnum(self.{pf.name})")
       else:
-        println(out, f"{indent}  bpw.writeArray(self.{fname})")
-    elif ftype in field_is_enum:
-      if field_is_enum.get(ftype, 0) <= 256:
-        println(out, f"{indent}  bpw.writeUnsignedByte(0 if self.{fname} is None else self.{fname}.value)")
+        println(out, f"{indent}  bpw.writeArray(self.{pf.name})")
+    elif pf.type in field_is_enum:
+      if field_is_enum.get(pf.type, 0) <= 256:
+        println(out, f"{indent}  bpw.writeUnsignedByte(0 if self.{pf.name} is None else self.{pf.name}.value)")
       else:
-        println(out, f"{indent}  bpw.writeUnsignedShort(0 if self.{fname} is None else self.{fname}.value)")
-    elif ftype in PYTHON_WRITER:
-      println(out, f"{indent}  bpw.{PYTHON_WRITER[ftype]}(self.{fname})")
+        println(out, f"{indent}  bpw.writeUnsignedShort(0 if self.{pf.name} is None else self.{pf.name}.value)")
+    elif pf.type in PYTHON_WRITER:
+      println(out, f"{indent}  bpw.{PYTHON_WRITER[pf.type]}(self.{pf.name})")
     else:
-      println(out, f"{indent}  if (self.{fname} is None):")
+      println(out, f"{indent}  if (self.{pf.name} is None):")
       println(out, f"{indent}    bpw.writeByte(0)")
       println(out, f"{indent}  else:")
       println(out, f"{indent}    bpw.writeByte(1)")
-      println(out, f"{indent}    self.{fname}.serializeData(bpw)")
+      println(out, f"{indent}    self.{pf.name}.serializeData(bpw)")
 
 
 def produceDeserializer(out, data, fields, indent, field_is_enum):
@@ -173,85 +173,80 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
   println(out, indent + "def populateData(self, bpr):")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    if pf.is_list or pf.type != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"{indent}  # boolean fields are packed into bytes")
     if  bool_counter % 8 == 0:
       println(out, f"{indent}  bin = bpr.readByte()")
 
-    println(out, f"{indent}  self.{fname} = (bin & {1<<(bool_counter%8)}) != 0")
+    println(out, f"{indent}  self.{pf.name} = (bin & {1<<(bool_counter%8)}) != 0")
     bool_counter += 1
 
   println(out, f"{indent}  # Non-boolean fields")
-  for fname, ftype, opt, _ in fields:
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    if (not pf.is_list and pf.type == 'bool') or not pf.name:
       continue
-    if ftype in data.inner:
-      ftype = "self." + ftype
-    if 'list' in opt:
-      if ftype == 'bool':
-        println(out, f"{indent}  self.{fname} = bpr.readListBool();")
+    ftype = "self." + pf.type if pf.type in data.inner or pf.type in data.enums else pf.type
+    if pf.is_list:
+      if pf.type == 'bool':
+        println(out, f"{indent}  self.{pf.name} = bpr.readListBool();")
         continue
-      println(out, f"{indent}  self.{fname} = []")
+      println(out, f"{indent}  self.{pf.name} = []")
       println(out, f"{indent}  for _ in range(bpr.readUnsignedByte()):")
-      if ftype in PYTHON_READER:
-        println(out, f"{indent}    x = bpr.{PYTHON_READER[ftype]}()")
-      elif ftype in field_is_enum:
-        if ftype in data.enums:
-          ftype = "self." + ftype
-        if field_is_enum.get(ftype, 0) <= 256:
+      if pf.type in PYTHON_READER:
+        println(out, f"{indent}    x = bpr.{PYTHON_READER[pf.type]}()")
+      elif pf.type in field_is_enum:
+        if field_is_enum.get(pf.type, 0) <= 256:
           println(out, f"{indent}    x = {ftype}(bpr.readUnsignedByte())")
         else:
           println(out, f"{indent}    x = {ftype}(bpr.readUnsignedShort())")
       else:
         println(out, f"{indent}    x = {ftype}()")
         println(out, f"{indent}    x.populateData(bpr)")
-      println(out, f"{indent}    self.{fname}.append(x)")
-    elif ftype in field_is_enum:
-      if ftype in data.enums:
-        ftype = "self." + ftype
-      if field_is_enum.get(ftype, 0) <= 256:
-        println(out, f"{indent}  self.{fname} = {ftype}(bpr.readUnsignedByte())")
+      println(out, f"{indent}    self.{pf.name}.append(x)")
+    elif pf.type in field_is_enum:
+      if field_is_enum.get(pf.type, 0) <= 256:
+        println(out, f"{indent}  self.{pf.name} = {ftype}(bpr.readUnsignedByte())")
       else:
-        println(out, f"{indent}  self.{fname} = {ftype}(bpr.readUnsignedShort())")
+        println(out, f"{indent}  self.{pf.name} = {ftype}(bpr.readUnsignedShort())")
     elif ftype in PYTHON_READER:
-      println(out, f"{indent}  self.{fname} = bpr.{PYTHON_READER[ftype]}()")
+      println(out, f"{indent}  self.{pf.name} = bpr.{PYTHON_READER[pf.type]}()")
     else:
       println(out, f"{indent}  if bpr.readUnsignedByte() > 0:")
-      println(out, f"{indent}    self.{fname} = {ftype}()")
-      println(out, f"{indent}    self.{fname}.populateData(bpr)")
+      println(out, f"{indent}    self.{pf.name} = {ftype}()")
+      println(out, f"{indent}    self.{pf.name}.populateData(bpr)")
 
 
 def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=False):
   println(out)
   println(out, indent + "def fieldsStr(self):")
 
-  for fname, ftype, opt, _ in fields:
-    if not fname:
+  for pf in fields:
+    if not pf.name:
       continue
-    if 'list' in opt:
-      println(out, f'{indent}    if self.{fname}:')
-      println(out, f'{indent}      yield " {fname}={{{ftype} *" + str(len(self.{fname})) + "|"')
-      if ftype == 'bool':
-        println(out, f'{indent}      yield "|".join("1" if x else "0" for x in self.{fname}) + "}}"')
-      elif ftype == 'string':
-        println(out, f'{indent}      yield "|".join(toQuotedString(x) for x in self.{fname}) + "}}"')
-      elif ftype in PYTHON_WRITER:
-        println(out, f'{indent}      yield "|".join(str(x) for x in self.{fname}) + "}}"')
-      elif ftype in field_is_enum:
-        println(out, f'{indent}      yield "|".join(x.name for x in self.{fname}) + "}}"')
+    if pf.is_list:
+      println(out, f'{indent}    if self.{pf.name}:')
+      println(out, f'{indent}      yield " {pf.name}={{{pf.type} *" + str(len(self.{pf.name})) + "|"')
+      if pf.type == 'bool':
+        println(out, f'{indent}      yield "|".join("1" if x else "0" for x in self.{pf.name}) + "}}"')
+      elif pf.type == 'string':
+        println(out, f'{indent}      yield "|".join(toQuotedString(x) for x in self.{pf.name}) + "}}"')
+      elif pf.type in PYTHON_WRITER:
+        println(out, f'{indent}      yield "|".join(str(x) for x in self.{pf.name}) + "}}"')
+      elif pf.type in field_is_enum:
+        println(out, f'{indent}      yield "|".join(x.name for x in self.{pf.name}) + "}}"')
       else:
-        println(out, f'{indent}      yield "|".join("".join(x.fieldsStr()) for x in self.{fname}) + "}}"')
-    elif ftype in field_is_enum:
-      println(out, f'{indent}    if self.{fname}.value: yield " {fname}=" + self.{fname}.name')
-    elif ftype == 'bool':
-      println(out, f'{indent}    if self.{fname}: yield " {fname}=1"')
-    elif ftype == 'string':
-      println(out, f'{indent}    if self.{fname}: yield " {fname}=" + toQuotedString(self.{fname})')
+        println(out, f'{indent}      yield "|".join("".join(x.fieldsStr()) for x in self.{pf.name}) + "}}"')
+    elif pf.type in field_is_enum:
+      println(out, f'{indent}    if self.{pf.name}.value: yield " {pf.name}=" + self.{pf.name}.name')
+    elif pf.type == 'bool':
+      println(out, f'{indent}    if self.{pf.name}: yield " {pf.name}=1"')
+    elif pf.type == 'string':
+      println(out, f'{indent}    if self.{pf.name}: yield " {pf.name}=" + toQuotedString(self.{pf.name})')
     else:
-      println(out, f'{indent}    if self.{fname}: yield " {fname}=" + str(self.{fname})')
+      println(out, f'{indent}    if self.{pf.name}: yield " {pf.name}=" + str(self.{pf.name})')
 
   println(out)
   println(out, indent + "def __str__(self):")
@@ -266,20 +261,20 @@ def exportInnerEnum(out, data, indent0):
   indent = indent0 + "    "
   produceDocstring(out, indent, data.docstring)
   i = 0
-  for f, _, _, d in data.fields:
-    if d:
+  for pf in data.fields:
+    if pf.docstring:
       println(out)
-      for line in d:
+      for line in pf.docstring:
         println(out, f"{indent}# {line}")
-    if f:
-      println(out, f"{indent}{f} = {i}")
+    if pf.name:
+      println(out, f"{indent}{pf.name} = {i}")
       i += 1
-    elif d:
+    elif pf.docstring:
       println(out)
 
 
 def exportInnerClass(out, data, field_is_enum, parentName):
-  sorted_fields = list(sorted(data.fields))
+  sorted_fields = list(sorted(data.fields, key=str))
   println(out)
   println(out, f"{DEFAULT_INDENT}class {data.name}:")
   produceDocstring(out, INNER_INDENT, data.docstring)
@@ -301,7 +296,7 @@ def exportClass(out_dir, data, version):
   with open(path, "w") as out:
     header(out, data)
 
-    sorted_fields = list(sorted(data.fields))
+    sorted_fields = list(sorted(data.fields, key=str))
     println(out, f"class {data.name}:")
     produceDocstring(out, "  ", data.docstring)
     println(out, f"  packetHash = {version}")

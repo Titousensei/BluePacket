@@ -63,16 +63,16 @@ def produceDocstring(out, indent, summary, docstring=None):
 
 
 def produceFields(out, fields, indent):
-  for fname, ftype, opt, docstring in fields:
-    if 'list' in opt:
-      produceDocstring(out, indent, docstring)
-      println(out, f"{indent}public {CS_TYPE.get(ftype, ftype)}[] {fname};")
-    elif fname:
-      produceDocstring(out, indent, docstring)
-      println(out, f"{indent}public {CS_TYPE.get(ftype, ftype)} {fname};")
-    elif docstring:
+  for pf in fields:
+    if pf.is_list:
+      produceDocstring(out, indent, pf.docstring)
+      println(out, f"{indent}public {CS_TYPE.get(pf.type, pf.type)}[] {pf.name};")
+    elif pf.name:
+      produceDocstring(out, indent, pf.docstring)
+      println(out, f"{indent}public {CS_TYPE.get(pf.type, pf.type)} {pf.name};")
+    elif pf.docstring:
       println(out)
-      for line in docstring:
+      for line in pf.docstring:
         println(out, indent + "// " + line)
       println(out)
     else:
@@ -86,8 +86,8 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out, indent + "{")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    if pf.is_list or pf.type != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"{indent}  // boolean fields are packed into bytes")
@@ -96,47 +96,47 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  s.WriteByte(bin);")
       println(out, f"{indent}  bin = 0;")
 
-    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }}")
+    println(out, f"{indent}  if (this.{pf.name}) {{ bin |= {1<<(bool_counter%8)}; }}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
     println(out, f"{indent}  s.WriteByte(bin);")
 
   println(out, f"{indent}  // Non-boolean fields")
-  for fname, ftype, *opt in fields:
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    if (not pf.is_list and pf.type == 'bool') or not pf.name:
       continue
-    if 'list' in opt:
-      if ftype == 'bool':
-        println(out, f"{indent}  WriteListBool(s, this.{fname});")
+    if pf.is_list:
+      if pf.type == 'bool':
+        println(out, f"{indent}  WriteListBool(s, this.{pf.name});")
         continue
-      println(out, f"{indent}  if (this.{fname} == null) s.WriteByte(0); else {{")
-      println(out, f"{indent}    WriteSequenceLength(s, this.{fname}.Length);")
-      if ftype in CS_WRITER:
-        println(out, f"{indent}    for (int i = 0; i < this.{fname}.Length; ++i)")
-        println(out, f"{indent}      {CS_WRITER[ftype]}(s, this.{fname}[i]);")
-      elif ftype in field_is_enum:
-        println(out, f"{indent}    foreach ({ftype} p in this.{fname})")
-        if field_is_enum[ftype] <= 256:
+      println(out, f"{indent}  if (this.{pf.name} == null) s.WriteByte(0); else {{")
+      println(out, f"{indent}    WriteSequenceLength(s, this.{pf.name}.Length);")
+      if pf.type in CS_WRITER:
+        println(out, f"{indent}    for (int i = 0; i < this.{pf.name}.Length; ++i)")
+        println(out, f"{indent}      {CS_WRITER[pf.type]}(s, this.{pf.name}[i]);")
+      elif pf.type in field_is_enum:
+        println(out, f"{indent}    foreach ({pf.type} p in this.{pf.name})")
+        if field_is_enum[pf.type] <= 256:
           println(out, f"{indent}      WriteEnum(s, p);")
         else:
           println(out, f"{indent}      WriteLargeEnum(s, p);")
       else:
-        println(out, f"{indent}    foreach (BluePacket p in this.{fname})")
+        println(out, f"{indent}    foreach (BluePacket p in this.{pf.name})")
         println(out, f"{indent}      p.SerializeData(s);")
       println(out, indent + "  }")
-    elif ftype in field_is_enum:
-      if field_is_enum[ftype] <= 256:
-        println(out, f"{indent}  WriteEnum(s, this.{fname});")
+    elif pf.type in field_is_enum:
+      if field_is_enum[pf.type] <= 256:
+        println(out, f"{indent}  WriteEnum(s, this.{pf.name});")
       else:
-        println(out, f"{indent}  WriteLargeEnum(s, this.{fname});")
-    elif ftype in CS_WRITER:
-      println(out, f"{indent}  {CS_WRITER[ftype]}(s, this.{fname});")
+        println(out, f"{indent}  WriteLargeEnum(s, this.{pf.name});")
+    elif pf.type in CS_WRITER:
+      println(out, f"{indent}  {CS_WRITER[pf.type]}(s, this.{pf.name});")
     else:
-      println(out, f"{indent}  if (this.{fname} == null) s.WriteByte(0);")
+      println(out, f"{indent}  if (this.{pf.name} == null) s.WriteByte(0);")
       println(out, indent + "  else {")
       println(out, f"{indent}    s.WriteByte(1);")
-      println(out, f"{indent}    this.{fname}.SerializeData(s);")
+      println(out, f"{indent}    this.{pf.name}.SerializeData(s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")
@@ -149,8 +149,8 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out, indent + "{")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    if pf.is_list or pf.type != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"{indent}  // boolean fields are packed into bytes")
@@ -158,42 +158,42 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
     if  bool_counter % 8 == 0:
       println(out, f"{indent}  bin = s.ReadByte();")
 
-    println(out, f"{indent}  this.{fname} = (bin & {1<<(bool_counter%8)}) != 0;")
+    println(out, f"{indent}  this.{pf.name} = (bin & {1<<(bool_counter%8)}) != 0;")
     bool_counter += 1
 
   println(out, f"{indent}  // Non-boolean fields")
-  for fname, ftype, *opt in fields:
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    if (not pf.is_list and pf.type == 'bool') or not pf.name:
       continue
-    if 'list' in opt:
-      if ftype == 'bool':
-        println(out, f"{indent}  this.{fname} = ReadListBool(s);")
+    if pf.is_list:
+      if pf.type == 'bool':
+        println(out, f"{indent}  this.{pf.name} = ReadListBool(s);")
         continue
-      println(out, f"{indent}  {fname} = new {CS_TYPE.get(ftype, ftype)}[ReadSequenceLength(s)];")
-      println(out, f"{indent}  for (int i = 0; i < {fname}.Length; ++i) {{")
-      if ftype in CS_READER:
-        println(out, f"{indent}    {fname}[i] = {CS_READER[ftype]}(s);")
-      elif ftype in field_is_enum:
-        if field_is_enum[ftype] <= 256:
-          println(out, f"{indent}    {fname}[i] = ({ftype})ReadEnum(typeof({ftype}), s);")
+      println(out, f"{indent}  {pf.name} = new {CS_TYPE.get(pf.type, pf.type)}[ReadSequenceLength(s)];")
+      println(out, f"{indent}  for (int i = 0; i < {pf.name}.Length; ++i) {{")
+      if pf.type in CS_READER:
+        println(out, f"{indent}    {pf.name}[i] = {CS_READER[pf.type]}(s);")
+      elif pf.type in field_is_enum:
+        if field_is_enum[pf.type] <= 256:
+          println(out, f"{indent}    {pf.name}[i] = ({pf.type})ReadEnum(typeof({pf.type}), s);")
         else:
-          println(out, f"{indent}    {fname}[i] = ({ftype})ReadLargeEnum(typeof({ftype}), s);")
+          println(out, f"{indent}    {pf.name}[i] = ({pf.type})ReadLargeEnum(typeof({pf.type}), s);")
       else:
-        println(out, f"{indent}    {ftype} obj = new {ftype}();")
+        println(out, f"{indent}    {pf.type} obj = new {pf.type}();")
         println(out, f"{indent}    obj.PopulateData(s);")
-        println(out, f"{indent}    {fname}[i] = obj;")
+        println(out, f"{indent}    {pf.name}[i] = obj;")
       println(out, indent + "  }")
-    elif ftype in field_is_enum:
-      if field_is_enum[ftype] <= 256:
-        println(out, f"{indent}  {fname} = ({ftype})ReadEnum(typeof({ftype}), s);")
+    elif pf.type in field_is_enum:
+      if field_is_enum[pf.type] <= 256:
+        println(out, f"{indent}  {pf.name} = ({pf.type})ReadEnum(typeof({pf.type}), s);")
       else:
-        println(out, f"{indent}  {fname} = ({ftype})ReadLargeEnum(typeof({ftype}), s);")
-    elif ftype in CS_READER:
-      println(out, f"{indent}  {fname} = {CS_READER[ftype]}(s);")
+        println(out, f"{indent}  {pf.name} = ({pf.type})ReadLargeEnum(typeof({pf.type}), s);")
+    elif pf.type in CS_READER:
+      println(out, f"{indent}  {pf.name} = {CS_READER[pf.type]}(s);")
     else:
       println(out, f"{indent}  if (ReadByte(s) > 0) {{")
-      println(out, f"{indent}    {fname} = new {ftype}();")
-      println(out, f"{indent}    {fname}.PopulateData(s);")
+      println(out, f"{indent}    {pf.name} = new {pf.type}();")
+      println(out, f"{indent}    {pf.name}.PopulateData(s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")
@@ -205,45 +205,47 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
   println(out, indent + "override public void FieldsToString(StringBuilder sb)")
   println(out, indent + "{")
 
-  for fname, ftype, *opt in fields:
-    if not fname:
+  for pf in fields:
+    if not pf.name:
       continue
-    if 'list' in opt:
-      if ftype in CS_READER or ftype == 'bool':
-        println(out, f'{indent}  AppendIfNotEmptyArray<{CS_TYPE.get(ftype, ftype)}>(sb, "{fname}", "{ftype}", {fname});')
-      elif ftype in field_is_enum:
-        println(out, f'{indent}  AppendIfNotEmptyArray<String>(sb, "{fname}", "{ftype}", Array.ConvertAll({fname}, value => value.ToString()));')
+    if pf.is_list:
+      if pf.type in CS_READER or pf.type == 'bool':
+        println(out, f'{indent}  AppendIfNotEmptyArray<{CS_TYPE.get(pf.type, pf.type)}>(sb, "{pf.name}", "{pf.type}", {pf.name});')
+      elif pf.type in field_is_enum:
+        println(out, f'{indent}  AppendIfNotEmptyArray<String>(sb, "{pf.name}", "{pf.type}", Array.ConvertAll({pf.name}, value => value.ToString()));')
       else:
-        println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", "{ftype}", {fname});')
-    elif ftype in CS_READER:
-      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
-    elif ftype in field_is_enum:
-      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
+        println(out, f'{indent}  AppendIfNotEmpty(sb, "{pf.name}", "{pf.type}", {pf.name});')
+    elif pf.type in CS_READER:
+      println(out, f'{indent}  AppendIfNotEmpty(sb, "{pf.name}", {pf.name});')
+    elif pf.type in field_is_enum:
+      println(out, f'{indent}  AppendIfNotEmpty(sb, "{pf.name}", {pf.name});')
     else:
-      println(out, f'{indent}  AppendIfNotEmpty(sb, "{fname}", {fname});')
+      println(out, f'{indent}  AppendIfNotEmpty(sb, "{pf.name}", {pf.name});')
 
   println(out, indent + "}")
 
 
 def exportInnerEnum(out, data, indent0):
   produceDocstring(out, indent0, data.docstring)
-  subtype = "byte" if sum(1 for f in data.fields if f[0]) <=256 else "ushort"
+  subtype = "byte" if sum(1 for pf in data.fields if pf.name) <=256 else "ushort"
   println(out, f"{indent0}public enum {data.name} : {subtype}")
   println(out, indent0 + "{")
   indent =  indent0 + "  "
-  last = [f for f, *_ in data.fields if f][-1]
-  for f, _, _, docstring in data.fields:
-    if f:
-      produceDocstring(out, indent, docstring)
+  last = None
+  for pf in data.fields:
+    last = pf.name or last
+  for pf in data.fields:
+    if pf.name:
+      produceDocstring(out, indent, pf.docstring)
       out.write(indent)
-      out.write(f)
-      if f == last:
+      out.write(pf.name)
+      if pf.name == last:
         out.write("\n")
       else:
         out.write(",\n")
     else:
       out.write("\n")
-      for line in docstring:
+      for line in pf.docstring:
         out.write(indent)
         out.write("// ")
         out.write(line)
@@ -261,7 +263,7 @@ def exportInnerClass(out, data, field_is_enum):
   produceFields(out, data.fields, INNER_INDENT)
   println(out)
   println(out, INNER_INDENT + "/*** HELPER FUNCTIONS ***/")
-  sorted_fields = list(sorted(data.fields))
+  sorted_fields = list(sorted(data.fields, key=str))
   produceSerializer(out, sorted_fields, INNER_INDENT, field_is_enum)
   produceDeserializer(out, data.name, sorted_fields, INNER_INDENT, field_is_enum)
   produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT, field_is_enum)
@@ -290,7 +292,7 @@ def exportClass(out_dir, namespace, data, version):
     produceFields(out, data.fields, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "/* --- HELPER FUNCTIONS --- */")
-    sorted_fields = list(sorted(data.fields))
+    sorted_fields = list(sorted(data.fields, key=str))
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)

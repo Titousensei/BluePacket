@@ -45,13 +45,13 @@ class TestLibExport(unittest.TestCase):
   def test_intermediate_representation(self):
     self.maxDiff = None
     for cl, data in self.all_data.items():
-        self.assertTrue(any(data.fields[0]), f"{cl} fields have empty leading data: {data.fields}")
-        self.assertTrue(any(data.fields[-1]), f"{cl} fields have empty trailing data: {data.fields}")
+        self.assertTrue(data.fields[0], f"{cl} fields have empty leading data: {data.fields}")
+        self.assertTrue(data.fields[-1], f"{cl} fields have empty trailing data: {data.fields}")
         for inner, inner_data in data.inner.items():
-            self.assertTrue(any(inner_data.fields[0]), f"{cl}.{inner} fields have empty leading data: {inner_data.fields}")
-            self.assertTrue(any(inner_data.fields[-1]), f"{cl}.{inner} fields have empty trailing data: {inner_data.fields}")
+            self.assertTrue(inner_data.fields[0], f"{cl}.{inner} fields have empty leading data: {inner_data.fields}")
+            self.assertTrue(inner_data.fields[-1], f"{cl}.{inner} fields have empty trailing data: {inner_data.fields}")
         expected = self.intermediateRepresentation[data.name]
-        self.assertEqual(expected, repr(data))
+        self.assertEqual(expected, repr(data), cl)
 
   def test_negatives(self):
     path = os.path.join(TESTDATA_DIR, "Negative*.bp")

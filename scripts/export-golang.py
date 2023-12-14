@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 import argparse
+import copy
 import os, sys
 
 from libexport import MARKER_DEPRECATED, Parser, println, versionHash
@@ -87,30 +88,30 @@ def _getGoType(ftype):
 def produceStructDef(out, name, fields, field_is_enum):
   println(out, f"type {name} struct {{")
   first = True
-  for fname, ftype, opt, docstring in fields:
-    ftype = _getGoType(ftype)
-    if 'list' in opt:
-      produceDocstring(out, "\t", docstring)
-      if ftype in GO_WRITER:  # native type
-        println(out, f"\t{fname} []{GO_TYPE.get(ftype, ftype)}")
+  for pf in fields:
+    ftype = _getGoType(pf.type)
+    if pf.is_list:
+      produceDocstring(out, "\t", pf.docstring)
+      if pf.type in GO_WRITER:  # native type
+        println(out, f"\t{pf.name} []{GO_TYPE.get(ftype, ftype)}")
       elif ftype in field_is_enum:
-        println(out, f"\t{fname} []{ftype}")
+        println(out, f"\t{pf.name} []{ftype}")
       else:
-        println(out, f"\t{fname} []*{ftype}")
+        println(out, f"\t{pf.name} []*{ftype}")
       first = False
-    elif fname:
-      produceDocstring(out, "\t", docstring)
+    elif pf.name:
+      produceDocstring(out, "\t", pf.docstring)
       if ftype in GO_WRITER:  # native type
-        println(out, f"\t{fname} {GO_TYPE.get(ftype, ftype)}")
+        println(out, f"\t{pf.name} {GO_TYPE.get(ftype, ftype)}")
       elif ftype in field_is_enum:
-        println(out, f"\t{fname} {ftype}")
+        println(out, f"\t{pf.name} {ftype}")
       else:
-        println(out, f"\t{fname} *{ftype}")
+        println(out, f"\t{pf.name} *{ftype}")
       first = False
-    elif docstring:
+    elif pf.docstring:
       if not first:
         println(out)
-      produceDocstring(out, "\t", docstring)
+      produceDocstring(out, "\t", pf.docstring)
       println(out)
     else:
       println(out)
@@ -123,9 +124,9 @@ def produceSerializer(out, name, fields, field_is_enum):
   println(out, f"func (bp *{name}) SerializeData(w *bytes.Buffer) {{")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    ftype = _getGoType(ftype)
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    ftype = _getGoType(pf.type)
+    if pf.is_list or ftype != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"\t// boolean fields are packed into bytes")
@@ -134,23 +135,23 @@ def produceSerializer(out, name, fields, field_is_enum):
       println(out, f"\tw.WriteByte(bin)")
       println(out, f"\tbin = 0")
 
-    println(out, f"\tif bp.{fname} {{ bin |= {1<<(bool_counter%8)} }}")
+    println(out, f"\tif bp.{pf.name} {{ bin |= {1<<(bool_counter%8)} }}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
     println(out, f"\tw.WriteByte(bin)")
 
   println(out, f"\t// Non-boolean fields")
-  for fname, ftype, opt, _ in fields:
-    ftype = _getGoType(ftype)
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    ftype = _getGoType(pf.type)
+    if (not pf.is_list and ftype == 'bool') or not pf.name:
       continue
-    if 'list' in opt:
+    if pf.is_list:
       if ftype == 'bool':
-        println(out, f"\tbluepacket.WriteListBool(w, bp.{fname})")
+        println(out, f"\tbluepacket.WriteListBool(w, bp.{pf.name})")
         continue
-      println(out, f"\tbluepacket.WriteSequenceLength(w, len(bp.{fname}))")
-      println(out, f"\tfor _, p := range bp.{fname} {{")
+      println(out, f"\tbluepacket.WriteSequenceLength(w, len(bp.{pf.name}))")
+      println(out, f"\tfor _, p := range bp.{pf.name} {{")
       if ftype in GO_WRITER:
         println(out,  "\t\t" + GO_WRITER[ftype] % "p")
       elif ftype in field_is_enum:
@@ -163,17 +164,17 @@ def produceSerializer(out, name, fields, field_is_enum):
       println(out, "\t}")
     elif ftype in field_is_enum:
       if field_is_enum[ftype] <= 256:
-        println(out, f"\tw.WriteByte(byte(bp.{fname}))")
+        println(out, f"\tw.WriteByte(byte(bp.{pf.name}))")
       else:
-        println(out, f"\tbluepacket.WriteUShort(w, uint16(bp.{fname}))")
+        println(out, f"\tbluepacket.WriteUShort(w, uint16(bp.{pf.name}))")
     elif ftype in GO_WRITER:
-      println(out,  "\t" + GO_WRITER[ftype] % f"bp.{fname}")
+      println(out,  "\t" + GO_WRITER[ftype] % f"bp.{pf.name}")
     else:
-      println(out, f"\tif bp.{fname} == nil {{")
+      println(out, f"\tif bp.{pf.name} == nil {{")
       println(out, f"\t\tw.WriteByte(0)")
       println(out,  "\t} else {")
       println(out, f"\t\tw.WriteByte(1)")
-      println(out, f"\t\tbp.{fname}.SerializeData(w)")
+      println(out, f"\t\tbp.{pf.name}.SerializeData(w)")
       println(out,  "\t}")
 
   println(out, "}")
@@ -184,9 +185,9 @@ def produceDeserializer(out, name, fields, field_is_enum):
   println(out, f"func (bp *{name}) PopulateData(r *bytes.Reader) {{")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    ftype = _getGoType(ftype)
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    ftype = _getGoType(pf.type)
+    if pf.is_list or ftype != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"\t// boolean fields are packed into bytes")
@@ -194,48 +195,48 @@ def produceDeserializer(out, name, fields, field_is_enum):
     if  bool_counter % 8 == 0:
       println(out, f"\tbin = bluepacket.ReadByte(r)")
 
-    println(out, f"\tbp.{fname} = (bin & {1<<(bool_counter%8)}) != 0")
+    println(out, f"\tbp.{pf.name} = (bin & {1<<(bool_counter%8)}) != 0")
     bool_counter += 1
 
   println(out, f"\t// Non-boolean fields")
-  for fname, ftype, opt, _ in fields:
-    ftype = _getGoType(ftype)
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    ftype = _getGoType(pf.type)
+    if (not pf.is_list and ftype == 'bool') or not pf.name:
       continue
-    if 'list' in opt:
+    if pf.is_list:
       if ftype == 'bool':
-        println(out, f"\tbp.{fname} = bluepacket.ReadListBool(r)")
+        println(out, f"\tbp.{pf.name} = bluepacket.ReadListBool(r)")
         continue
-      println(out, f"\tsize{fname} := bluepacket.ReadSequenceLength(r)")
+      println(out, f"\tsize{pf.name} := bluepacket.ReadSequenceLength(r)")
       if ftype in GO_TYPE or ftype in field_is_enum:
         gotype = GO_TYPE.get(ftype, ftype)
       else:
         gotype = "*" + ftype
-      println(out, f'\tbp.{fname} = make([]{gotype}, size{fname})')
-      println(out, f"\tfor i := 0; i < size{fname}; i++ {{")
+      println(out, f'\tbp.{pf.name} = make([]{gotype}, size{pf.name})')
+      println(out, f"\tfor i := 0; i < size{pf.name}; i++ {{")
       if ftype in GO_READER:
-        println(out, f"\t\tbp.{fname}[i] = bluepacket.{GO_READER[ftype]}")
+        println(out, f"\t\tbp.{pf.name}[i] = bluepacket.{GO_READER[ftype]}")
       elif ftype in field_is_enum:
         if field_is_enum[ftype] <= 256:
-          println(out, f"\t\tbp.{fname}[i] = {ftype}(bluepacket.ReadByte(r))")
+          println(out, f"\t\tbp.{pf.name}[i] = {ftype}(bluepacket.ReadByte(r))")
         else:
-          println(out, f"\t\tbp.{fname}[i] = {ftype}(bluepacket.ReadUShort(r))")
+          println(out, f"\t\tbp.{pf.name}[i] = {ftype}(bluepacket.ReadUShort(r))")
       else:
         println(out, f"\t\tobj := {ftype}{{}}")
         println(out, f"\t\tobj.PopulateData(r)")
-        println(out, f"\t\tbp.{fname}[i] = &obj")
+        println(out, f"\t\tbp.{pf.name}[i] = &obj")
       println(out, "\t}")
     elif ftype in field_is_enum:
       if field_is_enum[ftype] <= 256:
-        println(out, f"\tbp.{fname} = {ftype}(bluepacket.ReadByte(r))")
+        println(out, f"\tbp.{pf.name} = {ftype}(bluepacket.ReadByte(r))")
       else:
-        println(out, f"\tbp.{fname} = {ftype}(bluepacket.ReadUShort(r))")
+        println(out, f"\tbp.{pf.name} = {ftype}(bluepacket.ReadUShort(r))")
     elif ftype in GO_READER:
-      println(out, f"\tbp.{fname} = bluepacket.{GO_READER[ftype]}")
+      println(out, f"\tbp.{pf.name} = bluepacket.{GO_READER[ftype]}")
     else:
       println(out, f"\tif bluepacket.ReadByte(r) > 0 {{")
-      println(out, f"\t\tbp.{fname} = &{ftype}{{}}")
-      println(out, f"\t\tbp.{fname}.PopulateData(r)")
+      println(out, f"\t\tbp.{pf.name} = &{ftype}{{}}")
+      println(out, f"\t\tbp.{pf.name}.PopulateData(r)")
       println(out, "\t}")
 
   println(out, "}")
@@ -257,37 +258,37 @@ def produceToString(out, name, fields, field_is_enum):
   println(out)
 
   println(out, f"func (bp *{name}) AppendFields(sb *strings.Builder) {{")
-  for fname, ftype, *opt in fields:
-    ftype = _getGoType(ftype)
-    if not fname:
+  for pf in fields:
+    ftype = _getGoType(pf.type)
+    if not pf.name:
       continue
-    if 'list' in opt:
+    if pf.is_list:
       if ftype == "bool":
-        println(out, f'\tbluepacket.AppendIfNotEmptyListBool(sb, "{fname}", bp.{fname})')
+        println(out, f'\tbluepacket.AppendIfNotEmptyListBool(sb, "{pf.name}", bp.{pf.name})')
       elif ftype == "string":
-        println(out, f'\tbluepacket.AppendIfNotEmptyListString(sb, "{fname}", bp.{fname})')
+        println(out, f'\tbluepacket.AppendIfNotEmptyListString(sb, "{pf.name}", bp.{pf.name})')
       elif ftype in GO_EMPTY or ftype in field_is_enum:
-        println(out, f'\tbluepacket.AppendIfNotEmptyList(sb, "{fname}", "{ftype}", bp.{fname})')
+        println(out, f'\tbluepacket.AppendIfNotEmptyList(sb, "{pf.name}", "{ftype}", bp.{pf.name})')
       else:
-        println(out, f'\tbluepacket.AppendIfNotEmptyListBP(sb, "{fname}", "{ftype}", bp.{fname})')
+        println(out, f'\tbluepacket.AppendIfNotEmptyListBP(sb, "{pf.name}", "{ftype}", bp.{pf.name})')
     elif ftype in field_is_enum:
-      println(out, f'\tbluepacket.AppendIfNotEmptyEnum(sb, "{fname}", bp.{fname}, bp.{fname})')
+      println(out, f'\tbluepacket.AppendIfNotEmptyEnum(sb, "{pf.name}", bp.{pf.name}, bp.{pf.name})')
     elif ftype == "bool":
-      println(out, f'\tbluepacket.AppendIfNotEmptyBool(sb, "{fname}", bp.{fname})')
+      println(out, f'\tbluepacket.AppendIfNotEmptyBool(sb, "{pf.name}", bp.{pf.name})')
     elif ftype == "string":
-      println(out, f'\tbluepacket.AppendIfNotEmptyString(sb, "{fname}", bp.{fname})')
+      println(out, f'\tbluepacket.AppendIfNotEmptyString(sb, "{pf.name}", bp.{pf.name})')
     elif ftype in GO_EMPTY:
-      println(out, f'\tbluepacket.AppendIfNotEmpty(sb, "{fname}", bp.{fname}, {GO_EMPTY[ftype]})')
+      println(out, f'\tbluepacket.AppendIfNotEmpty(sb, "{pf.name}", bp.{pf.name}, {GO_EMPTY[ftype]})')
     elif ftype == "packet":
-      println(out, f'\tbluepacket.AppendIfNotNilPacket(sb, "{fname}", bp.{fname})')
+      println(out, f'\tbluepacket.AppendIfNotNilPacket(sb, "{pf.name}", bp.{pf.name})')
     else:
-      println(out, f'\tbluepacket.AppendIfNotNil(sb, "{fname}", bp.{fname})')
+      println(out, f'\tbluepacket.AppendIfNotNil(sb, "{pf.name}", bp.{pf.name})')
   println(out,  "}")
 
 
 def exportStructFunc(out, data, field_is_enum, namespace):
   println(out, "////// HELPER FUNCTIONS /////")
-  sorted_fields = list(sorted(data.fields))
+  sorted_fields = list(sorted(data.fields, key=str))
   goname = _getGoType(data.name)
   produceSerializer(out, namespace + goname, sorted_fields, data.field_is_enum)
   produceDeserializer(out, namespace + goname, sorted_fields, data.field_is_enum)
@@ -296,13 +297,14 @@ def exportStructFunc(out, data, field_is_enum, namespace):
 
 def _innerFieldsWithNamespace(data):
   goname = _getGoType(data.name)
-  for info in data.fields:
-    if info[0]:
+  for pf in data.fields:
+    ret = copy.copy(pf)
+    if pf.name:
       # capitalize all field names to make them public
-      info[0] = info[0][0].upper() + info[0][1:]
-    if info[1] in data.inner or info[1] in data.enums:
-      info[1] = goname + info[1]
-    yield info
+      ret.name = pf.name[0].upper() + pf.name[1:]
+    if pf.type in data.inner or pf.type in data.enums:
+      ret.type = goname + pf.type
+    yield ret
 
 
 def _innerFieldIsEnumWithNamespace(data):
@@ -366,17 +368,17 @@ def exportEnum(out_dir, package, data):
 
 def exportEnumDef(out, data, namespace):
     goname = _getGoType(data.name)
-    num = sum(1 for f in data.fields if f[0])
+    num = sum(1 for pf in data.fields if pf.name)
     subtype = "byte" if num <=256 else "uint16"
     println(out, f"type {namespace}{goname} {subtype}")
     println(out, f"const (")
     i = 0
-    for f, _, _, docstring in data.fields:
-      if not f:
+    for pf in data.fields:
+      if not pf.name:
         println(out)
-      produceDocstring(out, "\t", docstring)
-      if f:
-        println(out, f"\t{namespace}{goname}{f} {namespace}{goname} = {i}")
+      produceDocstring(out, "\t", pf.docstring)
+      if pf.name:
+        println(out, f"\t{namespace}{goname}{pf.name} {namespace}{goname} = {i}")
         i += 1
       else:
         println(out)
@@ -384,9 +386,9 @@ def exportEnumDef(out, data, namespace):
     println(out)
     println(out, f"func (en {namespace}{goname}) String() string {{")
     println(out, f"\tshortName{namespace}{goname} := [{num}]string {{")
-    for f, *_ in data.fields:
-      if f:
-        println(out, f'\t\t"{f}",')
+    for pf in data.fields:
+      if pf.name:
+        println(out, f'\t\t"{pf.name}",')
     println(out, "\t}")
     println(out, f"\treturn shortName{namespace}{goname}[int(en)]")
     println(out, "}")

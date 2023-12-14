@@ -68,16 +68,16 @@ def produceDocstring(out, indent, docstring):
 
 
 def produceFields(out, fields, indent):
-  for fname, ftype, opt, docstring in fields:
-    ftype = JAVA_TYPE.get(ftype, ftype)
-    if opt == 'list':
-      produceDocstring(out, indent, docstring)
-      println(out, f"{indent}public {ftype}[] {fname};")
-    elif fname:
-      produceDocstring(out, indent, docstring)
-      println(out, f"{indent}public {ftype} {fname};")
-    elif docstring:
-      for line in docstring:
+  for pf in fields:
+    ftype = JAVA_TYPE.get(pf.type, pf.type)
+    if pf.is_list:
+      produceDocstring(out, indent, pf.docstring)
+      println(out, f"{indent}public {ftype}[] {pf.name};")
+    elif pf.name:
+      produceDocstring(out, indent, pf.docstring)
+      println(out, f"{indent}public {ftype} {pf.name};")
+    elif pf.docstring:
+      for line in pf.docstring:
         println(out, indent + "// " + line)
     else:
       println(out)
@@ -100,36 +100,34 @@ def produceListSetters(out, name, fname, ftype, indent):
 
 def produceSetters(out, name, fields, indent):
   println(out)
-  for fname, ftype, opt, _ in fields:
-    if not fname:
+  for pf in fields:
+    if not pf.name:
       continue
 
-    ftype = JAVA_TYPE.get(ftype, ftype)
-    if opt == 'list':
-      produceListSetters(out, name, fname, ftype, indent)
+    ftype = JAVA_TYPE.get(pf.type, pf.type)
+    if pf.is_list:
+      produceListSetters(out, name, pf.name, ftype, indent)
     else:
-      produceDocstring(out, indent, [f"Chaining setter for {fname}.", "@param val value", "@return this"])
-      out.write(f"{indent}public {name} set{fname[0].upper()}{fname[1:]}")
+      produceDocstring(out, indent, [f"Chaining setter for {pf.name}.", "@param val value", "@return this"])
+      out.write(f"{indent}public {name} set{pf.name[0].upper()}{pf.name[1:]}")
       out.write(f"({ftype} val)")
-      println(out, f" {{ {fname} = val; return this; }}")
+      println(out, f" {{ {pf.name} = val; return this; }}")
 
 
 def produceGetters(out, name, fields, indent):
   println(out)
-  for fname, ftype, *opt in fields:
-    if not fname:
-      continue
-    if 'list' in opt:
+  for pf in fields:
+    if pf.is_list or not pf.name:
       continue
 
-    if ftype in UNSIGNED_TYPE:
-      produceDocstring(out, indent, [f"Getter for {fname} unsigned as an int.", "@return unsigned value as int"])
-      out.write(f"{indent}public int get{fname[0].upper()}{fname[1:]}AsInt()")
-      println(out, f" {{ return unsigned({fname}); }}")
-    elif ftype in SIGNED_TYPE:
-      produceDocstring(out, indent, [f"Getter for {fname} signed as an int.", "@return signed value as int"])
-      out.write(f"{indent}public int get{fname[0].upper()}{fname[1:]}AsInt()")
-      println(out, f" {{ return {fname}; }}")
+    if pf.type in UNSIGNED_TYPE:
+      produceDocstring(out, indent, [f"Getter for {pf.name} unsigned as an int.", "@return unsigned value as int"])
+      out.write(f"{indent}public int get{pf.name[0].upper()}{pf.name[1:]}AsInt()")
+      println(out, f" {{ return unsigned({pf.name}); }}")
+    elif pf.type in SIGNED_TYPE:
+      produceDocstring(out, indent, [f"Getter for {pf.name} signed as an int.", "@return signed value as int"])
+      out.write(f"{indent}public int get{pf.name[0].upper()}{pf.name[1:]}AsInt()")
+      println(out, f" {{ return {pf.name}; }}")
 
 
 def produceSerializer(out, fields, indent, field_is_enum):
@@ -141,8 +139,8 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out, indent + "{")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    if pf.is_list or pf.type != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"{indent}  // boolean fields are packed into bytes")
@@ -151,33 +149,33 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}  s.writeByte(bin);")
       println(out, f"{indent}  bin = 0;")
 
-    println(out, f"{indent}  if (this.{fname}) {{ bin |= {1<<(bool_counter%8)}; }}")
+    println(out, f"{indent}  if (this.{pf.name}) {{ bin |= {1<<(bool_counter%8)}; }}")
     bool_counter += 1
 
   if  bool_counter % 8 != 0:
     println(out, f"{indent}  s.writeByte(bin);")
 
   println(out, f"{indent}  // Non-boolean fields")
-  for fname, ftype, *opt in fields:
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    if (not pf.is_list and pf.type == 'bool') or not pf.name:
       continue
-    if 'list' in opt:
-      if field_is_enum.get(ftype, 0) > 256:
-        println(out, f"{indent}  writeArrayLargeEnum(s, this.{fname});")
+    if pf.is_list:
+      if field_is_enum.get(pf.type, 0) > 256:
+        println(out, f"{indent}  writeArrayLargeEnum(s, this.{pf.name});")
       else:
-        println(out, f"{indent}  writeArray(s, this.{fname});")
-    elif ftype in field_is_enum:
-      if field_is_enum[ftype] <= 256:
-        println(out, f"{indent}  s.writeByte(this.{fname} == null ? 0 : this.{fname}.ordinal());")
+        println(out, f"{indent}  writeArray(s, this.{pf.name});")
+    elif pf.type in field_is_enum:
+      if field_is_enum[pf.type] <= 256:
+        println(out, f"{indent}  s.writeByte(this.{pf.name} == null ? 0 : this.{pf.name}.ordinal());")
       else:
-        println(out, f"{indent}  s.writeShort(this.{fname} == null ? 0 : this.{fname}.ordinal());")
-    elif ftype in JAVA_WRITER:
-      println(out, f"{indent}  {JAVA_WRITER[ftype]}this.{fname});")
+        println(out, f"{indent}  s.writeShort(this.{pf.name} == null ? 0 : this.{pf.name}.ordinal());")
+    elif pf.type in JAVA_WRITER:
+      println(out, f"{indent}  {JAVA_WRITER[pf.type]}this.{pf.name});")
     else:
-      println(out, f"{indent}  if ({fname} == null) s.writeByte(0);")
+      println(out, f"{indent}  if ({pf.name} == null) s.writeByte(0);")
       println(out, f"{indent}  else {{")
       println(out, f"{indent}    s.writeByte(1);")
-      println(out, f"{indent}    this.{fname}.serializeData(s);")
+      println(out, f"{indent}    this.{pf.name}.serializeData(s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")
@@ -192,8 +190,8 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
   println(out, indent + "{")
 
   bool_counter = 0
-  for fname, ftype, *opt in fields:
-    if ftype != 'bool' or 'list' in opt:
+  for pf in fields:
+    if pf.is_list or pf.type != 'bool':
       continue
     if bool_counter == 0:
       println(out, f"{indent}  // boolean fields are packed into bytes")
@@ -201,42 +199,42 @@ def produceDeserializer(out, name, fields, indent, field_is_enum):
     if  bool_counter % 8 == 0:
       println(out, f"{indent}  bin = s.readByte();")
 
-    println(out, f"{indent}  this.{fname} = (bin & {1<<(bool_counter%8)}) != 0;")
+    println(out, f"{indent}  this.{pf.name} = (bin & {1<<(bool_counter%8)}) != 0;")
     bool_counter += 1
 
   println(out, f"{indent}  // Non-boolean fields")
-  for fname, ftype, *opt in fields:
-    if not fname or (ftype == 'bool' and 'list' not in opt):
+  for pf in fields:
+    if (not pf.is_list and pf.type == 'bool') or not pf.name:
       continue
-    if 'list' in opt:
-      if ftype == 'bool':
-        println(out, f"{indent}  this.{fname} = readListBool(s);")
+    if pf.is_list:
+      if pf.type == 'bool':
+        println(out, f"{indent}  this.{pf.name} = readListBool(s);")
         continue
-      println(out, f"{indent}  this.{fname} = new {JAVA_TYPE.get(ftype, ftype)}[readSequenceLength(s)];")
-      println(out, f"{indent}  for (int i = 0; i < this.{fname}.length; ++i) {{")
-      if ftype in JAVA_READER:
-        println(out, f"{indent}    this.{fname}[i] = {JAVA_READER[ftype]};")
-      elif ftype in field_is_enum:
-        if field_is_enum[ftype] <= 256:
-          println(out, f"{indent}    this.{fname}[i] = {ftype}.valueOf(s.readUnsignedByte());")
+      println(out, f"{indent}  this.{pf.name} = new {JAVA_TYPE.get(pf.type, pf.type)}[readSequenceLength(s)];")
+      println(out, f"{indent}  for (int i = 0; i < this.{pf.name}.length; ++i) {{")
+      if pf.type in JAVA_READER:
+        println(out, f"{indent}    this.{pf.name}[i] = {JAVA_READER[pf.type]};")
+      elif pf.type in field_is_enum:
+        if field_is_enum[pf.type] <= 256:
+          println(out, f"{indent}    this.{pf.name}[i] = {pf.type}.valueOf(s.readUnsignedByte());")
         else:
-          println(out, f"{indent}    this.{fname}[i] = {ftype}.valueOf(s.readUnsignedShort());")
+          println(out, f"{indent}    this.{pf.name}[i] = {pf.type}.valueOf(s.readUnsignedShort());")
       else:
-        println(out, f"{indent}    {ftype} obj = new {ftype}();")
+        println(out, f"{indent}    {pf.type} obj = new {pf.type}();")
         println(out, f"{indent}    obj.populateData(registry, s);")
-        println(out, f"{indent}    this.{fname}[i] = obj;")
+        println(out, f"{indent}    this.{pf.name}[i] = obj;")
       println(out, indent + "  }")
-    elif ftype in field_is_enum:
-      if field_is_enum[ftype] <= 256:
-        println(out, f"{indent}  this.{fname} = {ftype}.valueOf(s.readUnsignedByte());")
+    elif pf.type in field_is_enum:
+      if field_is_enum[pf.type] <= 256:
+        println(out, f"{indent}  this.{pf.name} = {pf.type}.valueOf(s.readUnsignedByte());")
       else:
-        println(out, f"{indent}  this.{fname} = {ftype}.valueOf(s.readUnsignedShort());")
-    elif ftype in JAVA_READER:
-      println(out, f"{indent}  this.{fname} = {JAVA_READER[ftype]};")
+        println(out, f"{indent}  this.{pf.name} = {pf.type}.valueOf(s.readUnsignedShort());")
+    elif pf.type in JAVA_READER:
+      println(out, f"{indent}  this.{pf.name} = {JAVA_READER[pf.type]};")
     else:
       println(out, f"{indent}  if (s.readUnsignedByte() > 0) {{")
-      println(out, f"{indent}    this.{fname} = new {ftype}();")
-      println(out, f"{indent}    this.{fname}.populateData(registry, s);")
+      println(out, f"{indent}    this.{pf.name} = new {pf.type}();")
+      println(out, f"{indent}    this.{pf.name}.populateData(registry, s);")
       println(out, indent + "  }")
 
   println(out, indent + "}")
@@ -249,14 +247,14 @@ def produceFieldsToString(out, name, fields, indent):
   println(out, indent + "public void fieldsToString(StringBuilder sb)")
   println(out, indent + "{")
 
-  for fname, ftype, *opt in fields:
-    if not fname:
+  for pf in fields:
+    if not pf.name:
       continue
-    fn = "appendIfNotEmptyUnsigned" if ftype in UNSIGNED_TYPE else "appendIfNotEmpty"
-    if 'list' not in opt:
-      println(out, f'{indent}  {fn}(sb, "{fname}", {fname});')
+    fn = "appendIfNotEmptyUnsigned" if pf.type in UNSIGNED_TYPE else "appendIfNotEmpty"
+    if pf.is_list:
+      println(out, f'{indent}  {fn}(sb, "{pf.name}", "{pf.type}", {pf.name});')
     else:
-      println(out, f'{indent}  {fn}(sb, "{fname}", "{ftype}", {fname});')
+      println(out, f'{indent}  {fn}(sb, "{pf.name}", {pf.name});')
 
   println(out, indent + "}")
 
@@ -267,18 +265,20 @@ def exportInnerEnum(out, data, indent0):
   println(out, f"{indent0}public enum {data.name}")
   println(out, f"{indent0}{{")
   indent =  indent0 + "  "
-  last = [f for f, *_ in data.fields if f][-1]
-  for f, _, _, docstring in data.fields:
-    if f:
-      produceDocstring(out, indent, docstring)
+  last = None
+  for pf in data.fields:
+    last = pf.name or last
+  for pf in data.fields:
+    if pf.name:
+      produceDocstring(out, indent, pf.docstring)
       out.write(indent)
-      out.write(f)
-      if f == last:
+      out.write(pf.name)
+      if pf.name == last:
         out.write("\n")
       else:
         out.write(",\n")
     else:
-      for line in docstring:
+      for line in pf.docstring:
         out.write(indent)
         out.write("// ")
         out.write(line)
@@ -307,7 +307,7 @@ def exportInnerClass(out, data, field_is_enum):
   produceFields(out, data.fields, INNER_INDENT)
   println(out)
   println(out, INNER_INDENT + "/* --- HELPER FUNCTIONS --- */")
-  sorted_fields = list(sorted(data.fields))
+  sorted_fields = list(sorted(data.fields, key=str))
   produceSetters(out, data.name, sorted_fields, INNER_INDENT)
   produceGetters(out, data.name, sorted_fields, INNER_INDENT)
   produceSerializer(out, sorted_fields, INNER_INDENT, field_is_enum)
@@ -341,7 +341,7 @@ def exportClass(out_dir, package, data, version):
     produceFields(out, data.fields, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "/* --- HELPER FUNCTIONS --- */")
-    sorted_fields = list(sorted(data.fields))
+    sorted_fields = list(sorted(data.fields, key=str))
     produceSetters(out, data.name, sorted_fields, DEFAULT_INDENT)
     produceGetters(out, data.name, sorted_fields, DEFAULT_INDENT)
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)

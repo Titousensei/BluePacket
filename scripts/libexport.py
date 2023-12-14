@@ -45,6 +45,26 @@ class SourceException(Exception):
       return self.message
 
 
+class PacketField:
+  def __init__(self, name=None, type=None, is_list=False, docstring=None):
+    self.name = name
+    self.type = type
+    self.is_list = is_list
+    self.docstring = docstring or []
+    
+  def __repr__(self):
+    ret = []
+    if self.name:
+      ret.append("N=" + self.name)
+    if self.type:
+      ret.append("T=" + self.type)
+    if self.is_list:
+      ret.append("list")
+    if self.docstring:
+      ret.append("D=" + str(self.docstring))
+    return " ".join(ret)
+
+
 class PacketData:
   def __init__(self):
     self.name = None
@@ -86,27 +106,28 @@ def versionString(data, all_data, my_enums, my_inner, seen):
   if data.name in all_data:
     my_inner = _mergeUniquely(my_inner, all_data[data.name].inner, data.name)
     my_enums = _mergeUniquely(my_enums, all_data[data.name].enums, data.name)
-  for fname, ftype, *opt in sorted(data.fields):
-    if not fname:
+  for pf in sorted(data.fields, key=str):
+    if not pf.name:
       continue
     # un-deprecate
-    fname, *_ = fname.split(MARKER_DEPRECATED)
+    fname, *_ = pf.name.split(MARKER_DEPRECATED)
+    ftype = pf.type
 
     ret += f"+{fname}:"
     if ftype in seen:
-      ary = "[]" if 'list' in opt else ""
+      ary = "[]" if pf.is_list else ""
       ret += f"{{{ary}{ftype}+...}}"
       continue
-    if 'list' in opt:
+    if pf.is_list:
       if ftype in my_inner:
         ret += "{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
       elif ftype in data.field_is_enum:
         if ftype in my_enums:
-          ret += f"[]{{{ftype}+" + "+".join(f for f, *_ in my_enums[ftype].fields if f) + "}"
+          ret += f"[]{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
         elif ftype in all_data:
-          ret += f"[]{{{ftype}+" + "+".join(f for f, *_ in all_data[ftype].fields if f) + "}"
+          ret += f"[]{{{ftype}+" + "+".join(pe.name for pe in all_data[ftype].fields if pe.name) + "}"
         else:
-          raise Exception(f"Unknown enum type in {ftype} {fname} in {ret}")
+          raise Exception(f"Unknown enum type in {pf.type} {pf.name} in {ret}")
       elif ftype in all_data:
         ret += "{[]" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
       elif ftype in PRIMITIVE_TYPES:
@@ -116,9 +137,9 @@ def versionString(data, all_data, my_enums, my_inner, seen):
         raise SourceException("Unexpected: Unknown list field type", what=f"list {ftype} {fname}")
     elif ftype in data.field_is_enum:
       if ftype in my_enums:
-        ret += f"{{{ftype}+" + "+".join(f for f, *_ in my_enums[ftype].fields if f) + "}"
+        ret += f"{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
       elif ftype in all_data:
-        ret += f"{{{ftype}+" + "+".join(f for f, *_ in all_data[ftype].fields if f) + "}"
+        ret += f"{{{ftype}+" + "+".join(pe.name for pe in all_data[ftype].fields if pe.name) + "}"
       else:
         # Should never happen, but we raise in case of a bug in this lib
         raise SourceException("Unexpected: Unknown enum type", what=f"{ftype} {fname}")
@@ -160,34 +181,42 @@ class Parser:
       en = en.strip()
       if en in self.data.field_names:
         raise SourceException(f"Duplicate enum value", what=f"{self.data.name}.{en}")
-      self.data.fields.append([en, '', '', docstring])
+      self.data.fields.append(PacketField(name=en, docstring=docstring))
       docstring = []
       self.data.field_names.add(en)
 
   def read_field(self, line, indent, docstring):
     if indent == 0 or ':' in line:
-      if self.data.fields[-1][1] == '':
+      if self.data.fields[-1].type == '':
         self.data.fields.pop()
       self.read_class(line, indent, docstring)
       return
 
     line_info, *line_extra = line.strip().split('#', 1)
-    info = line_info.split()[::-1]
-    if info[1] == "String":
-      raise SourceException("Forbidden fields type 'String': should be 'string' (lowercase)", what=info[1] + ' ' + info[0])
+    info = line_info.split()
+    fname = None
+    ftype = None
+    options = []
+    if len(info) == 1:
+      fname, *_ = info
+    else:
+      fname, ftype, *options = info[::-1]
+      
+    if ftype == "String":
+      raise SourceException("Forbidden fields type 'String': should be 'string' (lowercase)", what=ftype + ' ' + fname)
     elif line_extra:
       raise SourceException("Forbidden field inline comment", what=line_extra[0].strip())
-    elif info[1][0].islower() and info[1] not in PRIMITIVE_TYPES:
-      raise SourceException("Unknown primitive field type", what=info[1] + ' ' + info[0])
-    elif info[0] in self.data.field_names:
-      raise SourceException("Duplicate field name", what=f"{self.data.name}.{info[0]}")
-    elif info[0] in FORBIDDEN_NAMES:
-      raise SourceException("Field name can't be reserved keyword", what=info[1] + ' ' + info[0])
-    if len(info) == 2:
-      info.append('')
-    info.append(docstring)
-    self.data.fields.append(info)
-    self.data.field_names.add(info[0])
+    elif ftype and ftype[0].islower() and ftype not in PRIMITIVE_TYPES:
+      raise SourceException("Unknown primitive field type", what=ftype + ' ' + fname)
+    elif fname in self.data.field_names:
+      raise SourceException("Duplicate field name", what=f"{self.data.name}.{fname}")
+    elif fname in FORBIDDEN_NAMES:
+      raise SourceException("Field name can't be reserved keyword", what=ftype + ' ' + fname)
+      
+    is_list = 'list' in options
+    pf = PacketField(name=fname, type=ftype, is_list=is_list, docstring=docstring)
+    self.data.fields.append(pf)
+    self.data.field_names.add(pf.name)
 
   def read_class(self, line, indent, docstring):
     current = self.data
@@ -236,7 +265,8 @@ class Parser:
           sline = line.strip()
           if not sline:
             if docstring and self.data:
-              self.data.fields.append(['', '', '', docstring])
+              self.data.fields.append(PacketField(docstring=docstring))
+              # self.data.fields.append(['', '', '', docstring])
             docstring = []
             continue
 
@@ -275,21 +305,21 @@ class Parser:
     # verify fields: enum type, deprecated
     for _, data in self.packet_list.items():
       inner_enums = {en.name for en in data.enums.values()}
-      for fname, ftype, *_ in data.fields:
-        if ftype in deprecated and data.origin_name not in deprecated:
+      for pf in data.fields:
+        if pf.type in deprecated and data.origin_name not in deprecated:
           raise SourceException(
               "Packet has field potentially deprecated but does not have its own deprecated version",
-              what=ftype + ' ' + fname,
+              what=pf.type + ' ' + pf.name,
               filename=path,
           )
-        if ftype in inner_enums or (ftype in self.packet_list and self.packet_list[ftype].is_enum):
-          en = self.packet_list.get(ftype) or data.enums.get(ftype)
-          data.field_is_enum[ftype] = sum(1 for f in en.fields if f[0])
+        if pf.type in inner_enums or (pf.type in self.packet_list and self.packet_list[pf.type].is_enum):
+          en = self.packet_list.get(pf.type) or data.enums.get(pf.type)
+          data.field_is_enum[pf.type] = sum(1 for f in en.fields if f.name)
       for inner in data.inner.values():
-        for _, ftype, *_ in inner.fields:
-          if ftype in inner_enums or (ftype in self.packet_list and self.packet_list[ftype].is_enum):
-            en = self.packet_list.get(ftype) or data.enums.get(ftype)
-            data.field_is_enum[ftype] = sum(1 for f in en.fields if f[0])
+        for pf in inner.fields:
+          if pf.type in inner_enums or (pf.type in self.packet_list and self.packet_list[pf.type].is_enum):
+            en = self.packet_list.get(pf.type) or data.enums.get(pf.type)
+            data.field_is_enum[pf.type] = sum(1 for f in en.fields if f.name)
 
     if not data.is_enum:
         data.version = versionHash(data, self.packet_list)
