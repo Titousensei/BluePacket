@@ -1,6 +1,6 @@
-# BluePackets
+# BluePacket
 
-BluePackets is a serialization / deserialization library for many programing languages, focused on simple native data structures.
+BluePacket is a serialization / deserialization library for many programing languages, focused on simple native data structures.
 We aim to support as many languages as possible, from the mainstream ones to the more experimental.
 
 ## Features
@@ -15,8 +15,8 @@ We aim to support as many languages as possible, from the mainstream ones to the
 
 ## Usage
 
-To use BluePackets you only need to add one library source file to your project.
-You compile BluePackets definitions separately for the languages you need and include them to your projects.
+To use BluePacket you only need to add one library source file to your project.
+You compile BluePacket definitions separately for the languages you need and include them to your projects.
 
 ## Example
 
