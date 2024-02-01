@@ -4,7 +4,7 @@ import unittest
 
 sys.path.append("../common")
 
-from blue_packet import BluePacket, FieldTypeException, toSignedByte, toSignedShort, toUnsignedByte, toUnsignedShort
+from blue_packet import BluePacketRegistry, FieldTypeException, toSignedByte, toSignedShort, toUnsignedByte, toUnsignedShort
 import gen.test as t
 
 TESTDATA_DIR = "../../testdata/"
@@ -21,14 +21,15 @@ def parameters(*param_list):
     return wrapper
   return _test
 
+
 _TEST_DATA = {}
 
-
 class TestBluePacket(unittest.TestCase):
+  _BP_REGISTRY = BluePacketRegistry()
 
   @classmethod
   def setUpClass(cls):
-    BluePacket.registerBluePackets(t)
+    cls._BP_REGISTRY.register(t)
 
     _TEST_DATA['DemoPacket'] = demoPacket = t.DemoPacket()
     demoPacket.fBoolean = True
@@ -140,7 +141,7 @@ class TestBluePacket(unittest.TestCase):
     ("DemoPacketU.bin", "DemoPacketU"),
   )
   def testDeserialize(self, bin, packet):
-    bp = BluePacket.deserialize(_TEST_DATA[bin])
+    bp = self._BP_REGISTRY.deserialize(_TEST_DATA[bin])
     self.assertEqual(str(_TEST_DATA[packet]), str(bp))
 
   @parameters(
@@ -150,9 +151,8 @@ class TestBluePacket(unittest.TestCase):
     ("DemoPacketU.bin", "DemoPacketU"),
   )
   def testSerialize(self, bin, packet):
-    data = BluePacket()
-    data.serialize(_TEST_DATA[packet])
-    self.assertEqual(_TEST_DATA[bin], bytes(data))
+    data = _TEST_DATA[packet].serialize()
+    self.assertEqual(_TEST_DATA[bin], data)
 
   @parameters(
     ("toString.txt", "DemoPacket"),

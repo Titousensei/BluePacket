@@ -41,15 +41,18 @@ def _checkString(x, _):
 def _assertOther(x, t):
   return type(x).__name__ == t
 
-def _assertType(x, t, is_list):
+def assertType(value, ftype, is_list):
+  if value is None:
+    return
   if is_list:
-    if type(x) != list:
-      raise FieldTypeException("list " + t, x)
-    for elem in x:
-      if not _TYPE_VALIDATOR.get(t, _assertOther)(elem, t):
-        raise FieldTypeException(t + " in list", elem)
-  elif not _TYPE_VALIDATOR.get(t, _assertOther)(x, t):
-    raise FieldTypeException(t, x)
+    if type(value) != list:
+      raise FieldTypeException("list " + ftype, value)
+    for elem in value:
+      if not _TYPE_VALIDATOR.get(ftype, _assertOther)(elem, ftype):
+        raise FieldTypeException(ftype + " in list", elem)
+  elif not _TYPE_VALIDATOR.get(ftype, _assertOther)(value, ftype):
+    raise FieldTypeException(ftype, value)
+
 
 _TYPE_VALIDATOR = {
   "byte": _checkByte,
@@ -95,44 +98,49 @@ def toQuotedString(x):
   return f'"{x}"' if x else ""
 
 
-class BluePacket(bytearray):
+class BluePacket:
+  def serialize(self):
+    bpw = _BluePacketWriter()
+    bpw.serialize(self)
+    return bytes(bpw)
 
-  PACKETID_TO_CLASS = {}
 
-  @classmethod
-  def registerBluePackets(cls, module):
+class BluePacketRegistry:
+
+  def __init__(self, ):
+        self._packet_id_to_class = {}
+        
+  def register(self, module):
     for name, cl in inspect.getmembers(module):
       if not name.startswith("__"):
         h = getattr(cl, "packetHash", None)
         if h is not None:
-          cls.PACKETID_TO_CLASS[h] = cl
+          self._packet_id_to_class[h] = cl
 
-  @classmethod
-  def assertType(cls, value, ftype, is_list):
-    if value is None:
-      return
-    _assertType(value, ftype, is_list)
-
-  @classmethod
-  def deserialize(cls, buffer):
+  def deserialize(self, buffer):
     bpr = _BluePacketReader(buffer)
-    return cls._deserialize(bpr)
+    return self.deserialize_internal(bpr)
 
-  @classmethod
-  def _deserialize(cls, bpr):
+  def deserialize_internal(self, bpr):
     # Header
     packetHash = bpr.readLong()
     if packetHash == 0:
       return None
-    if packetHash not in cls.PACKETID_TO_CLASS:
+    if packetHash not in self._packet_id_to_class:
       raise Exception(f"Unknown packetHash received: {packetHash}")
 
-    packet = cls.PACKETID_TO_CLASS[packetHash]()
+    packet = self._packet_id_to_class[packetHash]()
 
     # Body
-    packet.populateData(bpr)
+    packet.populateData(self, bpr)
 
     return packet
+
+  def __str__(self):
+    return f"BluePacketRegistry{self._packet_id_to_class}"
+
+
+class _BluePacketWriter(bytearray):
 
   def serialize(self, packet):
     self.writeLong(packet.packetHash)
@@ -279,9 +287,6 @@ class _BluePacketReader(deque):
       masked = bin & (1 << (i % 8))
       ret.append(masked != 0)
     return ret
-
-  def readBluePacket(self):
-    return BluePacket._deserialize(self)
 
   def readString(self):
     l = self.readUnsignedByte()

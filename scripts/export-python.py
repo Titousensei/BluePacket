@@ -26,16 +26,16 @@ PYTHON_WRITER = {
 }
 
 PYTHON_READER = {
-  "byte":   "readByte",
-  "double": "readDouble",
-  "float":  "readFloat",
-  "int":    "readInt",
-  "long":   "readLong",
-  "packet": "readBluePacket",
-  "short":  "readShort",
-  "string": "readString",
-  "ubyte":  "readUnsignedByte",
-  "ushort": "readUnsignedShort",
+  "byte":   "bpr.readByte()",
+  "double": "bpr.readDouble()",
+  "float":  "bpr.readFloat()",
+  "int":    "bpr.readInt()",
+  "long":   "bpr.readLong()",
+  "packet": "registry.deserialize_internal(bpr)",
+  "short":  "bpr.readShort()",
+  "string": "bpr.readString()",
+  "ubyte":  "bpr.readUnsignedByte()",
+  "ushort": "bpr.readUnsignedShort()",
 }
 
 
@@ -44,7 +44,7 @@ def header(out, data):
     println(out, "import enum")
     println(out)
     if not data.is_enum:
-      println(out, "from blue_packet import BluePacket as bp, toQuotedString")
+      println(out, "from blue_packet import BluePacket, assertType, toQuotedString")
       not_import = { data.name, 'bool' }
       not_import.update(PYTHON_READER)
       not_import.update(data.inner)
@@ -112,7 +112,7 @@ def produceConstructor(out, fields, indent):
 def produceSetAttr(out, name, indent):
   println(out)
   println(out, indent +  "def __setattr__(self, name, value):")
-  println(out, indent + f"  bp.assertType(value, *{name}.TYPE_INFO[name])")
+  println(out, indent + f"  assertType(value, *{name}.TYPE_INFO[name])")
   println(out, indent +  "  self.__dict__[name] = value")
 
 
@@ -170,7 +170,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
 
 def produceDeserializer(out, data, fields, indent, field_is_enum):
   println(out)
-  println(out, indent + "def populateData(self, bpr):")
+  println(out, indent + "def populateData(self, registry, bpr):")
 
   bool_counter = 0
   for pf in fields:
@@ -196,7 +196,7 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
       println(out, f"{indent}  self.{pf.name} = []")
       println(out, f"{indent}  for _ in range(bpr.readUnsignedByte()):")
       if pf.type in PYTHON_READER:
-        println(out, f"{indent}    x = bpr.{PYTHON_READER[pf.type]}()")
+        println(out, f"{indent}    x = {PYTHON_READER[pf.type]}")
       elif pf.type in field_is_enum:
         if field_is_enum.get(pf.type, 0) <= 256:
           println(out, f"{indent}    x = {ftype}(bpr.readUnsignedByte())")
@@ -204,7 +204,7 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
           println(out, f"{indent}    x = {ftype}(bpr.readUnsignedShort())")
       else:
         println(out, f"{indent}    x = {ftype}()")
-        println(out, f"{indent}    x.populateData(bpr)")
+        println(out, f"{indent}    x.populateData(registry, bpr)")
       println(out, f"{indent}    self.{pf.name}.append(x)")
     elif pf.type in field_is_enum:
       if field_is_enum.get(pf.type, 0) <= 256:
@@ -212,11 +212,11 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
       else:
         println(out, f"{indent}  self.{pf.name} = {ftype}(bpr.readUnsignedShort())")
     elif ftype in PYTHON_READER:
-      println(out, f"{indent}  self.{pf.name} = bpr.{PYTHON_READER[pf.type]}()")
+      println(out, f"{indent}  self.{pf.name} = {PYTHON_READER[pf.type]}")
     else:
       println(out, f"{indent}  if bpr.readUnsignedByte() > 0:")
       println(out, f"{indent}    self.{pf.name} = {ftype}()")
-      println(out, f"{indent}    self.{pf.name}.populateData(bpr)")
+      println(out, f"{indent}    self.{pf.name}.populateData(registry, bpr)")
 
 
 def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=False):
@@ -276,7 +276,7 @@ def exportInnerEnum(out, data, indent0):
 def exportInnerClass(out, data, field_is_enum, parentName):
   sorted_fields = list(sorted(data.fields, key=str))
   println(out)
-  println(out, f"{DEFAULT_INDENT}class {data.name}:")
+  println(out, f"{DEFAULT_INDENT}class {data.name}(BluePacket):")
   produceDocstring(out, INNER_INDENT, data.docstring)
   produceTypeInfo(out, sorted_fields, INNER_INDENT)
   println(out)
@@ -297,7 +297,7 @@ def exportClass(out_dir, data, version):
     header(out, data)
 
     sorted_fields = list(sorted(data.fields, key=str))
-    println(out, f"class {data.name}:")
+    println(out, f"class {data.name}(BluePacket):")
     produceDocstring(out, "  ", data.docstring)
     println(out, f"  packetHash = {version}")
     println(out, f'  packetHex = "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"')
