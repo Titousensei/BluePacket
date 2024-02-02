@@ -134,3 +134,17 @@ DemoUnsigned:
     bool c0
     bool c1
     bool c2
+
+DemoPacket0:
+
+DemoAbstract1: abstract
+
+# Abstract also have docstring doc:DemoAbstract2
+DemoAbstract2: abstract
+    # local abstract comment
+
+DemoPacketAbs1: DemoAbstract1
+
+DemoPacketAbs2: DemoAbstract2
+
+DemoPacketAbs12: DemoAbstract1 DemoAbstract2

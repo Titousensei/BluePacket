@@ -56,6 +56,8 @@ def header(out, data):
       }
       for ftype in needed_imports:
         println(out, f"from .{ftype} import {ftype}")
+      for ftype in data.abstracts:
+        println(out, f"from .{ftype} import {ftype}")
       println(out)
 
 
@@ -120,6 +122,10 @@ def produceSerializer(out, fields, indent, field_is_enum):
   println(out)
   println(out, indent + "def serializeData(self, bpw):")
 
+  if not any(pf.name for pf in fields):
+    println(out, f"{indent}    pass")
+    return
+
   bool_counter = 0
   for pf in fields:
     if pf.is_list or pf.type != 'bool':
@@ -172,6 +178,10 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
   println(out)
   println(out, indent + "def populateData(self, registry, bpr):")
 
+  if not any(pf.name for pf in fields):
+    println(out, f"{indent}    pass")
+    return
+
   bool_counter = 0
   for pf in fields:
     if pf.is_list or pf.type != 'bool':
@@ -223,6 +233,9 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
   println(out)
   println(out, indent + "def fieldsStr(self):")
 
+  if not any(pf.name for pf in fields):
+    println(out, f"{indent}    pass")
+
   for pf in fields:
     if not pf.name:
       continue
@@ -252,8 +265,10 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
   println(out, indent + "def __str__(self):")
   if is_inner:
     println(out, f'{indent}    return "{{{name}" + "".join(self.fieldsStr()) + "}}"')
-  else:
+  elif any(pf.name for pf in fields):
     println(out, f'{indent}    return "{{{name} " + self.packetHex + "".join(self.fieldsStr()) + "}}"')
+  else:
+    println(out, f'{indent}    return "{{{name} " + self.packetHex + "}}"')
 
 
 def exportInnerEnum(out, data, indent0):
@@ -297,15 +312,20 @@ def exportClass(out_dir, data, version):
     header(out, data)
 
     sorted_fields = list(sorted(data.fields, key=str))
-    println(out, f"class {data.name}(BluePacket):")
+    if data.abstracts:
+      abstracts_str = ", " + ", ".join(data.abstracts)
+    else:
+      abstracts_str = ""
+    println(out, f"class {data.name}(BluePacket{abstracts_str}):")
     produceDocstring(out, "  ", data.docstring)
     println(out, f"  packetHash = {version}")
     println(out, f'  packetHex = "0x{version & 0xFFFFFFFFFFFFFFFF:0X}"')
     produceTypeInfo(out, data.fields, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "### CONSTRUCTOR ###")
-    produceConstructor(out, data.fields, DEFAULT_INDENT)
-    produceSetAttr(out, data.name, DEFAULT_INDENT)
+    if any(pf.name for pf in data.fields):
+      produceConstructor(out, data.fields, DEFAULT_INDENT)
+      produceSetAttr(out, data.name, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "### HELPER FUNCTIONS ###")
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
@@ -331,6 +351,16 @@ def exportEnum(out_dir, data):
   with open(path, "w") as out:
     header(out, data)
     exportInnerEnum(out, data, "")
+
+
+def exportAbstract(out_dir, data):
+  path = os.path.join(out_dir, data.name + ".py")
+  print("[ExporterPython] BluePacket abstract", path, file=sys.stderr)
+  with open(path, "w") as out:
+    header(out, data)
+    println(out, f"class {data.name}():")
+    produceDocstring(out, "    ", data.docstring)
+    println(out, f"    pass")
 
 
 def exportInit(out_dir, all_data):
@@ -361,6 +391,8 @@ if __name__ == "__main__":
   for _, data in all_data.items():
     if data.is_enum:
       exportEnum(args.output_dir, data)
+    elif data.is_abstract:
+      exportAbstract(args.output_dir, data)
     else:
       version = versionHash(data, all_data)
       exportClass(args.output_dir, data, version)

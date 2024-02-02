@@ -64,9 +64,14 @@ def header(out, package, data):
     println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
     println(out, f"package {package}")
     println(out)
-    if not data.is_enum:
+    if data.is_enum:
+      pass
+    elif data.is_abstract:
+      println(out, 'import (\n\t"bytes"\n\t"strings"\n)')
+    elif any(pf.name for pf in data.fields):
       println(out, 'import (\n\t"bytes"\n\t"github.com/bluepacket"\n\t"strings"\n)')
-      println(out)
+    else:
+      println(out, 'import (\n\t"bytes"\n\t"strings"\n)')
     println(out)
 
 

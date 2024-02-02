@@ -41,7 +41,7 @@ CS_READER = {
 
 def header(out, namespace, data):
     println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
-    if not data.is_enum:
+    if not data.is_enum and not data.is_abstract:
       println(out, "using System;")
       println(out, "using System.IO;")
       println(out, "using System.Text;")
@@ -278,7 +278,11 @@ def exportClass(out_dir, namespace, data, version):
     header(out, namespace, data)
 
     produceDocstring(out, "  ", data.docstring)
-    println(out, f"  public sealed class {data.name} : BluePacket")
+    if data.abstracts:
+      abstracts_str = ", " + ", ".join("I" + cl for cl in data.abstracts)
+    else:
+      abstracts_str = ""
+    println(out, f"  public sealed class {data.name} : BluePacket{abstracts_str}")
     println(out,  "  {")
     produceDocstring(out, DEFAULT_INDENT, ["Internal method to get the hash version number of this packet."], ["<returns>version hash</returns>"])
     println(out, f"    override public long GetPacketHash() {{ return {version}; }}")
@@ -322,6 +326,16 @@ def exportEnum(out_dir, namespace, data):
     println(out, "}")
 
 
+def exportAbstract(out_dir, namespace, data):
+  path = os.path.join(out_dir, data.name + ".cs")
+  print("[ExporterCSharp] BluePacket abstract", path, file=sys.stderr)
+  with open(path, "w") as out:
+    header(out, namespace, data)
+    produceDocstring(out, "    ", data.docstring)
+    println(out, f"    interface I{data.name} {{}}")
+    println(out, "}")
+
+
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
@@ -341,6 +355,8 @@ if __name__ == "__main__":
   for _, data in all_data.items():
     if data.is_enum:
       exportEnum(args.output_dir, args.namespace, data)
+    elif data.is_abstract:
+      exportAbstract(args.output_dir, args.namespace, data)
     else:
       version = versionHash(data, all_data)
       exportClass(args.output_dir, args.namespace, data, version)

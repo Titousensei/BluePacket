@@ -8,3 +8,9 @@ DemoVersion DemoVersion+major:int+minor:int+patch:int
 DemoVersion__3FC7F86674610139 DemoVersion+version:int
 DemoIncludeVersion DemoIncludeVersion+version:{DemoVersion+major:int+minor:int+patch:int}
 DemoIncludeVersion__3D76B02436B66199 DemoIncludeVersion+version:{DemoVersion+version:int}
+DemoPacket0 DemoPacket0
+DemoAbstract1 DemoAbstract1
+DemoAbstract2 DemoAbstract2
+DemoPacketAbs1 DemoPacketAbs1
+DemoPacketAbs2 DemoPacketAbs2
+DemoPacketAbs12 DemoPacketAbs12

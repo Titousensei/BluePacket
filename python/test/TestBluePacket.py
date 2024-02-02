@@ -165,6 +165,16 @@ class TestBluePacket(unittest.TestCase):
       expected = f.read().strip()
       self.assertEqual(str(_TEST_DATA[packet]), expected);
 
+  @parameters(
+    (t.DemoPacketAbs1, [t.DemoAbstract1]),
+    (t.DemoPacketAbs2, [t.DemoAbstract2]),
+    (t.DemoPacketAbs12, [t.DemoAbstract1, t.DemoAbstract1]),
+  )
+  def testAbstract(self, packet_class, abstract_classes):
+    packet = packet_class()
+    for cl in abstract_classes:
+      self.assertTrue(isinstance(packet, cl))
+
   # negative testing
 
   def testSetBoolNegative(self):
@@ -273,6 +283,15 @@ class TestBluePacket(unittest.TestCase):
     data = t.DemoUnsigned()
     data.us = val
     self.assertEqual(data.us, val)
+
+  @parameters(
+    (t.DemoPacketAbs1, [t.DemoAbstract2]),
+    (t.DemoPacketAbs2, [t.DemoAbstract1]),
+  )
+  def testNotAbstract(self, packet_class, abstract_classes):
+    packet = packet_class()
+    for cl in abstract_classes:
+      self.assertTrue(not isinstance(packet, cl))
 
   def testSetIntNegative(self):
     data = t.DemoPacket()

@@ -51,7 +51,7 @@ class PacketField:
     self.type = type
     self.is_list = is_list
     self.docstring = docstring or []
-    
+
   def __repr__(self):
     ret = []
     if self.name:
@@ -71,17 +71,25 @@ class PacketData:
     self.docstring = []
     self.version = None
     self.is_enum = False
+    self.is_abstract = False
     self.origin_name = None
     self.indent: 0
     # format: [name?, type?, 'list'|'', [doc*]]
     self.fields = []
     self.inner = {}
     self.enums = {}
+    self.abstracts = []
     self.field_is_enum = {}
     self.field_names = set()
 
   def __repr__(self):
-    return f"{{{self.origin_name}/{'E' if self.is_enum else 'C'} F={self.fields} C{list(self.inner.values())} E{list(self.enums.values())} D{self.docstring}}}"
+    if self.is_enum:
+      return f"{{{self.origin_name}/E F={self.fields} D{self.docstring}}}"
+    elif self.is_abstract:
+      return f"{{{self.origin_name}/A D{self.docstring}}}"
+    else:
+      abstracts_str = ' A[' + ', '.join(self.abstracts) + ']' if self.abstracts else ''
+      return f"{{{self.origin_name}/C{abstracts_str} F={self.fields} C{list(self.inner.values())} E{list(self.enums.values())} D{self.docstring}}}"
 
 
 def println(out, line=''):
@@ -185,9 +193,14 @@ class Parser:
       docstring = []
       self.data.field_names.add(en)
 
+  def read_abstracts(self, line, indent, docstring):
+    if indent == 0 or ':' in line:
+      self.read_class(line, indent, docstring)
+      return
+
   def read_field(self, line, indent, docstring):
     if indent == 0 or ':' in line:
-      if self.data.fields[-1].type == '':
+      if self.data.fields and self.data.fields[-1].type == '':
         self.data.fields.pop()
       self.read_class(line, indent, docstring)
       return
@@ -201,7 +214,7 @@ class Parser:
       fname, *_ = info
     else:
       fname, ftype, *options = info[::-1]
-      
+
     if ftype == "String":
       raise SourceException("Forbidden fields type 'String': should be 'string' (lowercase)", what=ftype + ' ' + fname)
     elif line_extra:
@@ -212,7 +225,7 @@ class Parser:
       raise SourceException("Duplicate field name", what=f"{self.data.name}.{fname}")
     elif fname in FORBIDDEN_NAMES:
       raise SourceException("Field name can't be reserved keyword", what=ftype + ' ' + fname)
-      
+
     is_list = 'list' in options
     pf = PacketField(name=fname, type=ftype, is_list=is_list, docstring=docstring)
     self.data.fields.append(pf)
@@ -243,7 +256,11 @@ class Parser:
     if option == "enum":
       self.state = self.read_enums
       self.data.is_enum = True
+    elif option == "abstract":
+      self.state = self.read_abstracts
+      self.data.is_abstract = True
     else:
+      self.data.abstracts = option.split()
       self.state = self.read_field
 
   def parse(self, files, annotations=None):
@@ -283,6 +300,7 @@ class Parser:
             ex.line_number = lnum
             raise ex
           except Exception as ex:
+            print(f"*** filename={path}, line_number={lnum}")
             raise SourceException(''.join(ex.args), filename=path, line_number=lnum)
 
     deprecated = {}
@@ -321,7 +339,7 @@ class Parser:
             en = self.packet_list.get(pf.type) or data.enums.get(pf.type)
             data.field_is_enum[pf.type] = sum(1 for f in en.fields if f.name)
 
-    if not data.is_enum:
+    if not data.is_enum and not data.is_abstract:
         data.version = versionHash(data, self.packet_list)
 
     return self.packet_list
@@ -331,7 +349,7 @@ if __name__ == "__main__":
   p = Parser()
   all_data = p.parse(sys.argv[1:])
   for _, data in all_data.items():
-    if data.is_enum:
+    if data.is_enum or data.is_abstract:
       print(data)
     else:
       print(versionString(data, all_data))

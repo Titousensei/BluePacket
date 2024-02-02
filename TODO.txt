@@ -15,6 +15,8 @@
 - enum power of 2 for masking, new type mask
 - constants aliases native and enum
 - default values native and enum
+- abstract field types like "packet" type
+- abstract in golang
 
 - load from / save to text (yaml-like)
 - service stub declaration

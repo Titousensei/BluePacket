@@ -38,6 +38,20 @@ class TestBluePacket
     }
   }
 
+  private void AssertInstanceOf(Type abstract_type, Type packet_type, string msg)
+  {
+    if (!abstract_type.IsAssignableFrom(packet_type)) {
+      throw new ArgumentException(msg + ": Does not implement\nExpected:" + abstract_type + "\nActual  :" + packet_type);
+    }
+  }
+
+  private void AssertNotInstanceOf(Type abstract_type, Type packet_type, string msg)
+  {
+    if (abstract_type.IsAssignableFrom(packet_type)) {
+      throw new ArgumentException(msg + ": Should not implement\nExpected:" + abstract_type + "\nActual  :" + packet_type);
+    }
+  }
+
   private void SetUp()
   {
     //BluePacket.Init("test");
@@ -160,7 +174,7 @@ class TestBluePacket
     Console.WriteLine("PASS");
   }
 
-  private void testUnsigned(String name)
+  private void TestUnsigned(String name)
   {
     Console.Write(name + ": ");
     AssertEquals((sbyte) -56, (sbyte) demoPacketU.ub, "cast to sbyte");
@@ -178,6 +192,24 @@ class TestBluePacket
     AssertEquals(-56, (int) packet.fByte, "signed byte to int");
     AssertEquals(-19858, (int) packet.fShort, "signed short to int");
 
+    Console.WriteLine("PASS");
+  }
+
+  private void TestAbstracts(String name, Type packet_type, params Type[] abstracts)
+  {
+    Console.Write(name + ": ");
+    foreach (Type abstract_type in abstracts) {
+      AssertInstanceOf(abstract_type, packet_type, "typeof");
+    }
+    Console.WriteLine("PASS");
+  }
+
+  private void TestNotAbstracts(String name, Type packet_type, params Type[] abstracts)
+  {
+    Console.Write(name + ": ");
+    foreach (Type abstract_type in abstracts) {
+      AssertNotInstanceOf(abstract_type, packet_type, "!typeof");
+    }
     Console.WriteLine("PASS");
   }
 
@@ -202,7 +234,12 @@ class TestBluePacket
     test.TestDeserialize("testDeserialize2", test.demoPacket2, test.demoPacket2Bin);
     test.TestDeserialize("testDeserialize3", test.demoPacket3, test.demoPacket3Bin);
     test.TestDeserialize("testDeserializeU", test.demoPacketU, test.demoPacketUBin);
-    test.testUnsigned("testUnsigned");
+    test.TestUnsigned("testUnsigned");
+    test.TestAbstracts("testAbstract1", typeof(DemoPacketAbs1), typeof(IDemoAbstract1));
+    test.TestAbstracts("testAbstract2", typeof(DemoPacketAbs2), typeof(IDemoAbstract2));
+    test.TestAbstracts("testAbstract12", typeof(DemoPacketAbs12), typeof(IDemoAbstract1), typeof(IDemoAbstract2));
+    test.TestNotAbstracts("testNotAbstract1", typeof(DemoPacketAbs1), typeof(IDemoAbstract2));
+    test.TestNotAbstracts("testNotAbstract2", typeof(DemoPacketAbs2), typeof(IDemoAbstract1));
 
     test.TestPacketHash("testDeprecated1", new DemoVersion__3FC7F86674610139{}, 4595915063677747513L);
     test.TestPacketHash("testDeprecated2", new DemoVersion{}, 7260826007793545337L);

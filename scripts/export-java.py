@@ -49,7 +49,7 @@ def header(out, package, data):
     println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
     println(out, "package " + package + ';')
     println(out)
-    if not data.is_enum:
+    if not data.is_enum and not data.is_abstract:
       println(out, "import java.util.Collection;")
       println(out, "import org.bluepacket.BluePacket;")
       println(out)
@@ -326,6 +326,8 @@ def exportClass(out_dir, package, data, version):
     produceDocstring(out, "", data.docstring)
     println(out, f"public final class {data.name}")
     println(out,  "extends BluePacket")
+    if data.abstracts:
+      println(out,  "implements " + ", ".join(data.abstracts))
     println(out,  "{")
     produceDocstring(out, "  ", ["Internal method to get the hash version number of this packet.", "@return version hash"])
     println(out,  "  @Override")
@@ -371,6 +373,17 @@ def exportEnum(out_dir, package, data):
     exportInnerEnum(out, data, "")
 
 
+def exportAbstract(out_dir, package, data):
+  path = os.path.join(out_dir, data.name + ".java")
+  print("[ExporterJava] BluePacket abstract", path, file=sys.stderr)
+  with open(path, "w") as out:
+    header(out, package, data)
+    println(out)
+    produceDocstring(out, "", data.docstring)
+    println(out, f"interface {data.name}")
+    println(out, "{}")
+
+
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
@@ -390,6 +403,8 @@ if __name__ == "__main__":
   for _, data in all_data.items():
     if data.is_enum:
       exportEnum(args.output_dir, args.package, data)
+    elif data.is_abstract:
+      exportAbstract(args.output_dir, args.package, data)
     else:
       version = versionHash(data, all_data)
       exportClass(args.output_dir, args.package, data, version)

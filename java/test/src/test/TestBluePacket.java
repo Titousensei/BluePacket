@@ -68,6 +68,26 @@ class TestBluePacket
     }
   }
 
+  private void assertInstanceOf(BluePacket packet, Class<?> iface, String msg)
+  {
+    if (!iface.isInstance(packet)) {
+      System.out.println("assertInstanceOf failed!");
+      System.out.println("  Packet:" + packet.getClass());
+      System.out.println("  Interface:" + iface);
+      throw new AssertionError(msg);
+    }
+  }
+
+  private void assertNotInstanceOf(BluePacket packet, Class<?> iface, String msg)
+  {
+    if (iface.isInstance(packet)) {
+      System.out.println("assertNotInstanceOf failed!");
+      System.out.println("  Packet:" + packet.getClass());
+      System.out.println("  Interface:" + iface);
+      throw new AssertionError(msg);
+    }
+  }
+
   private byte[] readBinary(String path)
   throws FileNotFoundException, IOException
   {
@@ -206,6 +226,26 @@ class TestBluePacket
     System.out.println("PASS");
   }
 
+  private void testAbstracts(String name, BluePacket packet, Class<?>... abstracts)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+    for (Class<?> abs : abstracts) {
+      assertInstanceOf(packet, abs, "instanceof");
+    }
+    System.out.println("PASS");
+  }
+
+  private void testNotAbstracts(String name, BluePacket packet, Class<?>... abstracts)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+    for (Class<?> abs : abstracts) {
+      assertNotInstanceOf(packet, abs, "!instanceof");
+    }
+    System.out.println("PASS");
+  }
+
   private void testSetters(String name)
   throws Exception
   {
@@ -274,6 +314,12 @@ class TestBluePacket
     test.testDeserialize("testDeserializeU", test.demoPacketU, test.demoPacketUBin);
     test.testSetters("testSetters");
     test.testUnsigned("testUnsigned");
+
+    test.testAbstracts("testAbstract1", new DemoPacketAbs1(), DemoAbstract1.class);
+    test.testAbstracts("testAbstract2", new DemoPacketAbs2(), DemoAbstract2.class);
+    test.testAbstracts("testAbstract12", new DemoPacketAbs12(), DemoAbstract1.class, DemoAbstract2.class);
+    test.testNotAbstracts("testNotAbstract1", new DemoPacketAbs1(), DemoAbstract2.class);
+    test.testNotAbstracts("testNotAbstract2", new DemoPacketAbs2(), DemoAbstract1.class);
 
     test.testPacketHash("testDeprecated1", new DemoVersion__3FC7F86674610139(), 4595915063677747513L);
     test.testPacketHash("testDeprecated2", new DemoVersion(), 7260826007793545337L);
