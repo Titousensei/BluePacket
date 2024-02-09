@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+  #! /usr/bin/env python3
 import os, sys
 
 from hashlib import md5
@@ -8,13 +8,16 @@ PRIMITIVE_TYPES = {
   "bool", "byte", "double", "float", "int", "long", "packet", "short", "string", "ubyte", "ushort"
 }
 
+LIST_LABEL = "list"
+CONVERT_LABEL = "convert"
+
 FORBIDDEN_NAMES = {
+  LIST_LABEL, CONVERT_LABEL,
   "bool", "boolean", "byte",
   "char", "class",
   "decimal", "double", "dynamic",
   "float",
   "import", "int",
-  "list",
   "long",
   "nint", "nuint",
   "object",
@@ -59,7 +62,7 @@ class PacketField:
     if self.type:
       ret.append("T=" + self.type)
     if self.is_list:
-      ret.append("list")
+      ret.append(LIST_LABEL)
     if self.docstring:
       ret.append("D=" + str(self.docstring))
     return " ".join(ret)
@@ -78,6 +81,7 @@ class PacketData:
     self.fields = []
     self.inner = {}
     self.enums = {}
+    self.converts = {}
     self.abstracts = []
     self.field_is_enum = {}
     self.field_names = set()
@@ -89,7 +93,11 @@ class PacketData:
       return f"{{{self.origin_name}/A D{self.docstring}}}"
     else:
       abstracts_str = ' A[' + ', '.join(self.abstracts) + ']' if self.abstracts else ''
-      return f"{{{self.origin_name}/C{abstracts_str} F={self.fields} C{list(self.inner.values())} E{list(self.enums.values())} D{self.docstring}}}"
+      converts_str = ""
+      if self.converts:
+        for ctype, opts in self.converts.items():
+          converts_str = f"{converts_str} X[{ctype}]={opts}"
+      return f"{{{self.origin_name}/C{abstracts_str} F={self.fields} C{list(self.inner.values())} E{list(self.enums.values())}{converts_str} D{self.docstring}}}"
 
 
 def println(out, line=''):
@@ -142,7 +150,7 @@ def versionString(data, all_data, my_enums, my_inner, seen):
         ret += "[]" + ftype
       else:
         # Should never happen, but we raise in case of a bug in this lib
-        raise SourceException("Unexpected: Unknown list field type", what=f"list {ftype} {fname}")
+        raise SourceException("Unexpected: Unknown {LIST_LABEL} field type", what=f"{LIST_LABEL} {ftype} {fname}")
     elif ftype in data.field_is_enum:
       if ftype in my_enums:
         ret += f"{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
@@ -212,6 +220,12 @@ class Parser:
     options = []
     if len(info) == 1:
       fname, *_ = info
+    elif info[0] == CONVERT_LABEL:
+      ftype, _, *options = info[::-1]
+      if ftype in self.data.converts:
+        raise SourceException(f"Duplicate {CONVERT_LABEL} type", what=f"ftype")
+      self.data.converts[ftype] = options
+      return
     else:
       fname, ftype, *options = info[::-1]
 
@@ -226,7 +240,7 @@ class Parser:
     elif fname in FORBIDDEN_NAMES:
       raise SourceException("Field name can't be reserved keyword", what=ftype + ' ' + fname)
 
-    is_list = 'list' in options
+    is_list = LIST_LABEL in options
     pf = PacketField(name=fname, type=ftype, is_list=is_list, docstring=docstring)
     self.data.fields.append(pf)
     self.data.field_names.add(pf.name)
@@ -298,7 +312,6 @@ class Parser:
             ex.line_number = lnum
             raise ex
           except Exception as ex:
-            print(f"*** filename={path}, line_number={lnum}")
             raise SourceException(''.join(ex.args), filename=path, line_number=lnum)
 
     deprecated = {}
@@ -321,6 +334,7 @@ class Parser:
     # verify fields: enum type, deprecated
     for _, data in self.packet_list.items():
       inner_enums = {en.name for en in data.enums.values()}
+      inner_classes = {en.name for en in data.inner.values()}
       for pf in data.fields:
         if pf.type in deprecated and data.origin_name not in deprecated:
           raise SourceException(
@@ -331,6 +345,9 @@ class Parser:
         if pf.type in inner_enums or (pf.type in self.packet_list and self.packet_list[pf.type].is_enum):
           en = self.packet_list.get(pf.type) or data.enums.get(pf.type)
           data.field_is_enum[pf.type] = sum(1 for f in en.fields if f.name)
+        if pf.type and pf.type not in self.packet_list and pf.type not in inner_enums and pf.type not in inner_classes and pf.type not in PRIMITIVE_TYPES:
+          raise SourceException("Packet field has unknown type", what=f"{pf.type} {pf.name}", filename=path)
+
       for inner in data.inner.values():
         for pf in inner.fields:
           if pf.type in inner_enums or (pf.type in self.packet_list and self.packet_list[pf.type].is_enum):

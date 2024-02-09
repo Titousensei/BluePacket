@@ -58,6 +58,8 @@ def header(out, data):
         println(out, f"from .{ftype} import {ftype}")
       for ftype in data.abstracts:
         println(out, f"from .{ftype} import {ftype}")
+      for ftype in data.converts:
+        println(out, f"from .{ftype} import {ftype}")
       println(out)
 
 
@@ -271,6 +273,29 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
     println(out, f'{indent}    return "{{{name} " + self.packetHex + "}}"')
 
 
+def produceConvert(out, name, ctype, copts, other_fields, indent):
+  println(out)
+  println(out, indent + "@classmethod")
+  println(out, f"{indent}def convert{ctype}(cls, other):")
+  produceDocstring(out, indent + "  ",
+    [
+      f"Converter method to build a {name} from an instance of {ctype}",
+      f"Args:",
+      f"    other: populated instance of {ctype}",
+      f"Returns:",
+      f"    new instance of {name} populated with data from other"
+    ]
+  )
+  println(out, f"{indent}  assertType(other, {ctype}, False)")
+  println(out, f"{indent}  return {name}(")
+
+  for pf in other_fields:
+    if pf.name:
+      println(out, f"{indent}      {pf.name}=other.{pf.name},")
+
+  println(out, indent + f"  )")
+
+
 def exportInnerEnum(out, data, indent0):
   println(out, f"{indent0}class {data.name}(enum.Enum):")
   indent = indent0 + "    "
@@ -305,7 +330,7 @@ def exportInnerClass(out, data, field_is_enum, parentName):
   produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT, field_is_enum, is_inner=True)
 
 
-def exportClass(out_dir, data, version):
+def exportClass(out_dir, data, version, all_data):
   path = os.path.join(out_dir, data.name + ".py")
   print("[ExporterPython] BluePacket class", path, file=sys.stderr)
   with open(path, "w") as out:
@@ -331,6 +356,12 @@ def exportClass(out_dir, data, version):
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
+    for ctype, copts in data.converts.items():
+      other = all_data.get(ctype)
+      if not other:
+        raise SourceException("Converter from unknown type", what=ctype)
+      cfields = list(sorted(other.fields, key=str))
+      produceConvert(out, data.name, ctype, copts, cfields, DEFAULT_INDENT)
 
     if data.inner:
       println(out)
@@ -395,4 +426,4 @@ if __name__ == "__main__":
       exportAbstract(args.output_dir, data)
     else:
       version = versionHash(data, all_data)
-      exportClass(args.output_dir, data, version)
+      exportClass(args.output_dir, data, version, all_data)

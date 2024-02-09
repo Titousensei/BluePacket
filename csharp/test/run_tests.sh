@@ -7,7 +7,7 @@ rm -rf gen build doc > /dev/null
 
 echo "=== EXPORTING ==="
 mkdir -p gen/test build
-../../scripts/export-csharp.py --namespace Test --output_dir gen/test ../../testdata/Demo.bp ../../testdata/DemoDeprecated.bp
+../../scripts/export-csharp.py --namespace Test --output_dir gen/test ../../testdata/Demo.bp ../../testdata/DemoDeprecated.bp ../../testdata/DemoConvert.bp
 
 echo "=== COMPILING ==="
 if [[ $(type -P mono-csc) ]]

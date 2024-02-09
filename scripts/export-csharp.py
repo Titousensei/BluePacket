@@ -225,6 +225,27 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
   println(out, indent + "}")
 
 
+def produceConvert(out, name, ctype, copts, other_fields, indent):
+  println(out)
+  produceDocstring(out, indent,
+    [
+      f"Converter method to build a {name} from an instance of {ctype}",
+      f"@param other populated instance of {ctype}",
+      f"@return new instance of {name} populated with data from other"
+    ]
+  )
+  println(out, f"{indent}public static {name} convert({ctype} other)")
+  println(out, indent + "{")
+  println(out, indent + f"  return new {name} {{")
+
+  for pf in other_fields:
+    if pf.name:
+      println(out, f"{indent}      {pf.name} = other.{pf.name},")
+
+  println(out, indent + "  };")
+  println(out, indent + "}")
+
+
 def exportInnerEnum(out, data, indent0):
   produceDocstring(out, indent0, data.docstring)
   subtype = "byte" if sum(1 for pf in data.fields if pf.name) <=256 else "ushort"
@@ -271,7 +292,7 @@ def exportInnerClass(out, data, field_is_enum):
   println(out, DEFAULT_INDENT + "}")
 
 
-def exportClass(out_dir, namespace, data, version):
+def exportClass(out_dir, namespace, data, version, all_data):
   path = os.path.join(out_dir, data.name + ".cs")
   print("[ExporterCSharp] BluePacket class", path, file=sys.stderr)
   with open(path, "w") as out:
@@ -300,6 +321,12 @@ def exportClass(out_dir, namespace, data, version):
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
+    for ctype, copts in data.converts.items():
+      other = all_data.get(ctype)
+      if not other:
+        raise SourceException("Converter from unknown type", what=ctype)
+      cfields = list(sorted(other.fields, key=str))
+      produceConvert(out, data.name, ctype, copts, cfields, DEFAULT_INDENT)
 
     if data.inner:
       println(out)
@@ -359,4 +386,4 @@ if __name__ == "__main__":
       exportAbstract(args.output_dir, args.namespace, data)
     else:
       version = versionHash(data, all_data)
-      exportClass(args.output_dir, args.namespace, data, version)
+      exportClass(args.output_dir, args.namespace, data, version, all_data)

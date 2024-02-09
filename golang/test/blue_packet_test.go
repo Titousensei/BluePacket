@@ -247,3 +247,16 @@ func TestDemoBluePacketUnsigned(t *testing.T) {
 	test := setUp(t)
 	testUnsigned(t, "testUnsigned", &test.demoPacketU)
 }
+
+func TestDemoConvert(t *testing.T) {
+	t.Log("-- testDemoConvert")
+	id := int32(123)
+	text := []string {"line1", "line2"}
+	d1 := &DemoFirst { Id: id, Text: text }
+	d2 := d1.NewDemoSecond()
+	assertEquals(t, "Converted 'id' field value", id, d2.Id)
+	assertEquals(t, "Converted 'text' field length", len(text), len(d2.Text))
+	for i, _ := range text {
+		assertEquals(t, "Converted 'text' field value[i]", text[i], d2.Text[i])
+	}
+}

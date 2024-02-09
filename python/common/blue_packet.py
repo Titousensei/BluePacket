@@ -39,7 +39,7 @@ def _checkString(x, _):
   return x is None or type(x) == str
 
 def _assertOther(x, t):
-  return type(x).__name__ == t
+  return type(x).__name__ == t or type(x) == t
 
 def assertType(value, ftype, is_list):
   if value is None:

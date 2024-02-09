@@ -213,6 +213,18 @@ class TestBluePacket
     Console.WriteLine("PASS");
   }
 
+  private void testConvert(String name)
+  {
+    Console.Write(name + ": ");
+    int id = 123;
+    String[] text = new String[] {"line1", "line2"};
+    DemoFirst d1 = new DemoFirst { id=id, text=text };
+    DemoSecond d2 = DemoSecond.convert(d1);
+    AssertEquals(id, d2.id, "converted 'id' field value");
+    AssertEquals(text, d2.text, "Converted 'text' field value");
+    Console.WriteLine("PASS");
+  }
+
   static void Main(string[] args)
   {
     TestBluePacket test = new TestBluePacket();
@@ -245,5 +257,7 @@ class TestBluePacket
     test.TestPacketHash("testDeprecated2", new DemoVersion{}, 7260826007793545337L);
     test.TestPacketHash("testIncludeDeprecated1", new DemoIncludeVersion__3D76B02436B66199{}, 4428920953148694937L);
     test.TestPacketHash("testIncludeDeprecated2", new DemoIncludeVersion{}, -4044184110803273943L);
+
+    test.testConvert("testConvert");
   }
 }

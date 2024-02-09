@@ -299,6 +299,20 @@ def exportStructFunc(out, data, field_is_enum, namespace):
   produceDeserializer(out, namespace + goname, sorted_fields, data.field_is_enum)
   produceToString(out, namespace + goname, sorted_fields, data.field_is_enum)
 
+def produceConvert(out, name, ctype, copts, other_fields, indent):
+  println(out)
+  produceDocstring(out, indent,
+    [
+      f"Converter function to build an instance of {name} from an instance of {ctype}",
+    ]
+  )
+  println(out, f"func (other *{ctype}) New{name}() *{name} {{")
+  println(out, indent + f"\treturn &{name}{{")
+  for pf in other_fields:
+    if pf.name:
+      println(out, f"{indent}\t\t{pf.name[0].upper()}{pf.name[1:]}: other.{pf.name[0].upper()}{pf.name[1:]},")
+  println(out, indent + "\t}")
+  println(out, "}")
 
 def _innerFieldsWithNamespace(data):
   goname = _getGoType(data.name)
@@ -321,7 +335,7 @@ def _innerFieldIsEnumWithNamespace(data):
       yield info, num
 
 
-def exportStruct(out_dir, package, data, version):
+def exportStruct(out_dir, package, data, version, all_data):
   # namespace inner definition by using the parent package as prefix
   data.fields = list(_innerFieldsWithNamespace(data))
   data.field_is_enum = {k: v for k, v in _innerFieldIsEnumWithNamespace(data)}
@@ -338,6 +352,13 @@ def exportStruct(out_dir, package, data, version):
     println(out, f'func (bp *{goname}) GetPacketHex() string {{ return "0x{version & 0xFFFFFFFFFFFFFFFF:0X}" }}')
     println(out)
     exportStructFunc(out, data, data.field_is_enum, "")
+
+    for ctype, copts in data.converts.items():
+      other = all_data.get(ctype)
+      if not other:
+        raise SourceException("Converter from unknown type", what=ctype)
+      cfields = list(sorted(other.fields, key=str))
+      produceConvert(out, data.name, ctype, copts, cfields, "")
 
     if data.inner:
       println(out)
@@ -432,4 +453,4 @@ if __name__ == "__main__":
     if data.is_enum:
       exportEnum(args.output_dir, args.package, data)
     else:
-      exportStruct(args.output_dir, args.package, data, versions[_getGoType(data.name)])
+      exportStruct(args.output_dir, args.package, data, versions[_getGoType(data.name)], all_data)

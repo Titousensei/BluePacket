@@ -401,6 +401,19 @@ class TestBluePacket(unittest.TestCase):
     self.assertEqual(-19858, toSignedShort(45678))
     self.assertEqual(200, toUnsignedByte(-56))
     self.assertEqual(45678, toUnsignedShort(-19858))
+    
+  def testConvert(self):
+    id = 123
+    text = ["line1", "line2"]
+    d1 = t.DemoFirst(id=id, text=text)
+    d2 = t.DemoSecond.convertDemoFirst(d1)
+    self.assertEqual(id, d2.id)
+    self.assertEqual(text, d2.text)
+    
+  def testConvertNegative(self):
+    packet = t.DemoOuter(oInt=999)
+    with self.assertRaises(FieldTypeException) as ex:
+      _ = t.DemoSecond.convertDemoFirst(packet)
 
   def testForceInitNamedParamsNegative(self):
     with self.assertRaises(TypeError) as ex:

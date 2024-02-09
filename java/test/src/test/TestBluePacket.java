@@ -290,6 +290,17 @@ class TestBluePacket
     System.out.println("PASS");
   }
 
+  private void testConvert(String name)
+  throws Exception
+  {
+    int id = 123;
+    String[] text = new String[]{"line1", "line2"};
+    DemoFirst d1 = new DemoFirst().setId(id).setText(text);
+    DemoSecond d2 = DemoSecond.convert(d1);
+    assertEquals(id, d2.id, "converted 'id' field value");
+    assertEquals(text, d2.text, "Converted 'text' field value");
+  }
+
   public static void main(String[] args)
   throws Exception
   {
@@ -325,5 +336,7 @@ class TestBluePacket
     test.testPacketHash("testDeprecated2", new DemoVersion(), 7260826007793545337L);
     test.testPacketHash("testIncludeDeprecated1", new DemoIncludeVersion__3D76B02436B66199(), 4428920953148694937L);
     test.testPacketHash("testIncludeDeprecated2", new DemoIncludeVersion(), -4044184110803273943L);
+
+    test.testConvert("testConvert");
   }
 }

@@ -1,0 +1,10 @@
+DemoFirst:
+    int id
+    list string text
+
+DemoSecond:
+    int id
+    list string text
+    bool enabled
+
+    convert DemoFirst
