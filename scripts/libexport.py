@@ -268,6 +268,9 @@ class Parser:
       print("[Export] Reading", path, file=sys.stderr)
       with open(path) as f:
         self.state = self.read_class
+        self.data = None
+        self.indent = 0
+        self.top = None
         docstring = []
         for lnum, line in enumerate(f, 1):
           if annotations is not None and line.startswith('# @'):
@@ -275,15 +278,10 @@ class Parser:
             annotations[key] = value.strip()
             continue
 
-          if line.startswith('#'):
-            docstring.append(line[1:].strip())
-            continue
-
           sline = line.strip()
           if not sline:
             if docstring and self.data:
               self.data.fields.append(PacketField(docstring=docstring))
-              # self.data.fields.append(['', '', '', docstring])
             docstring = []
             continue
 
