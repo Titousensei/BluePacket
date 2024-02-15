@@ -363,6 +363,23 @@ def exportAbstract(out_dir, namespace, data):
     println(out, "}")
 
 
+def  exportApiVersion(out_dir, namespace, api_version):
+  path = os.path.join(out_dir, "BluePacketAPI.cs")
+  print("[ExporterCSharp] API Version", path, file=sys.stderr)
+  with open(path, "w") as out:
+    println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
+    println(out, f"namespace {namespace}")
+    println(out, "{")
+    produceDocstring(out, "  ", ["API information for this package."])
+    println(out, f"  static class BluePacketAPI")
+    println(out,  "  {")
+    produceDocstring(out, "      ", ["API Version calculated for all the packets in this package."])
+    println(out, f"      public const long version = {api_version}L;")
+    println(out, f'      public const string versionHex = "0x{api_version & 0xFFFFFFFFFFFFFFFF:0X}";')
+    println(out, "    }")
+    println(out, "}")
+
+
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
@@ -387,3 +404,4 @@ if __name__ == "__main__":
     else:
       version = versionHash(data, all_data)
       exportClass(args.output_dir, args.namespace, data, version, all_data)
+  exportApiVersion(args.output_dir, args.namespace, p.api_version)

@@ -410,6 +410,11 @@ class TestBluePacket(unittest.TestCase):
     self.assertEqual(id, d2.id)
     self.assertEqual(text, d2.text)
     
+  def testApiVersion(self):
+    self.assertNotEqual(0, t.BluePacketAPI.VERSION)
+    self.assertIsNotNone(t.BluePacketAPI.VERSION_HEX)
+    self.assertNotEqual("", t.BluePacketAPI.VERSION_HEX)
+    
   def testConvertNegative(self):
     packet = t.DemoOuter(oInt=999)
     with self.assertRaises(FieldTypeException) as ex:

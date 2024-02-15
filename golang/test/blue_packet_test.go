@@ -30,6 +30,14 @@ func assertEquals(t *testing.T, testid string, expected any, actual any) {
 	t.Fail()
 }
 
+func assertTrue(t *testing.T, testid string, value bool) {
+	if value {
+		return
+	}
+	t.Log(fmt.Sprintf("ERROR - %s not true", testid))
+	t.Fail()
+}
+
 type testData struct {
 	demoPacket    DemoPacket
 	demoPacketBin []byte
@@ -259,4 +267,10 @@ func TestDemoConvert(t *testing.T) {
 	for i, _ := range text {
 		assertEquals(t, "Converted 'text' field value[i]", text[i], d2.Text[i])
 	}
+}
+
+func TestApiVersion(t *testing.T) {
+	t.Log("-- testApiVersion")
+	assertTrue(t, "BluePacketAPIVersion calculated", BluePacketApiVersion != 0)
+	assertTrue(t, "BluePacketAPIVersionHex calculated", BluePacketApiVersionHex != "")
 }

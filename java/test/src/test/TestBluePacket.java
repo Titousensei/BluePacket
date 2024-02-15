@@ -88,6 +88,14 @@ class TestBluePacket
     }
   }
 
+  private void assertTrue(boolean value, String msg)
+  {
+    if (!value) {
+      System.out.println("assertTrue failed!");
+      throw new AssertionError(msg);
+    }
+  }
+
   private byte[] readBinary(String path)
   throws FileNotFoundException, IOException
   {
@@ -293,12 +301,27 @@ class TestBluePacket
   private void testConvert(String name)
   throws Exception
   {
+    System.out.print(name + ": ");
+    
     int id = 123;
     String[] text = new String[]{"line1", "line2"};
     DemoFirst d1 = new DemoFirst().setId(id).setText(text);
     DemoSecond d2 = DemoSecond.convert(d1);
     assertEquals(id, d2.id, "converted 'id' field value");
     assertEquals(text, d2.text, "Converted 'text' field value");
+
+    System.out.println("PASS");
+  }
+
+  private void testApiVersion(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+    
+    assertTrue(BluePacketAPI.version != 0L, "BluePacketAPI.version calculated");
+    assertTrue(BluePacketAPI.versionHex != null && !"".equals(BluePacketAPI.versionHex), "BluePacketAPI.versionHex calculated");
+
+    System.out.println("PASS");
   }
 
   public static void main(String[] args)
@@ -338,5 +361,6 @@ class TestBluePacket
     test.testPacketHash("testIncludeDeprecated2", new DemoIncludeVersion(), -4044184110803273943L);
 
     test.testConvert("testConvert");
+    test.testApiVersion("testApiVersion");
   }
 }

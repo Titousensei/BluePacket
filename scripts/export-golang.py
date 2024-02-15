@@ -420,6 +420,21 @@ def exportEnumDef(out, data, namespace):
     println(out, "}")
 
 
+def exportApiVersion(out_dir, package, api_version):
+  path = os.path.join(out_dir, "BluePacketAPI.go")
+  print("[ExporterGo] API Version", path, file=sys.stderr)
+  with open(path, "w") as out:
+    println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
+    println(out, "package " + package)
+    println(out)
+    produceDocstring(out, "", ["API information for this package."])
+    println(out, "const (")
+    produceDocstring(out, "\t", ["API Version calculated for all the packets in this package."])
+    println(out, f"\tBluePacketApiVersion int64 = {api_version}")
+    println(out, f'\tBluePacketApiVersionHex string = "0x{api_version & 0xFFFFFFFFFFFFFFFF:0X}"')
+    println(out, ")")
+
+
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
@@ -454,3 +469,4 @@ if __name__ == "__main__":
       exportEnum(args.output_dir, args.package, data)
     else:
       exportStruct(args.output_dir, args.package, data, versions[_getGoType(data.name)], all_data)
+  exportApiVersion(args.output_dir, args.package, p.api_version)

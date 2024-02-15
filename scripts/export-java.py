@@ -411,6 +411,21 @@ def exportAbstract(out_dir, package, data):
     println(out, "{}")
 
 
+def exportApiVersion(out_dir, package, api_version):
+  path = os.path.join(out_dir, "BluePacketAPI.java")
+  print("[ExporterJava] API Version", path, file=sys.stderr)
+  with open(path, "w") as out:
+    println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
+    println(out, "package " + package + ';')
+    println(out)
+    produceDocstring(out, "", ["API information for this package."])
+    println(out, "public final class BluePacketAPI {")
+    produceDocstring(out, "  ", ["API Version calculated for all the packets in this package."])
+    println(out, f"  public final static long version = {api_version}L;")
+    println(out, f'  public final static String versionHex = "0x{api_version & 0xFFFFFFFFFFFFFFFF:0X}";')
+    println(out, "}")
+
+
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
@@ -435,3 +450,4 @@ if __name__ == "__main__":
     else:
       version = versionHash(data, all_data)
       exportClass(args.output_dir, args.package, data, version, all_data)
+  exportApiVersion(args.output_dir, args.package, p.api_version)

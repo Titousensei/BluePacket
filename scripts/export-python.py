@@ -394,12 +394,26 @@ def exportAbstract(out_dir, data):
     println(out, f"    pass")
 
 
+def exportApiVersion(out_dir, api_version):
+  path = os.path.join(out_dir, "blue_packet_api.py")
+  print("[ExporterPython] API Version", path, file=sys.stderr)
+  with open(path, "w") as out:
+    println(out, "# WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
+    println(out)
+    produceDocstring(out, "", ["API information for this package."])
+    println(out, "class BluePacketAPI:")
+    produceDocstring(out, "  ", ["API Version calculated for all the packets in this package."])
+    println(out, f"  VERSION = {api_version}")
+    println(out, f'  VERSION_HEX = "0x{api_version & 0xFFFFFFFFFFFFFFFF:0X}"')
+
+
 def exportInit(out_dir, all_data):
   path = os.path.join(out_dir, "__init__.py")
   print("[ExporterPython] __init__", path, file=sys.stderr)
   with open(path, "w") as out:
     for _, data in all_data.items():
       println(out, f"from .{data.name} import {data.name}")
+    println(out, f"from .blue_packet_api import BluePacketAPI")
 
 
 def get_args():
@@ -427,3 +441,4 @@ if __name__ == "__main__":
     else:
       version = versionHash(data, all_data)
       exportClass(args.output_dir, data, version, all_data)
+  exportApiVersion(args.output_dir, p.api_version)

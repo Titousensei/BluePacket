@@ -52,6 +52,13 @@ class TestBluePacket
     }
   }
 
+  private void AssertTrue(bool val, string msg)
+  {
+    if (!val) {
+      throw new ArgumentException(msg + ": Not true");
+    }
+  }
+
   private void SetUp()
   {
     //BluePacket.Init("test");
@@ -213,6 +220,14 @@ class TestBluePacket
     Console.WriteLine("PASS");
   }
 
+  private void testApiVersion(String name)
+  {
+    Console.Write(name + ": ");
+    AssertTrue(BluePacketAPI.version != 0L, "BluePacketAPI.version calculated");
+    AssertTrue(BluePacketAPI.versionHex != null && BluePacketAPI.versionHex != "", "BluePacketAPI.versionHex calculated");
+    Console.WriteLine("PASS");
+  }
+
   private void testConvert(String name)
   {
     Console.Write(name + ": ");
@@ -259,5 +274,6 @@ class TestBluePacket
     test.TestPacketHash("testIncludeDeprecated2", new DemoIncludeVersion{}, -4044184110803273943L);
 
     test.testConvert("testConvert");
+    test.testApiVersion("testApiVersion");
   }
 }

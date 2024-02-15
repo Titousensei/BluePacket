@@ -35,6 +35,11 @@ class TestLibExport(unittest.TestCase):
       if not data.is_enum:
         self.assertTrue(cl in self.versions, f"{cl} not in versionString.txt")
 
+  def test_apiVersion(self):
+    p = Parser()
+    _ = p.parse(os.path.join(TESTDATA_DIR, "example_rpc.bp"))
+    self.assertEqual(-6803416483160598136, p.api_version)
+
   def test_versionString(self):
     self.maxDiff = None
     for cl, expected in self.versions.items():

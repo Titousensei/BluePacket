@@ -187,6 +187,7 @@ class Parser:
     self.indent = 0
     self.state = None
     self.top = None
+    self.api_version = None
 
   def read_enums(self, line, indent, docstring):
     if indent == 0 or ':' in line:
@@ -278,6 +279,8 @@ class Parser:
       self.state = self.read_field
 
   def parse(self, files, annotations=None):
+    if isinstance(files, str):
+      files = [files]
     for path in files:
       print("[Export] Reading", path, file=sys.stderr)
       with open(path) as f:
@@ -354,9 +357,12 @@ class Parser:
             en = self.packet_list.get(pf.type) or data.enums.get(pf.type)
             data.field_is_enum[pf.type] = sum(1 for f in en.fields if f.name)
 
-    if not data.is_enum and not data.is_abstract:
+      if not data.is_enum and not data.is_abstract:
         data.version = versionHash(data, self.packet_list)
 
+    self.api_version = 0
+    for pk_name, pk in self.packet_list.items():
+      self.api_version ^= pk.version or 0
     return self.packet_list
 
 
