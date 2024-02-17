@@ -8,6 +8,11 @@ from libexport import Parser, SourceException, versionString
 
 TESTDATA_DIR = "../../testdata"
 
+_API_VERSIONS = [
+  ("example_rpc.bp", -6803416483160598136),
+  ("DemoDeprecated.bp", -6691353770427087024),
+]
+
 
 class TestLibExport(unittest.TestCase):
 
@@ -36,9 +41,10 @@ class TestLibExport(unittest.TestCase):
         self.assertTrue(cl in self.versions, f"{cl} not in versionString.txt")
 
   def test_apiVersion(self):
-    p = Parser()
-    _ = p.parse(os.path.join(TESTDATA_DIR, "example_rpc.bp"))
-    self.assertEqual(-6803416483160598136, p.api_version)
+    for fname, expected in _API_VERSIONS:
+      p = Parser()
+      _ = p.parse(os.path.join(TESTDATA_DIR, fname))
+      self.assertEqual(expected, p.api_version, fname)
 
   def test_versionString(self):
     self.maxDiff = None

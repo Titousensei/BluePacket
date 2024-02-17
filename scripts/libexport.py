@@ -362,7 +362,8 @@ class Parser:
 
     self.api_version = 0
     for pk_name, pk in self.packet_list.items():
-      self.api_version ^= pk.version or 0
+      if pk.name == pk.origin_name:
+        self.api_version ^= pk.version or 0
     return self.packet_list
 
 
