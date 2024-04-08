@@ -78,7 +78,7 @@ class TestBluePacket
     };
 
     DemoPacket.MyInner[] inner = new DemoPacket.MyInner[] {
-      new DemoPacket.MyInner { iInteger = 777 },
+      new DemoPacket.MyInner { iInteger = 777, iEnum = DemoPacket.MyEnum.WHOKNOWS },
       new DemoPacket.MyInner { iInteger = 6666 }
     };
     demoPacket.aInner = inner;
@@ -177,7 +177,7 @@ class TestBluePacket
   {
     Console.Write(name + ": ");
     var strings = File.ReadAllLines(TESTDATA_DIR + filename);
-    AssertEquals(packet.ToString(), strings[0], "ToString()");
+    AssertEquals(strings[0], packet.ToString(), "ToString()");
     Console.WriteLine("PASS");
   }
 
@@ -249,7 +249,7 @@ class TestBluePacket
     test.TestToString("testToString2", "toString2.txt", test.demoPacket2);
     test.TestToString("testToString3", "toString3.txt", test.demoPacket3);
     test.TestToString("testToStringU", "toStringU.txt", test.demoPacketU);
-    test.TestPacketHash("testVersionHash", test.demoPacket, -3377904526771042813L);
+    test.TestPacketHash("testVersionHash", test.demoPacket, -777183301505584489L);
     test.TestPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
     test.TestPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.TestPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);

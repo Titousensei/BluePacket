@@ -543,7 +543,7 @@ public abstract class BluePacket
     } else if (t == Double.TYPE || t == Double.class) {
       return (double) obj != 0.0;
     } else if (t.isEnum()) {
-      return obj != null;
+      return obj != null && ((Enum) obj).ordinal() != 0;
     } else if (t.isArray()) {
       return ((Object[]) obj).length != 0;
     }

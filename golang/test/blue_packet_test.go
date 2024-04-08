@@ -136,7 +136,7 @@ func setUp(t *testing.T) testData {
 		demoPacketUBin: readFile(t, "DemoPacketU.bin"),
 	}
 	inner := []*DemoPacketMyInner{
-		&DemoPacketMyInner{IInteger: 777},
+		&DemoPacketMyInner{IInteger: 777, IEnum: DemoPacketMyEnumWHOKNOWS},
 		&DemoPacketMyInner{IInteger: 6666},
 	}
 
@@ -224,7 +224,7 @@ func TestDemoBluePacketToString(t *testing.T) {
 
 func TestDemoBluePacketHash(t *testing.T) {
 	test := setUp(t)
-	testPacketHash(t, "testVersionHash", &test.demoPacket, -3377904526771042813)
+	testPacketHash(t, "testVersionHash", &test.demoPacket, -777183301505584489)
 	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -4035910894404497038)
 	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 3706623474888074790)
 	testPacketHash(t, "testVersionHashU", &test.demoPacketU, 4436886959950420991)

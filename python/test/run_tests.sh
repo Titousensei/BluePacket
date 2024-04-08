@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 echo "=== CLEANING ==="
 rm -rf gen doc > /dev/null
 

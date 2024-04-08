@@ -238,7 +238,7 @@ func ReadDouble(r *bytes.Reader) float64 {
 // Utils
 
 func AppendIfNotEmptyList[T any](sb *strings.Builder, fname string, ftype string, values []T) {
-	if len(values) == 0 {
+	if values == nil || len(values) == 0 {
 		return
 	}
 	sb.WriteString(" ")
@@ -340,7 +340,7 @@ func AppendIfNotEmptyBool(sb *strings.Builder, fname string, value bool) {
 }
 
 func AppendIfNotEmptyEnum(sb *strings.Builder, fname string, value any, value_str fmt.Stringer) {
-	if value == byte(0) {
+	if value == 0 {
 		return
 	}
 	sb.WriteString(" ")

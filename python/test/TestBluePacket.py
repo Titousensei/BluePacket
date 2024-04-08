@@ -45,7 +45,7 @@ class TestBluePacket(unittest.TestCase):
     demoPacket.fInner = t.DemoPacket.MyInner(iInteger=88)
 
     demoPacket.aInner = [
-      t.DemoPacket.MyInner(iInteger=777),
+      t.DemoPacket.MyInner(iInteger=777, iEnum=t.DemoPacket.MyEnum.WHOKNOWS),
       t.DemoPacket.MyInner(iInteger=6666),
     ]
 
@@ -121,7 +121,7 @@ class TestBluePacket(unittest.TestCase):
 
 
   @parameters(
-    (-3377904526771042813, "DemoPacket"),
+    (-777183301505584489, "DemoPacket"),
     (-4035910894404497038, "DemoPacket2"),
     (3706623474888074790, "DemoPacket3"),
     (4436886959950420991, "DemoPacketU"),

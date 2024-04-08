@@ -90,24 +90,31 @@ def produceTypeInfo(out, fields, indent):
   println(out, indent + "}")
 
 
-def produceConstructor(out, fields, indent):
+def produceConstructor(out, data, field_is_enum, parent_name, indent):
   println(out)
   println(out, indent + f"def __init__(")
   println(out, f"{indent}    self, *,")
 
-  for pf in fields:
+  for pf in data.fields:
     if pf.name:
       fopt = "[]" if pf.is_list else ""
       println(out, f"{indent}    {pf.name} = None,  # {pf.type}{fopt}")
 
   println(out, indent + f"):")
 
-  for pf in fields:
+  for pf in data.fields:
     if pf.docstring:
       println(out)
     for line in pf.docstring:
       println(out, f"{indent}  # {line}")
-    if pf.name:
+    if pf.type in data.enums:
+      println(out, f"{indent}  self.{pf.name} = {pf.name} or self.{pf.type}(0)")
+    elif pf.type in field_is_enum and not pf.is_list:
+      if parent_name:
+        println(out, f"{indent}  self.{pf.name} = {pf.name} or {parent_name}.{pf.type}(0)")
+      else:
+        println(out, f"{indent}  self.{pf.name} = {pf.name} or {pf.type}(0)")
+    elif pf.name:
       println(out, f"{indent}  self.{pf.name} = {pf.name}")
     else:
       println(out)
@@ -176,7 +183,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
       println(out, f"{indent}    self.{pf.name}.serializeData(bpw)")
 
 
-def produceDeserializer(out, data, fields, indent, field_is_enum):
+def produceDeserializer(out, data, fields, indent, field_is_enum, parent_name):
   println(out)
   println(out, indent + "def populateData(self, registry, bpr):")
 
@@ -219,10 +226,14 @@ def produceDeserializer(out, data, fields, indent, field_is_enum):
         println(out, f"{indent}    x.populateData(registry, bpr)")
       println(out, f"{indent}    self.{pf.name}.append(x)")
     elif pf.type in field_is_enum:
-      if field_is_enum.get(pf.type, 0) <= 256:
-        println(out, f"{indent}  self.{pf.name} = {ftype}(bpr.readUnsignedByte())")
+      if parent_name:
+        prefix = parent_name + "."
+      elif ftype in data.enums:
+        prefix = "self."
       else:
-        println(out, f"{indent}  self.{pf.name} = {ftype}(bpr.readUnsignedShort())")
+        prefix = ""
+      read_size = "readUnsignedByte" if field_is_enum.get(pf.type, 0) <= 256 else "readUnsignedShort"
+      println(out, f"{indent}  self.{pf.name} = {prefix}{ftype}(bpr.{read_size}())")
     elif ftype in PYTHON_READER:
       println(out, f"{indent}  self.{pf.name} = {PYTHON_READER[pf.type]}")
     else:
@@ -321,12 +332,12 @@ def exportInnerClass(out, data, field_is_enum, parentName):
   produceTypeInfo(out, sorted_fields, INNER_INDENT)
   println(out)
   println(out, INNER_INDENT + "### CONSTRUCTOR ###")
-  produceConstructor(out, data.fields, INNER_INDENT)
+  produceConstructor(out, data, field_is_enum, parentName, INNER_INDENT)
   produceSetAttr(out, parentName + '.' + data.name, INNER_INDENT)
   println(out)
   println(out, INNER_INDENT + "### HELPER FUNCTIONS ###")
   produceSerializer(out, sorted_fields, INNER_INDENT, field_is_enum)
-  produceDeserializer(out, data, sorted_fields, INNER_INDENT, field_is_enum)
+  produceDeserializer(out, data, sorted_fields, INNER_INDENT, field_is_enum, parentName)
   produceFieldsToString(out, data.name, sorted_fields, INNER_INDENT, field_is_enum, is_inner=True)
 
 
@@ -349,12 +360,12 @@ def exportClass(out_dir, data, version, all_data):
     println(out)
     println(out, DEFAULT_INDENT + "### CONSTRUCTOR ###")
     if any(pf.name for pf in data.fields):
-      produceConstructor(out, data.fields, DEFAULT_INDENT)
+      produceConstructor(out, data, data.field_is_enum, None, DEFAULT_INDENT)
       produceSetAttr(out, data.name, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "### HELPER FUNCTIONS ###")
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
-    produceDeserializer(out, data, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
+    produceDeserializer(out, data, sorted_fields, DEFAULT_INDENT, data.field_is_enum, None)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     for ctype, copts in data.converts.items():
       other = all_data.get(ctype)

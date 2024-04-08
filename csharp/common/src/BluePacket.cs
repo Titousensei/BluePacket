@@ -585,7 +585,7 @@ namespace BluePackets
       } else if (t == typeof(double)) {
         return (double)obj != 0.0;
       } else if (t.IsEnum) {
-        return Convert.ToInt32(obj) != 0;
+        return Convert.ToInt32((Enum) obj) != 0;
       } else if (t.IsArray) {
         return (int)t.GetProperty("Length").GetValue(obj) != 0;
       }

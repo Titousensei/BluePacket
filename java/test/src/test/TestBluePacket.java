@@ -129,6 +129,7 @@ class TestBluePacket
     DemoPacket.MyInner[] inner = new DemoPacket.MyInner[2];
     inner[0] = new DemoPacket.MyInner();
     inner[0].iInteger = 777;
+    inner[0].iEnum = DemoPacket.MyEnum.WHOKNOWS;
     inner[1] = new DemoPacket.MyInner();
     inner[1].iInteger = 6666;
     demoPacket.setAInner(inner);
@@ -334,7 +335,7 @@ class TestBluePacket
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
     test.testToString("testToString3", "toString3.txt", test.demoPacket3);
     test.testToString("testToStringU", "toStringU.txt", test.demoPacketU);
-    test.testPacketHash("testVersionHash", test.demoPacket, -3377904526771042813L);
+    test.testPacketHash("testVersionHash", test.demoPacket, -777183301505584489L);
     test.testPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
     test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.testPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);

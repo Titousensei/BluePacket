@@ -33,6 +33,8 @@ DemoPacket:
     MyInner:
         # field comment inner class
         int iInteger
+        MyEnum iEnum
+        list MyEnum aEnum
 
     MyEnum: enum
         DUNNO, MAYBE, POSSIBLE, WHOKNOWS

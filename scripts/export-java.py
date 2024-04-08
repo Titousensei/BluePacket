@@ -67,12 +67,15 @@ def produceDocstring(out, indent, docstring):
   out.write(" */\n")
 
 
-def produceFields(out, fields, indent):
+def produceFields(out, fields, enum_fields, indent):
   for pf in fields:
     ftype = JAVA_TYPE.get(pf.type, pf.type)
     if pf.is_list:
       produceDocstring(out, indent, pf.docstring)
       println(out, f"{indent}public {ftype}[] {pf.name};")
+    elif ftype in enum_fields:
+      produceDocstring(out, indent, pf.docstring)
+      println(out, f"{indent}public {ftype} {pf.name} = {ftype}.valueOf(0);")
     elif pf.name:
       produceDocstring(out, indent, pf.docstring)
       println(out, f"{indent}public {ftype} {pf.name};")
@@ -325,7 +328,7 @@ def exportInnerClass(out, data, field_is_enum):
 
   println(out, INNER_INDENT + "/* --- DATA FIELDS --- */")
   println(out)
-  produceFields(out, data.fields, INNER_INDENT)
+  produceFields(out, data.fields, field_is_enum, INNER_INDENT)
   println(out)
   println(out, INNER_INDENT + "/* --- HELPER FUNCTIONS --- */")
   sorted_fields = list(sorted(data.fields, key=str))
@@ -361,7 +364,7 @@ def exportClass(out_dir, package, data, version, all_data):
 
     println(out, DEFAULT_INDENT + "/* --- DATA FIELDS --- */")
     println(out)
-    produceFields(out, data.fields, DEFAULT_INDENT)
+    produceFields(out, data.fields, data.field_is_enum, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "/* --- HELPER FUNCTIONS --- */")
     sorted_fields = list(sorted(data.fields, key=str))

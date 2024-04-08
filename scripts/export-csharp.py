@@ -62,11 +62,14 @@ def produceDocstring(out, indent, summary, docstring=None):
     println(out, f"{indent}/// {line}")
 
 
-def produceFields(out, fields, indent):
+def produceFields(out, fields, enum_fields, indent):
   for pf in fields:
     if pf.is_list:
       produceDocstring(out, indent, pf.docstring)
       println(out, f"{indent}public {CS_TYPE.get(pf.type, pf.type)}[] {pf.name};")
+    elif pf.type in enum_fields:
+      produceDocstring(out, indent, pf.docstring)
+      println(out, f"{indent}public {CS_TYPE.get(pf.type, pf.type)} {pf.name} = ({pf.type}) 0;")
     elif pf.name:
       produceDocstring(out, indent, pf.docstring)
       println(out, f"{indent}public {CS_TYPE.get(pf.type, pf.type)} {pf.name};")
@@ -212,7 +215,7 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
       if pf.type in CS_READER or pf.type == 'bool':
         println(out, f'{indent}  AppendIfNotEmptyArray<{CS_TYPE.get(pf.type, pf.type)}>(sb, "{pf.name}", "{pf.type}", {pf.name});')
       elif pf.type in field_is_enum:
-        println(out, f'{indent}  AppendIfNotEmptyArray<String>(sb, "{pf.name}", "{pf.type}", Array.ConvertAll({pf.name}, value => value.ToString()));')
+        println(out, f'{indent}  if ({pf.name} != null) {{ AppendIfNotEmptyArray<String>(sb, "{pf.name}", "{pf.type}", Array.ConvertAll({pf.name}, value => value.ToString())); }}')
       else:
         println(out, f'{indent}  AppendIfNotEmpty(sb, "{pf.name}", "{pf.type}", {pf.name});')
     elif pf.type in CS_READER:
@@ -281,7 +284,7 @@ def exportInnerClass(out, data, field_is_enum):
   println(out, DEFAULT_INDENT + "{")
 
   println(out, INNER_INDENT + "/*** DATA FIELDS ***/")
-  produceFields(out, data.fields, INNER_INDENT)
+  produceFields(out, data.fields, field_is_enum, INNER_INDENT)
   println(out)
   println(out, INNER_INDENT + "/*** HELPER FUNCTIONS ***/")
   sorted_fields = list(sorted(data.fields, key=str))
@@ -314,7 +317,7 @@ def exportClass(out_dir, namespace, data, version, all_data):
 
     println(out, DEFAULT_INDENT + "/* --- DATA FIELDS --- */")
     println(out)
-    produceFields(out, data.fields, DEFAULT_INDENT)
+    produceFields(out, data.fields, data.field_is_enum, DEFAULT_INDENT)
     println(out)
     println(out, DEFAULT_INDENT + "/* --- HELPER FUNCTIONS --- */")
     sorted_fields = list(sorted(data.fields, key=str))

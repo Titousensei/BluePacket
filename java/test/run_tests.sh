@@ -11,7 +11,7 @@ mkdir -p gen/test build doc
 
 echo "=== COMPILING ==="
 javac -d build ../../java/common/src/org/bluepacket/* src/test/* gen/test/*
-javadoc -exclude org.bluepacket -d doc ../../java/common/src/org/bluepacket/* gen/test/*
+javadoc -exclude org.bluepacket -Xdoclint:-missing -d doc ../../java/common/src/org/bluepacket/* gen/test/*
 
 echo "=== TESTING ==="
 java -cp build test.TestBluePacket

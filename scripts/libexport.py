@@ -137,7 +137,7 @@ def versionString(data, all_data, my_enums, my_inner, seen):
     if pf.is_list:
       if ftype in my_inner:
         ret += "{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
-      elif ftype in data.field_is_enum:
+      elif ftype in data.field_is_enum or ftype in my_enums:
         if ftype in my_enums:
           ret += f"[]{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
         elif ftype in all_data:
@@ -150,6 +150,7 @@ def versionString(data, all_data, my_enums, my_inner, seen):
         ret += "[]" + ftype
       else:
         # Should never happen, but we raise in case of a bug in this lib
+        print("*** my_enums", my_enums)
         raise SourceException("Unexpected: Unknown {LIST_LABEL} field type", what=f"{LIST_LABEL} {ftype} {fname}")
     elif ftype in data.field_is_enum:
       if ftype in my_enums:
@@ -164,7 +165,7 @@ def versionString(data, all_data, my_enums, my_inner, seen):
     elif ftype in my_inner:
         ret += "{" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
     elif ftype in my_enums:
-        ret += f"{{{ftype}+" + "+".join(my_enums[ftype].fields) + "}"
+        ret += f"{{{ftype}+" + "+".join(str(f) for f in my_enums[ftype].fields) + "}"
     elif ftype in all_data:
         ret += "{" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
     elif not data.is_enum:
