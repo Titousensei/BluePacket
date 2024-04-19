@@ -104,6 +104,10 @@ class BluePacket:
     bpw.serialize(self)
     return bytes(bpw)
 
+  @staticmethod
+  def convert():
+    return []
+
 
 class BluePacketRegistry:
 

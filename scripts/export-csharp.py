@@ -43,6 +43,7 @@ def header(out, namespace, data):
     println(out, "// WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
     if not data.is_enum and not data.is_abstract:
       println(out, "using System;")
+      println(out, "using System.Collections.Generic;")
       println(out, "using System.IO;")
       println(out, "using System.Text;")
       println(out, "using BluePackets;")
@@ -227,6 +228,23 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum):
 
   println(out, indent + "}")
 
+def produceConvertAll(out, name, converts, indent):
+  if not converts:
+    return
+  println(out)
+  produceDocstring(out, indent,
+    [
+      "Get all the convertible BluePackets",
+      "@return Array of BluePacket instances",
+    ]
+  )
+  println(out, f"{indent}override public List<BluePacket> convert()")
+  println(out, indent + "{")
+  println(out, indent + "  return new List<BluePacket> {")
+  println(out, f"{indent}    " + ", ".join("new " + c + " {}" for c in converts))
+  println(out, indent + "  };")
+  println(out, indent + "}")
+
 
 def produceConvert(out, name, ctype, copts, other_fields, indent):
   println(out)
@@ -324,6 +342,7 @@ def exportClass(out_dir, namespace, data, version, all_data):
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
+    produceConvertAll(out, data.name, data.converts, DEFAULT_INDENT)
     for ctype, copts in data.converts.items():
       other = all_data.get(ctype)
       if not other:

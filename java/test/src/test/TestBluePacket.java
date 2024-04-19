@@ -2,6 +2,7 @@ package test;
 
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -303,13 +304,21 @@ class TestBluePacket
   throws Exception
   {
     System.out.print(name + ": ");
-    
+
     int id = 123;
     String[] text = new String[]{"line1", "line2"};
     DemoFirst d1 = new DemoFirst().setId(id).setText(text);
     DemoSecond d2 = DemoSecond.convert(d1);
     assertEquals(id, d2.id, "converted 'id' field value");
     assertEquals(text, d2.text, "Converted 'text' field value");
+
+    List<Long> expectedConvert1 = new ArrayList<>();
+    List<Long> actualConvert1 = d1.convert().stream().map(BluePacket::getPacketHash).collect(Collectors.toList());
+    assertEquals(expectedConvert1, actualConvert1, "Empty List of convertible BluePackets for DemoFirst");
+
+    List<Long> expectedConvert2 = List.of(d1.getPacketHash());
+    List<Long> actualConvert2 = d2.convert().stream().map(BluePacket::getPacketHash).collect(Collectors.toList());
+    assertEquals(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond");
 
     System.out.println("PASS");
   }
@@ -318,7 +327,7 @@ class TestBluePacket
   throws Exception
   {
     System.out.print(name + ": ");
-    
+
     assertTrue(BluePacketAPI.version != 0L, "BluePacketAPI.version calculated");
     assertTrue(BluePacketAPI.versionHex != null && !"".equals(BluePacketAPI.versionHex), "BluePacketAPI.versionHex calculated");
 

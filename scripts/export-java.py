@@ -262,6 +262,23 @@ def produceFieldsToString(out, name, fields, indent):
   println(out, indent + "}")
 
 
+def produceConvertAll(out, name, converts, indent):
+  if not converts:
+    return
+  println(out)
+  produceDocstring(out, indent,
+    [
+      "{@inheritDoc}"
+    ]
+  )
+  println(out, f"{indent}public java.util.List<? extends BluePacket> convert()")
+  println(out, indent + "{")
+  println(out, indent + "  return java.util.List.of(")
+  println(out, f"{indent}    " + ", ".join("new " + c + "()" for c in converts))
+  println(out, indent + "  );")
+  println(out, indent + "}")
+
+
 def produceConvert(out, name, ctype, copts, other_fields, indent):
   println(out)
   produceDocstring(out, indent,
@@ -373,6 +390,7 @@ def exportClass(out_dir, package, data, version, all_data):
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT)
+    produceConvertAll(out, data.name, data.converts, DEFAULT_INDENT)
     for ctype, copts in data.converts.items():
       other = all_data.get(ctype)
       if not other:

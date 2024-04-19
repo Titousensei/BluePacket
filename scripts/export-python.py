@@ -283,11 +283,28 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
   else:
     println(out, f'{indent}    return "{{{name} " + self.packetHex + "}}"')
 
+def produceConvertAll(out, name, converts, indent):
+  if not converts:
+    return
+  println(out)
+  produceDocstring(out, indent,
+    [
+      "Get all the convertible BluePackets",
+      "Returns:",
+      "    List of BluePacket instances",
+    ]
+  )
+  println(out, indent + "@staticmethod")
+  println(out, f"{indent}def convert():")
+  println(out, indent + "  return [")
+  println(out, f"{indent}    " + ", ".join(c + "()" for c in converts))
+  println(out, indent + "  ]")
+
 
 def produceConvert(out, name, ctype, copts, other_fields, indent):
   println(out)
-  println(out, indent + "@classmethod")
-  println(out, f"{indent}def convert{ctype}(cls, other):")
+  println(out, indent + "@staticmethod")
+  println(out, f"{indent}def convert{ctype}(other):")
   produceDocstring(out, indent + "  ",
     [
       f"Converter method to build a {name} from an instance of {ctype}",
@@ -367,6 +384,7 @@ def exportClass(out_dir, data, version, all_data):
     produceSerializer(out, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceDeserializer(out, data, sorted_fields, DEFAULT_INDENT, data.field_is_enum, None)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
+    produceConvertAll(out, data.name, data.converts, DEFAULT_INDENT)
     for ctype, copts in data.converts.items():
       other = all_data.get(ctype)
       if not other:

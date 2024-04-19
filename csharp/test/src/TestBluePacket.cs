@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.IO;
@@ -237,6 +238,15 @@ class TestBluePacket
     DemoSecond d2 = DemoSecond.convert(d1);
     AssertEquals(id, d2.id, "converted 'id' field value");
     AssertEquals(text, d2.text, "Converted 'text' field value");
+    
+    List<long> expectedConvert1 = new List<long>(0);
+    List<long> actualConvert1 = d1.convert().ConvertAll((p) => p.GetPacketHash());
+    AssertEquals(string.Join(",", expectedConvert1), string.Join(",", actualConvert1), "Empty List of convertible BluePackets for DemoFirst");
+
+    List<long> expectedConvert2 = new List<long> {d1.GetPacketHash()};
+    List<long> actualConvert2 = d2.convert().ConvertAll((p) => p.GetPacketHash());
+    AssertEquals(string.Join(",", expectedConvert2), string.Join(",", actualConvert2), "List of convertible BluePackets for DemoSecond");
+
     Console.WriteLine("PASS");
   }
 

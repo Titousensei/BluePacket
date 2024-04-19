@@ -409,7 +409,14 @@ class TestBluePacket(unittest.TestCase):
     d2 = t.DemoSecond.convertDemoFirst(d1)
     self.assertEqual(id, d2.id)
     self.assertEqual(text, d2.text)
+
+    actualConvert1 = [p.packetHash for p in d1.convert()]
+    self.assertEqual([], actualConvert1, "Empty List of convertible BluePackets for DemoFirst");
     
+    expectedConvert2 = [d1.packetHash]
+    actualConvert2 = [p.packetHash for p in d2.convert()]
+    self.assertEqual(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond")
+
   def testApiVersion(self):
     self.assertNotEqual(0, t.BluePacketAPI.VERSION)
     self.assertIsNotNone(t.BluePacketAPI.VERSION_HEX)

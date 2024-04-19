@@ -32,6 +32,12 @@ public abstract class BluePacket
   public String getPacketHex() { return null; }
 
   /**
+   * Get all the convertible BluePackets",
+   * @return List of BluePacket instances"
+   */
+  public List<? extends BluePacket> convert() { return Collections.<BluePacket>emptyList(); }
+
+  /**
    * Internal helper method for toString()
    * To be overridden by generated classes.
    * @param sb to write the fields and their values

@@ -103,6 +103,15 @@ namespace BluePackets
     }
 
     /// <summary>
+    /// Get all the convertible BluePackets
+    /// <summary>
+    /// <returns>Array of BluePacket instances</returns>
+    virtual public List<BluePacket> convert()
+    {
+      return new List<BluePacket>(0);
+    }
+
+    /// <summary>
     /// From object to bytes
     /// Serialization format:
     /// - 8 bytes: packetHash representing the class name and the public field names in order
