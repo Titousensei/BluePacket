@@ -1,0 +1,137 @@
+# Cross-language
+
+- Sequence length prefix is broken for 128-254 byte strings and 128-254 element lists: the
+  writer uses a signed int8 while the format is an unsigned byte. Java writes the low 8 bits
+  (correct on the wire, no guard); Python and JS both throw.
+  - JS: FIXED (writeUnsignedByte + int32 sentinel, single readSequenceLength used by
+    readString/readListBool/readArrayNative). Verified at 127/128/254/255/256/1000.
+  - Python: OPEN. _writeSeqLength uses writeByte, and writeArrayLargeEnum(None) writes a 2-byte
+    length while readers expect 1 byte (python/common/blue_packet.py).
+  - No fixture exceeded 127 bytes, so the format was never exercised.
+- `list packet` encoding disagrees: Python and JS write the 8-byte hash per element; Java's
+  writeArray(BluePacket[]) writes only the body while its reader expects a hash. No fixture covers
+  it; JS follows the hash-per-element format (the only one that can deserialize polymorphically).
+- `null`, `""` (and JS `undefined`) strings are indistinguishable on the wire (all length 0).
+  Java reads `null`; Python/JS read `""`. JS now defaults strings to `""` so defaults round-trip;
+  explicitly assigning `null`/`undefined` still normalizes to `""` (caller's responsibility).
+  Python still defaults to `None`, so its defaults do not round-trip. The cross-language decision
+  is deferred.
+- Default-constructor round-trip idempotence (defaults must equal decoded values):
+  - JS: FIXED. Strings default to `""`, lists to `[]`, enums to the first value, and packets to
+    `null`, matching the readers. `testDefault round-trip` covers every exported packet class.
+  - Python: OPEN. Every constructor field defaults to `None`, but readers produce
+    `0`/`false`/`""`/`[]`; numeric default packets cannot even serialize (`writeInt(None)`).
+  - Java: OPEN for list/array fields. Arrays default to `null`, but readers allocate empty arrays,
+    so `null` becomes `[]` after a round-trip. Scalar strings are consistent (`null` → `null`).
+
+# JS runtime - fixed (javascript/common/blue_packet.js)
+
+- Reader and writer disagreed at the 255 sentinel (writer int32, reader long): now one
+  readSequenceLength.
+- BluePacketRegistry._deserializeInternal reassigned a const: unknown hash now throws.
+- toSignedByte(127/255) and toSignedShort(32767/65535) threw (off-by-one): fixed, boundary tests added.
+- writeArrayLargeEnum(null) wrote a 2-byte length: now 1 byte.
+- long contract is BigInt end-to-end: 0n default, _checkLong rejects Number, readLong returns
+  BigInt. Required for masked 64-bit values. Consequence: JSON.stringify throws on long fields.
+- Enum strictness: createEnum tags entries with `type`, _assertOther compares it. Cross-enum
+  assignment and mixed enum lists throw. Tests added.
+- toString/_fieldsToString moved into BluePacket and driven by TYPE_INFO; the per-class
+  duplication and the nonexistent appendIfNotEmpty calls are gone from gen.js.
+- _checkInt bounds to int32; _checkBluePacket uses instanceof BluePacket.
+- defineTypedProperties backing fields are non-enumerable, so Object.keys(packet) is exactly the
+  fields and JSON.stringify does not leak _x duplicates.
+- Instances are sealed after init (closed struct). Classes are no longer sealed/frozen: that only
+  locked statics and blocked the _IMPLEMENTORS assignment.
+- Unknown enum ordinals now fail loudly. Generated code reads enums through enumFromWire, which
+  throws "Unknown <Enum> value: N" for both scalar and list fields. Before, a scalar became
+  undefined and re-encoded as 0 (silent corruption), while a list threw FieldTypeException.
+  Tests: testUnknownEnum scalar/list.
+- readFloat no longer throws for |v| >= 1e7. It now returns the shortest decimal that round-trips
+  to the same float32 (tries 1..9 significant digits) instead of toFixed(6 - log10). That also
+  matches Java's numeric Float.toString values (text formatting still differs, e.g. 1e7 prints
+  10000000). Tests: 1e7, 1234567, 3.4e38, 1.23456789, 1e-45.
+- JSON.stringify(packet) now works with long fields. BluePacket.toJSON walks TYPE_INFO and
+  recursively converts all BigInts (scalar and list) to decimal strings, nested packets to plain
+  objects, and arrays element-wise. Circular packet graphs throw "Cannot convert a circular
+  BluePacket structure to JSON" instead of overflowing. Tests: default/value/list/nested long,
+  long round-trip, circular.
+  Restoring needs BigInt conversion: JSON.parse yields strings and constructors reject them.
+  toJSON emits no class marker, so concrete fields are recoverable from the parent TYPE_INFO but
+  polymorphic `packet` fields lose their concrete class (see JS runtime - open).
+
+# JS runtime - open
+
+- toJSON has no class marker. A polymorphic `packet` field serializes to its fields only, so a
+  generic JSON round-trip cannot recreate the concrete class. Decide whether to add a marker
+  (e.g. "$type") or require schema knowledge.
+
+# JS design decisions
+
+- Generated classes are intentionally not final. Behavior may be extended (subclass methods,
+  prototype helpers/mixins); state may not. Instances are sealed, so a subclass that adds fields
+  fails at construction. Do not override serializeData/populateData. The contract is stated in the
+  generated bundle header and IMPLEMENTATION_GUIDE.md, and pinned by testSubclass methods/fields.
+  Subclass helpers do not appear on registry-deserialized instances; use prototype helpers for
+  those.
+
+# JS tests - open
+
+- testApiVersion only checks that VERSION is non-zero; it does not pin the exact value
+  (6289540679487913423n), which currently matches Java.
+- No enum has exactly 256 values (only 0/4/260), so the `<= 256` / `> 256` encoding boundary is
+  untested.
+- No list has more than 255 booleans; the string and string-list sentinels are tested at 300.
+- Deprecated packets are only hash-tested; add a serialize/deserialize round-trip through the
+  registry.
+- No `list packet` fixture; it was verified manually only (see the cross-language item).
+
+# JS reference and tests
+
+- javascript/test/gen.js (hand-written reference) has been removed. javascript/test/run_tests.sh
+  now exports Demo.bp, DemoDeprecated.bp and DemoConvert.bp into gen/gen.js and runs the 120 tests
+  against that bundle. The test takes an optional bundle path (default ./gen/gen.js).
+- Field names and types match the parser for every class.
+- Exporter output is byte-identical to Python for every packet without a .bin fixture (DemoVersion,
+  DemoIncludeVersion both variants, BinaryTreeNode, DemoPacket0, DemoFirst, DemoSecond) and for
+  emptyPacket/aZero/aEmpty/aNull inside the demo packets.
+- BluePacketAPI.VERSION now matches Java (6289540679487913423 / 0x5748EFECB13EFDCF). The
+  hand-written gen.js had a wrong stub value (0x9C8BDBF134428CBD), so this is a real fix.
+- New language-neutral fixtures: testdata/DemoPacket0.bin, testdata/toString0.txt,
+  testdata/toStringBT.txt. Java and Python tests should adopt them; Java has no vectors for these.
+- Removed the Python copies under javascript/ (common/blue_packet.py,
+  common/blue_packet_rpc_client.py, test/TestBluePacket.py) and the python/rpc copy in
+  javascript/rpc (build.sh, run_client.sh, run_tests.sh, example_client.py,
+  result_tests.expected). Only the Node TCP echo demos remain.
+
+# JS exporter (scripts/export-javascript.py)
+
+- Implemented. Emits one bundle, <output_dir>/gen.js: enums (top-level then inner) at module scope,
+  inner classes before their packet, TYPE_INFO with enum defaults, one-line constructor via
+  initFields, packed bools, sorted field order, serializeData/populateData, converts, abstract
+  markers with Symbol.hasInstance, _IMPLEMENTORS, registry, BluePacketAPI and exports. Docstrings
+  are emitted as JSDoc/line comments.
+- --runtime <path> sets the require path for the runtime, relative to the generated file (default
+  ./blue_packet.js). --package was dropped; JS has no packages.
+- Exporting the same inner class or inner enum name from two packets now raises "Duplicate JS
+  identifier in bundle" instead of emitting invalid JS. The parser still allows it
+  (NegativeDuplicateInnerOuterType.bp is skipped); the exporter is the guard for now.
+- Open: converts require the source type to be a top-level packet in the same export (same
+  limitation as Python/Java).
+- Open: no exporter unit test. The JS suite is the acceptance test and only covers the Demo*.bp
+  files; exporting each file alone and example_rpc.bp was checked with node --check only.
+- Open: the duplicate inner-name guard is exporter-only; the parser still accepts the definitions
+  in NegativeDuplicateInnerOuterType.bp / NegativeDuplicateInnerOuterEnum.bp (both .skip). Add a
+  parser negative test or keep this as an exporter rule.
+- javascript/rpc no longer has run_tests.sh, so the root run_tests_rpc.sh skips it (it previously
+  ran the Python client and reported a misleading PASS).
+
+# JS RPC - open
+
+- Not implemented. javascript/rpc contains only plain TCP echo demos (example_client.js,
+  example_server.js): no BluePacket framing, no client library, no run_tests.sh. The root
+  run_tests_rpc.sh skips it.
+
+# Docs - open
+
+- AGENTS.md still says JavaScript is WIP and that the exporter emits Java-flavored code. Both are
+  stale: de/ser is implemented, the exporter emits proper JS, and the suite has 120 tests.
