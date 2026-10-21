@@ -458,6 +458,54 @@ class TestBluePacket(unittest.TestCase):
       self.assertEqual(len(restored.aLargeEnum), length, f"LargeEnum list length {length} failed round-trip")
       self.assertEqual([e.value for e in restored.aLargeEnum], [e.value for e in enums], f"LargeEnum content {length} mismatch")
 
+  def testListPacketEncoding(self):
+    """Test list packet encoding matches cross-language spec (hash per element for polymorphic)."""
+    # Test 1: list DemoOuter (monomorphic) - should be body-only
+    with open(TESTDATA_DIR + "OuterContainer_list_DemoOuter.bin", "rb") as f:
+      expected = f.read()
+    oc = t.OuterContainer()
+    oc.outerList = [
+      t.DemoOuter(oInt=1, oString='a'),
+      t.DemoOuter(oInt=2, oString='b')
+    ]
+    data = oc.serialize()
+    self.assertEqual(data, expected, "list DemoOuter (monomorphic) encoding mismatch")
+    
+    # Round-trip
+    restored = self._BP_REGISTRY.deserialize(data)
+    self.assertEqual(len(restored.outerList), 2)
+    self.assertEqual(restored.outerList[0].oInt, 1)
+    self.assertEqual(restored.outerList[0].oString, 'a')
+    self.assertEqual(restored.outerList[1].oInt, 2)
+    self.assertEqual(restored.outerList[1].oString, 'b')
+
+    # Test 2: list packet (polymorphic) empty
+    with open(TESTDATA_DIR + "PolyContainer_list_packet_empty.bin", "rb") as f:
+      expected = f.read()
+    pc = t.PolyContainer()
+    pc.polyList = []
+    data = pc.serialize()
+    self.assertEqual(data, expected, "list packet empty encoding mismatch")
+
+    # Test 3: list packet (polymorphic) with 2 elements
+    with open(TESTDATA_DIR + "PolyContainer_list_packet.bin", "rb") as f:
+      expected = f.read()
+    pc2 = t.PolyContainer()
+    pc2.polyList = [
+      t.DemoOuter(oInt=10, oString='x'),
+      t.DemoOuter(oInt=20, oString='y')
+    ]
+    data = pc2.serialize()
+    self.assertEqual(data, expected, "list packet encoding mismatch")
+    
+    # Round-trip
+    restored = self._BP_REGISTRY.deserialize(data)
+    self.assertEqual(len(restored.polyList), 2)
+    self.assertEqual(restored.polyList[0].oInt, 10)
+    self.assertEqual(restored.polyList[0].oString, 'x')
+    self.assertEqual(restored.polyList[1].oInt, 20)
+    self.assertEqual(restored.polyList[1].oString, 'y')
+
 
 if __name__ == '__main__':
     unittest.main()

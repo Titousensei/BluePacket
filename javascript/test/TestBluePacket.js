@@ -205,6 +205,9 @@ _TEST_DATA['DemoPacket2.bin'] = fs.readFileSync(TESTDATA_DIR + "DemoPacket2.bin"
 _TEST_DATA['DemoPacket3.bin'] = fs.readFileSync(TESTDATA_DIR + "DemoPacket3.bin");
 _TEST_DATA['DemoPacketU.bin'] = fs.readFileSync(TESTDATA_DIR + "DemoPacketU.bin");
 _TEST_DATA['DemoPacket0.bin'] = fs.readFileSync(TESTDATA_DIR + "DemoPacket0.bin");
+_TEST_DATA['OuterContainer_list_DemoOuter.bin'] = fs.readFileSync(TESTDATA_DIR + "OuterContainer_list_DemoOuter.bin");
+_TEST_DATA['PolyContainer_list_packet_empty.bin'] = fs.readFileSync(TESTDATA_DIR + "PolyContainer_list_packet_empty.bin");
+_TEST_DATA['PolyContainer_list_packet.bin'] = fs.readFileSync(TESTDATA_DIR + "PolyContainer_list_packet.bin");
 
 // Load toString expected data
 _TEST_DATA['toString.txt'] = fs.readFileSync(TESTDATA_DIR + "toString.txt", "utf-8").trim();
@@ -1020,6 +1023,65 @@ _runTest("testConvertNegative", () => {
     _assertThrowsType(() => {
         T.DemoSecond.convertDemoFirst(packet);
     }, "convertDemoFirst with wrong type");
+});
+
+// ============================================================================
+// List Packet Encoding Tests
+// ============================================================================
+
+_runTest("testListPacketEncoding list DemoOuter", () => {
+    let expected = _TEST_DATA['OuterContainer_list_DemoOuter.bin'];
+    let oc = new T.OuterContainer();
+    oc.outerList = [
+        new T.DemoOuter({oInt: 1, oString: 'a'}),
+        new T.DemoOuter({oInt: 2, oString: 'b'})
+    ];
+    let data = oc.serialize();
+    _assertEqual(expected.length, data.length, "list DemoOuter length");
+    for (let i = 0; i < expected.length; i++) {
+        _assertEqual(expected[i], data[i], "list DemoOuter byte[" + i + "]");
+    }
+    
+    // Round-trip
+    let restored = T.registry.deserialize(data);
+    _assertEqual(2, restored.outerList.length, "outerList length");
+    _assertEqual(1, restored.outerList[0].oInt, "outerList[0].oInt");
+    _assertEqual('a', restored.outerList[0].oString, "outerList[0].oString");
+    _assertEqual(2, restored.outerList[1].oInt, "outerList[1].oInt");
+    _assertEqual('b', restored.outerList[1].oString, "outerList[1].oString");
+});
+
+_runTest("testListPacketEncoding list packet empty", () => {
+    let expected = _TEST_DATA['PolyContainer_list_packet_empty.bin'];
+    let pc = new T.PolyContainer();
+    pc.polyList = [];
+    let data = pc.serialize();
+    _assertEqual(expected.length, data.length, "list packet empty length");
+    for (let i = 0; i < expected.length; i++) {
+        _assertEqual(expected[i], data[i], "list packet empty byte[" + i + "]");
+    }
+});
+
+_runTest("testListPacketEncoding list packet", () => {
+    let expected = _TEST_DATA['PolyContainer_list_packet.bin'];
+    let pc = new T.PolyContainer();
+    pc.polyList = [
+        new T.DemoOuter({oInt: 10, oString: 'x'}),
+        new T.DemoOuter({oInt: 20, oString: 'y'})
+    ];
+    let data = pc.serialize();
+    _assertEqual(expected.length, data.length, "list packet length");
+    for (let i = 0; i < expected.length; i++) {
+        _assertEqual(expected[i], data[i], "list packet byte[" + i + "]");
+    }
+    
+    // Round-trip
+    let restored = T.registry.deserialize(data);
+    _assertEqual(2, restored.polyList.length, "polyList length");
+    _assertEqual(10, restored.polyList[0].oInt, "polyList[0].oInt");
+    _assertEqual('x', restored.polyList[0].oString, "polyList[0].oString");
+    _assertEqual(20, restored.polyList[1].oInt, "polyList[1].oInt");
+    _assertEqual('y', restored.polyList[1].oString, "polyList[1].oString");
 });
 
 // ============================================================================

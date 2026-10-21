@@ -372,5 +372,58 @@ class TestBluePacket
 
     test.testConvert("testConvert");
     test.testApiVersion("testApiVersion");
+    test.testListPacketEncoding("testListPacketEncoding");
+  }
+
+  private void testListPacketEncoding(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+
+    // Test 1: list DemoOuter (monomorphic) - should be body-only
+    byte[] expected1 = readBinary(TESTDATA_DIR + "OuterContainer_list_DemoOuter.bin");
+    OuterContainer oc = new OuterContainer()
+        .setOuterList(new DemoOuter[] {
+            new DemoOuter().setOInt(1).setOString("a"),
+            new DemoOuter().setOInt(2).setOString("b")
+        });
+    byte[] data1 = oc.serialize();
+    assertEquals(expected1, data1, "list DemoOuter (monomorphic) encoding mismatch");
+
+    // Round-trip
+    BluePacket bp1 = BluePacket.deserialize(registry_, data1);
+    OuterContainer restored1 = (OuterContainer) bp1;
+    assertEquals(2, restored1.outerList.length, "outerList length");
+    assertEquals(1, restored1.outerList[0].oInt, "outerList[0].oInt");
+    assertEquals("a", restored1.outerList[0].oString, "outerList[0].oString");
+    assertEquals(2, restored1.outerList[1].oInt, "outerList[1].oInt");
+    assertEquals("b", restored1.outerList[1].oString, "outerList[1].oString");
+
+    // Test 2: list packet (polymorphic) empty
+    byte[] expected2 = readBinary(TESTDATA_DIR + "PolyContainer_list_packet_empty.bin");
+    PolyContainer pc = new PolyContainer().setPolyList(new BluePacket[0]);
+    byte[] data2 = pc.serialize();
+    assertEquals(expected2, data2, "list packet empty encoding mismatch");
+
+    // Test 3: list packet (polymorphic) with 2 elements
+    byte[] expected3 = readBinary(TESTDATA_DIR + "PolyContainer_list_packet.bin");
+    PolyContainer pc2 = new PolyContainer()
+        .setPolyList(new BluePacket[] {
+            new DemoOuter().setOInt(10).setOString("x"),
+            new DemoOuter().setOInt(20).setOString("y")
+        });
+    byte[] data3 = pc2.serialize();
+    assertEquals(expected3, data3, "list packet encoding mismatch");
+
+    // Round-trip
+    BluePacket bp3 = BluePacket.deserialize(registry_, data3);
+    PolyContainer restored3 = (PolyContainer) bp3;
+    assertEquals(2, restored3.polyList.length, "polyList length");
+    assertEquals(10, ((DemoOuter)restored3.polyList[0]).oInt, "polyList[0].oInt");
+    assertEquals("x", ((DemoOuter)restored3.polyList[0]).oString, "polyList[0].oString");
+    assertEquals(20, ((DemoOuter)restored3.polyList[1]).oInt, "polyList[1].oInt");
+    assertEquals("y", ((DemoOuter)restored3.polyList[1]).oString, "polyList[1].oString");
+
+    System.out.println("PASS");
   }
 }
