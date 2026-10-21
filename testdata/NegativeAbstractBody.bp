@@ -1,0 +1,4 @@
+# @what int field  # should be an error
+# Test that abstract with body content is rejected
+BadAbstract: abstract
+    int field  # should be an error

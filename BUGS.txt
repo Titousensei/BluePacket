@@ -80,7 +80,7 @@ input / loses diagnostics; L = polish.
   an enum value, and fields after an inner class are silently attached to that inner class.
   Demo.bp only works because every inner type is declared after all fields. `self.indent` is assigned
   (290) but never read by any reader.
-- H: `read_abstracts` ignores every indented line (206-209), so a field or typo under
+- H: FIXED `read_abstracts` ignores every indented line (206-209), so a field or typo under
   `X: abstract` is silently dropped.
 - L: `PacketData.__init__` contains `self.indent: 0` (79), a no-op annotation; the attribute is never
   assigned.
