@@ -1,6 +1,6 @@
 # Cross-language
 
-- Sequence length prefix is broken for 128-254 byte strings and 128-254 element lists: the
+- H: Sequence length prefix is broken for 128-254 byte strings and 128-254 element lists: the
   writer uses a signed int8 while the format is an unsigned byte. Java writes the low 8 bits
   (correct on the wire, no guard); Python and JS both throw.
   - JS: FIXED (writeUnsignedByte + int32 sentinel, single readSequenceLength used by
@@ -8,21 +8,335 @@
   - Python: OPEN. _writeSeqLength uses writeByte, and writeArrayLargeEnum(None) writes a 2-byte
     length while readers expect 1 byte (python/common/blue_packet.py).
   - No fixture exceeded 127 bytes, so the format was never exercised.
-- `list packet` encoding disagrees: Python and JS write the 8-byte hash per element; Java's
+- H: `list packet` encoding disagrees: Python and JS write the 8-byte hash per element; Java's
   writeArray(BluePacket[]) writes only the body while its reader expects a hash. No fixture covers
   it; JS follows the hash-per-element format (the only one that can deserialize polymorphically).
-- `null`, `""` (and JS `undefined`) strings are indistinguishable on the wire (all length 0).
+- M: `null`, `""` (and JS `undefined`) strings are indistinguishable on the wire (all length 0).
   Java reads `null`; Python/JS read `""`. JS now defaults strings to `""` so defaults round-trip;
   explicitly assigning `null`/`undefined` still normalizes to `""` (caller's responsibility).
   Python still defaults to `None`, so its defaults do not round-trip. The cross-language decision
   is deferred.
 - Default-constructor round-trip idempotence (defaults must equal decoded values):
+  - H (Python): OPEN. Every constructor field defaults to `None`, but readers produce
+    `0`/`false`/`""`/`[]`; numeric default packets cannot even serialize (`writeInt(None)`).
+  - M (Java): OPEN for list/array fields. Arrays default to `null`, but readers allocate empty arrays,
+    so `null` becomes `[]` after a round-trip. Scalar strings are consistent (`null` → `null`).
   - JS: FIXED. Strings default to `""`, lists to `[]`, enums to the first value, and packets to
     `null`, matching the readers. `testDefault round-trip` covers every exported packet class.
-  - Python: OPEN. Every constructor field defaults to `None`, but readers produce
-    `0`/`false`/`""`/`[]`; numeric default packets cannot even serialize (`writeInt(None)`).
-  - Java: OPEN for list/array fields. Arrays default to `null`, but readers allocate empty arrays,
-    so `null` becomes `[]` after a round-trip. Scalar strings are consistent (`null` → `null`).
+
+# Parser / libexport.py - review (open)
+
+Reviewed against IMPLEMENTATION_GUIDE.md (parser contract, IR, and hash rules). No code changed.
+Severity: H = wrong hashes/output or generates invalid code; M = accepts bad input / rejects legal
+input / loses diagnostics; L = polish.
+
+## H - Version hashes (versionString / versionHash)
+
+- H: the recursion cut uses one global `seen` set keyed by bare type name (lines 120 and 133), so
+  inner types from different packets are conflated. With `A: Inner inner` / `B: Inner inner` (each
+  defining `Inner`) and `C: A a` / `B b`, C expands A's Inner but abbreviates B's to `{Inner+...}`
+  because `Inner` was already seen. Changing `B.Inner` changes A/B's hashes but **not C's**, so the
+  compatibility hash of a packet can ignore a real change in its dependency. This is legal input
+  (guide §3 explicitly allows cross-packet inner-name collisions).
+- H: `_mergeUniquely` (108-115) rejects a legal cross-packet inner collision when it is reachable:
+  `C` defining `X` and holding a field of type `A`, where `A` also defines `X`, fails with
+  "Duplicate definition of in A: X X". The guide says the parser tolerates the collision and the
+  exporter handles it; the shared hashing must tolerate it too.
+- H: enum hashing has four different representations for the same enum type, and one is
+  comment-sensitive:
+  - top-level enum from a top-level field: `{E+A+B}` (155-159);
+  - top-level enum reached from an inner class: `{E+A:+B:}` (169-170, via packet recursion);
+  - inner enum reached from an inner class: `{E+N=A+N=B D=['a comment']}` (167-168 uses
+    `str(PacketField)`, not `.name`, and does not filter unnamed comment paragraphs);
+  - a second field of the same top-level enum inside an inner class: `{E+...}` (133), because the
+    first traversal added `E` to `seen`.
+  Repro: moving a `# comment` before an inner-enum value changes the owning packet's `version`.
+  `testdata/versionString.txt` pins the current output (`DemoPacket ... iEnum:{MyEnum+N=DUNNO+...
+  +D=['Another local comment', ...]}`), so fixing this changes DemoPacket's hash and needs a
+  deliberate fixture/API-version update.
+  Related: `field_is_enum` is populated only on the owning top-level packet (359), but versionString
+  recurses with the inner `PacketData` (166), so inner fields never take the enum branch.
+- M: `origin_name` and field-name normalization split on every `__` (129, 260). A legal name that
+  contains `__` (e.g. `Some__Thing`) is treated as deprecated and rejected unless it ends with its
+  own hash. Field names `a` and `a__X` hash identically. The cut branch (133-135) emits the raw
+  suffixed type name (`{T__HEX+...}`) while every other branch normalizes to `origin_name`, so a
+  repeated deprecated type hashes differently from its first occurrence.
+
+## H - Indentation / parser state
+
+- H: indentation is never used to leave a class. `self.data` changes only on the next class line,
+  so everything after an inner class or enum stays inside it:
+  ```
+  P:
+      int a
+      E: enum
+          X, Y
+      int b
+      Inner:
+          int c
+      int d
+  ```
+  yields `P.fields=[a]`, `E.fields=[X, Y, "int b"]`, `Inner.fields=[c, d]`. A dedented field becomes
+  an enum value, and fields after an inner class are silently attached to that inner class.
+  Demo.bp only works because every inner type is declared after all fields. `self.indent` is assigned
+  (290) but never read by any reader.
+- H: `read_abstracts` ignores every indented line (206-209), so a field or typo under
+  `X: abstract` is silently dropped.
+- L: `PacketData.__init__` contains `self.indent: 0` (79), a no-op annotation; the attribute is never
+  assigned.
+
+## M - Validation
+
+- M: the validation loop walks `data.fields` but not `data.inner[*].fields` (339-359). Thus an
+  unknown type in an unreferenced inner class is accepted (`P: int x` + `Inner: UnknownType y`) and
+  exporters emit uncompilable code. Unknown inner types are caught only incidentally, with the wrong
+  message ("Unexpected: Unknown field type"), when an owner field makes the inner reachable.
+  The deprecated-type rule (343) is also not applied to inner fields: an inner field referencing a
+  deprecated packet is accepted without the owning packet needing its own deprecated version.
+- M: duplicate inner definitions overwrite silently: `self.top.inner[name] = ...` and
+  `self.top.enums[name] = ...` (267-270) have no duplicate check (top-level names are checked). A
+  repeated `Inner:` keeps only the last definition; an inner class and an inner enum may share a
+  name, and `self.packet_list.get(pf.type) or data.enums.get(pf.type)` (350) then picks one
+  arbitrarily.
+- M: abstract markers are not validated. `P: MissingAbstract` is accepted (abstracts=[MissingAbstract])
+  and an abstract may be used as a field type (`Abs: abstract` + `P: Abs a`), although exporters do
+  not support abstract-typed fields. Both produce undefined identifiers or uncompilable output.
+- M: packet/enum/enum-value names are not validated. `int:` is accepted; a packet named `packet` or
+  `string` shadows a primitive. `FORBIDDEN_NAMES` is applied only to field names and is incomplete
+  for every target: `int new`, `int return`, `int type`, `int serialize` all parse. Java output then
+  contains `public int new;` and `return = val;`, Python output is a syntax error (`return = None`),
+  and a `serialize` field shadows `BluePacket.serialize`. Add the generated/runtime API names too
+  (`serialize`, `serializeData`, `populateData`, `toString`, `packetHash`, `TYPE_INFO`, ...).
+- M: inline comments are handled inconsistently. `read_field` rejects them (237) but `read_enums`
+  does not, so `A, B # note` becomes the enum value `"B # note"` (and lands in generated code). On a
+  class line, `E: enum # note` is parsed as an option and silently becomes abstract markers.
+  `read_field` also routes any line containing `:` to `read_class` (212), so a field line with a
+  colon produces "too many values to unpack"-style errors.
+- M: single-token lines are not rejected. `int` alone becomes a field with `type=None`; the
+  reserved-name check then raises `TypeError: NoneType + str`, which the generic handler masks as
+  "unsupported operand type(s) for +: 'NoneType' and 'str'". The cleanup guard at 213 tests
+  `type == ''` but the value is `None`, so it is dead. A lone `convert` becomes a field named
+  "convert" because the `len(info) == 1` branch precedes the convert branch.
+- M: trailing/leading commas create empty enum values. `DemoEnum260` currently has an empty entry in
+  the IR (visible in `testdata/intermediateRepresentation.txt`), and `A, B # note` above adds
+  another. Empty enums are also accepted. Exporters skip empty names today, so this is latent.
+- M: `convert` parsing assumes exactly one token (`ftype, _, *options = info[::-1]`): `convert A => B`
+  becomes `{'B': ['A', 'convert']}`. The multi-token mapping syntax in TODO.txt is silently misread.
+
+## M/L - Robustness, API, docs
+
+- M: `python3 scripts/libexport.py testdata/Demo.bp` (documented in IMPLEMENTATION_GUIDE §1) always
+  fails: `__main__` calls `versionString(data, all_data)` without the three required arguments (378).
+- M: `parse()` does not reset `self.packet_list`/`api_version`. Reusing a `Parser` for a second parse
+  merges both runs and re-validates definitions from the first (confirmed: a packet from run 1
+  triggers a deprecation error during run 2).
+- M: `SourceException.__str__` ignores `filename`/`line_number` (44-48). Exporters let the exception
+  escape, so the user sees e.g. `Unknown primitive field type: ...` with no .bp file or line.
+  Validation errors (327-353) also use the loop-leaked final `path` and never set a line number.
+- M: the generic `except Exception` in parse (318) does `''.join(ex.args)`. It masks real bugs (the
+  single-token case above) and raises another `TypeError` whenever the original args are not all
+  strings.
+- L: docs/API mismatch: the guide says `Parser().parse(paths)` returns `(packet_list, api_version)`;
+  it returns only the dict and stores `api_version` on the parser. Exporters also recompute
+  `versionHash(data, all_data)` instead of using the already-computed `data.version`, which exercises
+  the hash logic twice and invites divergence.
+- L: `println` uses `os.linesep` (103), so generated sources differ between Linux and Windows and the
+  cross-language byte-identical-output checks will fail there.
+- L: the shebang is indented (`  #! /usr/bin/env python3`) and the file is not executable; direct
+  execution fails. Harmless only because the docs invoke it as `python3 scripts/libexport.py`.
+- L: `versionString` sorts fields with `key=str` (125), i.e. by `PacketField.__repr__`, not by name;
+  correctness depends on the repr format staying `N=...`-prefixed.
+- L: `_mergeUniquely` message is "Duplicate definition of in ..." (111). `self.top = self.top or
+  self.data` (255) is immediately overwritten at 266. `versionHash`'s `prefix` parameter is unused.
+  A docstring at EOF is dropped (no flush after the file loop).
+
+## Parser tests - open
+
+- The skipped negatives hide the unvalidated paths above: `NegativeDuplicateInnerOuterEnum.bp.skip`,
+  `NegativeDuplicateInnerOuterType.bp.skip`, `NegativeInnerEnum.bp.skip`,
+  `NegativeInnerEnumOuterType.bp.skip`, `NegativeListType.bp.skip`, `NegativeType.bp.skip`. Either
+  make them pass or update their `@what` to the intended message.
+- No test covers: dedent / field-after-inner, enum inline comments, duplicate inner names within one
+  packet, abstract-as-field, multi-token convert, reserved packet/enum/field names, or Parser reuse.
+
+# Exporters (scripts/export-*.py) - review (open)
+
+Reviewed all five exporters against IMPLEMENTATION_GUIDE.md §4/§7/§10/§11. All language test
+suites pass, but the fixtures only contain 1 or 19 scalar booleans, one self-recursive packet, and
+converters whose source fields are a subset of the destination. The findings below were verified
+with generated output from synthetic .bp files or by direct inspection.
+
+## H - Scalar boolean packing drops the final byte for a multiple of 8
+
+Python (138-153), Java (144-159), C# (92-107) and Go (133-149) share the same writer loop: the
+buffered byte is flushed at the start of the *next* 8-bool group, and the post-loop flush is guarded
+by `bool_counter % 8 != 0`. When the number of scalar bool fields is a positive multiple of 8:
+
+- 8 bools: zero bytes are written, while the generated reader reads one byte (Python 194-204, Java
+  195-206, C# 155-166, Go 195-207);
+- 16 bools: one byte is written, the reader reads two.
+
+Repro: a packet with exactly 8 bool fields generates no `writeByte(bin)`/`writeUnsignedByte(bin)` in
+Python/Java/C#/Go. Any following field is then read from the bool block (misalignment, or EOF).
+JS (84-92) writes the final byte unconditionally and is correct. The fixtures only have 1 bool
+(`DemoPacket`) and 19 bools (`DemoUnsigned`), so no test catches this; add an 8/16/24-bool fixture.
+
+## H - Python: inner classes cannot reference outer types or siblings
+
+`header` (42-64) computes imports from `data.fields` only; fields of inner classes and enums are
+never scanned. With `Outer.Inner { TopEnum te; Sibling sib; Other o }`:
+
+- `TopEnum` and `Other` are not imported, so the generated module raises `NameError` when the inner
+  class is constructed/deserialized.
+- The constructor and deserializer prefix a top-level enum with the owner: `Outer.TopEnum(0)` and
+  `self.te = Outer.TopEnum(...)`. Top-level enums are module-level classes, so this raises
+  `AttributeError: type object 'Outer' has no attribute 'TopEnum'`.
+- A sibling inner class reference is emitted bare (`Sibling()`), but classes are lexically nested
+  and Python method bodies do not see the enclosing class namespace, so it raises `NameError`.
+- A list field of an owner inner enum inside an inner class is emitted as bare `MyEnum(...)`
+  (line 221) for the same reason; the scalar branch (229-236) does add the prefix.
+
+No fixture exercises an inner class with a type outside its own packet; DemoPacket's inner class
+only uses its own inner enum. Repro file and generated `Outer.py` verified.
+
+## H - Python: mutually recursive packets cannot be imported
+
+`header` (52-58) emits normal top-level relative imports (`from .B import B`), and
+`exportInit` imports every module. `A { B b }` / `B { A a }` therefore fails with
+`ImportError: cannot import name 'A' from partially initialized module 'gmut.A'`. Recursive packets
+are an explicit design goal; self-recursion works only because `not_import` contains `data.name`.
+Use deferred imports (`TYPE_CHECKING` + string annotations, or import inside the method) or drop
+the imports in favor of late lookup.
+
+## H - Python: generated list readers ignore the 0xFF extended length
+
+Line 216 hardcodes `for _ in range(bpr.readUnsignedByte())` for every non-bool list type. A list of 255+
+elements has a 0xFF sentinel on the wire; the generated reader treats 0xFF as a 255-element list,
+reads only 255 elements, and then parses the following fields from the remaining element bytes. This is the exporter side of the cross-language sequence
+length bug: the fix needs both a sentinel-aware runtime helper and generated code calling it.
+Java, C#, Go and JS already call their shared sequence-length helpers.
+
+## H - Go: inner classes cannot reference siblings or top-level enums
+
+`_innerFieldsWithNamespace` (325-334) tests `pf.type in data.inner or pf.type in data.enums` on the
+*inner* `PacketData`. The parser stores inner classes/enums only on the owning top-level packet, so
+for an inner class those sets are empty and no prefix is applied. Verified generated output for
+`Outer.Inner { TopEnum te; Sibling sib; Other o }`:
+
+- `Sib *Sibling` instead of `*OuterSibling` (compile error);
+- `Te *TopEnum` instead of `TopEnum` (pointer to an enum), and the serializer emits
+  `byte(bp.Te)`, which does not compile;
+- the enum deserializer emits `OuterTopEnum(...)`, which does not exist, because
+  `produceDeserializer` prefixes the function namespace to a type that is already top-level;
+- `AppendFields` emits `int(bp.Te)` on the pointer.
+
+Owner fields referencing their own inner classes are prefixed correctly; only inner-class bodies
+are affected. Add a fixture with sibling inner classes and a top-level enum.
+
+## M - Go: abstracts and the aggregate convert() API are missing
+
+- `data.abstracts` is never read by export-golang.py. Abstract definitions are emitted as empty
+  structs with `SerializeData`/`String`, and concrete packets have no interface or marker
+  relationship to them. Java/C#/Python/JS generate marker types and implementor links. This is a
+  silent acceptance of input the language cannot represent, not a documented rejection.
+- The guide requires `X.convert()` returning all convertible packets. Go only emits per-source
+  `NewX` methods (310-323); its test calls `NewDemoSecond` and never exercises an aggregate.
+- `produceConvert` (310) uses `data.name` and `ctype` raw, while structs and files use
+  `_getGoType` (deprecated `__HASH` names become `Δ`). Converting from/to a deprecated packet
+  therefore emits references to a type that is not generated.
+- `produceToString` runs after the fields were capitalized, so Go prints `AppendFields(sb, "Inner",
+  ...)` (capitalized names) while every other language and the `toString*.txt` fixtures use the
+  declared lower-case names. `golang/test/blue_packet_test.go` hides this by lowercasing both
+  sides. Keep the original field names for output, or map them back before emitting.
+
+## M - Converters: options ignored, fields copied blindly, bad error path
+
+Python/Java/C#/Go accept `copts` and never use it (Python 304, Java 282, C# 249, Go 310); JS drops
+the options at the call site (231-233). They copy every field of the source into the destination
+constructor /
+object initializer / setters without checking that the destination has that field. `DemoConvert` is
+safe because the source fields are a subset; with a source field absent from the destination this
+becomes a Python `TypeError`, a Java/C#/Go compile error, or a JS runtime error. `Data.converts`
+already carries the mapping options, but nothing defines or applies them.
+
+The parser also accepts `convert` on a non-packet (enum or abstract), and the exporters then emit
+converters over a pseudo-type. There is no exporter-side validation.
+
+Error path: export-python.py, export-csharp.py and export-golang.py reference `SourceException`
+(Python 391, C# 349, Go 367) but do not import it (Python 5, C# 5, Go 6). An unknown convert source
+raises `NameError: name 'SourceException' is not defined` instead of the intended message. Java and
+JS import it.
+
+## M - Output directory and required arguments are inconsistent
+
+Only the JS exporter calls `os.makedirs(out_dir, exist_ok=True)` (260). Python (450), Java (452),
+C# (407) and Go (448) declare `--output_dir` without `required=True`, and none creates the
+directory. A missing directory fails with `FileNotFoundError`; omitting the option fails with a
+`TypeError` when joining `None`. Similarly `--package` (Go/Java) and `--namespace` (C#) are
+optional and produce `package None;` / `namespace None`, which is not valid output. JS makes
+`--output_dir` required. The guide describes all of these as required.
+
+## M - Docstring escaping
+
+- Python `produceDocstring` (66-75) indexes `first[-1]`; a packet comment whose first line is empty
+  (`#` alone, then `# text`, then the class) raises `IndexError: string index out of range` during
+  export. Verified.
+- Python writes comment text verbatim inside `"""..."""`, so a `"""` in a comment produces invalid
+  generated source or an unterminated string.
+- Java (58-71) and JS (37-43) write comment text inside `/** ... */`, so a `*/` in a comment
+  terminates the comment early and breaks compilation. C# uses `///` line comments (safe for
+  `*/`, but `<`/`&` still produce invalid XML doc comments).
+
+## M - Names that collide only after exporter transformation are not rejected
+
+The parser permits field names that differ only in case, but the exporters do not:
+
+- Go capitalizes the first letter (325-330), so `foo` and `Foo` both become struct field `Foo`
+  (duplicate field, compile error).
+- Java generates `setFoo`/`getFoo` for both, producing duplicate methods (compile error).
+- Field names that collide with the generated API (`serializeData`, `SerializeData`,
+  `GetPacketHash`, `AppendFields`, `toString`, ...) break Python/C#/Go/JS classes. Python, for
+  example, emits a field named `serializeData` that silently shadows the method.
+- Java/Go/C#/Python keywords are accepted by the parser and produce invalid identifiers.
+
+Decide whether the parser rejects these or the exporters escape them; currently neither does.
+
+## M - Python import order is nondeterministic
+
+`needed_imports` is a set of strings (52-57) iterated directly to emit imports. Set iteration
+order depends on `PYTHONHASHSEED`, so generated files are not reproducible between runs. Sort before
+emitting (the field loops already use `sorted(key=str)`).
+
+## L - Smaller exporter issues
+
+- Python constructor computes `fopt = "[]" if pf.is_list else ""` (100) and never uses it; list
+  fields still default to `None` (the cross-language default-round-trip item).
+- Python exports `class Abstract():` and imports `enum` for every packet/enum; harmless but odd.
+- Go's list serialization emits a debug comment containing the entire `field_is_enum` dict into
+  every list-field loop (162). It bloats generated output and leaks internal state.
+- Go enum `String()` (421-427) indexes `shortName[...][int(en)]` with no bounds check; an unknown
+  ordinal panics. Java returns `null`, Python raises.
+- Go hardcodes the runtime import path `github.com/bluepacket` (header), so generated code only
+  compiles with that module path; there is no equivalent of JS's `--runtime` option.
+- `export-golang.py` mutates the parser IR in place: `data.fields` (348), `data.field_is_enum`
+  (349) and `x.fields` (376). Version hashes are computed before this (main), but any later use of
+  `all_data` (converters, a second export pass, tests) sees capitalized/namespaced fields. Prefer
+  building new field lists.
+- C# `GetPacketHash` emits the raw `long` literal (`return {version};`). If an MD5-derived version
+  equals `0x8000000000000000` (Long.MinValue), the C# compiler accepts `-9223372036854775808`
+  (it is a special-cased decimal literal), but the Java equivalent (`return -9223372036854775808L;`)
+  is a compile error because the literal is out of range and unary minus on a long literal is not
+  the same as the constant. Java would need `Long.MIN_VALUE` or `-9223372036854775807L - 1`. This
+  is an edge case (probability 1/2^64), but worth fixing for determinism.
+- JS `produceTypeInfo`/`produceClass` throws `SourceException("Enum without values")` for an empty
+  enum. The other exporters emit an unusable default instead. Rejecting is fine, but the parser
+  should reject it before code generation so all languages agree.
+- No exporter validates that a field type is actually a packet, enum or primitive at generation
+  time; all rely on the parser's incomplete validation (see the parser section). In particular, an
+  abstract used as a field type is treated as a concrete packet: Python imports the marker and
+  calls `serializeData` on it (`AttributeError`), Java uses the interface type and calls
+  `serializeData` (compile error), and C#/Go emit similar invalid calls. Reject abstract-typed
+  fields until a polymorphic representation exists.
 
 # JS runtime - fixed (javascript/common/blue_packet.js)
 
@@ -61,7 +375,7 @@
 
 # JS runtime - open
 
-- toJSON has no class marker. A polymorphic `packet` field serializes to its fields only, so a
+- M: toJSON has no class marker. A polymorphic `packet` field serializes to its fields only, so a
   generic JSON round-trip cannot recreate the concrete class. Decide whether to add a marker
   (e.g. "$type") or require schema knowledge.
 
@@ -76,14 +390,14 @@
 
 # JS tests - open
 
-- testApiVersion only checks that VERSION is non-zero; it does not pin the exact value
+- L: testApiVersion only checks that VERSION is non-zero; it does not pin the exact value
   (6289540679487913423n), which currently matches Java.
-- No enum has exactly 256 values (only 0/4/260), so the `<= 256` / `> 256` encoding boundary is
+- L: No enum has exactly 256 values (only 0/4/260), so the `<= 256` / `> 256` encoding boundary is
   untested.
-- No list has more than 255 booleans; the string and string-list sentinels are tested at 300.
-- Deprecated packets are only hash-tested; add a serialize/deserialize round-trip through the
+- L: No list has more than 255 booleans; the string and string-list sentinels are tested at 300.
+- M: Deprecated packets are only hash-tested; add a serialize/deserialize round-trip through the
   registry.
-- No `list packet` fixture; it was verified manually only (see the cross-language item).
+- M: No `list packet` fixture; it was verified manually only (see the cross-language item).
 
 # JS reference and tests
 
@@ -115,23 +429,23 @@
 - Exporting the same inner class or inner enum name from two packets now raises "Duplicate JS
   identifier in bundle" instead of emitting invalid JS. The parser still allows it
   (NegativeDuplicateInnerOuterType.bp is skipped); the exporter is the guard for now.
-- Open: converts require the source type to be a top-level packet in the same export (same
+- M: converts require the source type to be a top-level packet in the same export (same
   limitation as Python/Java).
-- Open: no exporter unit test. The JS suite is the acceptance test and only covers the Demo*.bp
+- L: no exporter unit test. The JS suite is the acceptance test and only covers the Demo*.bp
   files; exporting each file alone and example_rpc.bp was checked with node --check only.
-- Open: the duplicate inner-name guard is exporter-only; the parser still accepts the definitions
+- M: the duplicate inner-name guard is exporter-only; the parser still accepts the definitions
   in NegativeDuplicateInnerOuterType.bp / NegativeDuplicateInnerOuterEnum.bp (both .skip). Add a
   parser negative test or keep this as an exporter rule.
-- javascript/rpc no longer has run_tests.sh, so the root run_tests_rpc.sh skips it (it previously
+- L: javascript/rpc no longer has run_tests.sh, so the root run_tests_rpc.sh skips it (it previously
   ran the Python client and reported a misleading PASS).
 
 # JS RPC - open
 
-- Not implemented. javascript/rpc contains only plain TCP echo demos (example_client.js,
+- H: Not implemented. javascript/rpc contains only plain TCP echo demos (example_client.js,
   example_server.js): no BluePacket framing, no client library, no run_tests.sh. The root
   run_tests_rpc.sh skips it.
 
 # Docs - open
 
-- AGENTS.md still says JavaScript is WIP and that the exporter emits Java-flavored code. Both are
+- L: AGENTS.md still says JavaScript is WIP and that the exporter emits Java-flavored code. Both are
   stale: de/ser is implemented, the exporter emits proper JS, and the suite has 120 tests.
