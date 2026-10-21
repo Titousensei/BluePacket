@@ -189,12 +189,9 @@ class Parser:
     self.state = None
     self.top = None
     self.api_version = None
+    self.context_stack = []  # Stack of (data, state, indent) for nested contexts
 
   def read_enums(self, line, indent, docstring):
-    if indent == 0 or ':' in line:
-      self.read_class(line, indent, docstring)
-      return
-
     for en in line.strip().split(','):
       en = en.strip()
       if en in self.data.field_names:
@@ -204,17 +201,10 @@ class Parser:
       self.data.field_names.add(en)
 
   def read_abstracts(self, line, indent, docstring):
-    if indent == 0 or ':' in line:
-      self.read_class(line, indent, docstring)
-      return
+    # Abstract bodies are not supported; any indented content is an error
+    raise SourceException("Abstract packets cannot have body content", what=line.strip())
 
   def read_field(self, line, indent, docstring):
-    if indent == 0 or ':' in line:
-      if self.data.fields and self.data.fields[-1].type == '':
-        self.data.fields.pop()
-      self.read_class(line, indent, docstring)
-      return
-
     line_info, *line_extra = line.strip().split('#', 1)
     info = line_info.split()
     fname = None
@@ -248,9 +238,13 @@ class Parser:
     self.data.field_names.add(pf.name)
 
   def read_class(self, line, indent, docstring):
-    current = self.data
+    # Push current context onto stack when entering a nested class/enum
+    if self.data is not None:
+      self.context_stack.append((self.data, self.state, self.indent))
+    
     self.data = PacketData()
     self.data.docstring = docstring
+    self.indent = indent
     if indent == 0:
       self.top = self.top or self.data
 
@@ -289,6 +283,7 @@ class Parser:
         self.data = None
         self.indent = 0
         self.top = None
+        self.context_stack = []
         docstring = []
         for lnum, line in enumerate(f, 1):
           if annotations is not None and line.startswith('# @'):
@@ -309,7 +304,18 @@ class Parser:
 
           try:
             indent = len(line) - len(line.lstrip())
-            self.state(line, indent, docstring)
+            
+            # Handle dedent: if we're in a nested context and the new line's indent
+            # is <= the current context's indent, pop back to the parent context
+            while self.context_stack and indent <= self.indent:
+              self.data, self.state, self.indent = self.context_stack.pop()
+            
+            # If this line starts a new class/enum/abstract (contains ':'), 
+            # call read_class directly instead of the current state
+            if ':' in sline:
+              self.read_class(line, indent, docstring)
+            else:
+              self.state(line, indent, docstring)
             docstring = []
           except SourceException as ex:
             ex.filename = path

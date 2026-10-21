@@ -18,3 +18,4 @@ DemoPacketAbs2 {DemoPacketAbs2/C A[DemoAbstract2] F=[] C[] E[] D[]}
 DemoPacketAbs12 {DemoPacketAbs12/C A[DemoAbstract1, DemoAbstract2] F=[] C[] E[] D[]}
 DemoFirst {DemoFirst/C F=[N=id T=int, N=text T=string list] C[] E[] D[]}
 DemoSecond {DemoSecond/C F=[N=id T=int, N=text T=string list, N=enabled T=bool] C[] E[] X[DemoFirst]=[] D[]}
+TestDedent {TestDedent/C F=[N=a T=int, N=b T=int, N=d T=int, N=f T=int, N=g T=int] C[{Inner/C F=[N=c T=int] C[] E[] D[]}, {AnotherInner/C F=[N=e T=int] C[] E[] D[]}] E[{E/E F=[N=X, N=Y] D[]}, {AnotherEnum/E F=[N=A, N=B] D[]}] D[]}

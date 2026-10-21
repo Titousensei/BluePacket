@@ -16,3 +16,4 @@ DemoPacketAbs2 DemoPacketAbs2
 DemoPacketAbs12 DemoPacketAbs12
 DemoFirst DemoFirst+id:int+text:[]string
 DemoSecond DemoSecond+enabled:bool+id:int+text:[]string
+TestDedent TestDedent+a:int+b:int+d:int+f:int+g:int

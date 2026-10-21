@@ -64,7 +64,7 @@ input / loses diagnostics; L = polish.
 
 ## H - Indentation / parser state
 
-- H: indentation is never used to leave a class. `self.data` changes only on the next class line,
+- H: FIXED indentation is never used to leave a class. `self.data` changes only on the next class line,
   so everything after an inner class or enum stays inside it:
   ```
   P:
@@ -441,7 +441,7 @@ emitting (the field loops already use `sorted(key=str)`).
 
 # JS RPC - open
 
-- H: Not implemented. javascript/rpc contains only plain TCP echo demos (example_client.js,
+- L: Not implemented. javascript/rpc contains only plain TCP echo demos (example_client.js,
   example_server.js): no BluePacket framing, no client library, no run_tests.sh. The root
   run_tests_rpc.sh skips it.
 

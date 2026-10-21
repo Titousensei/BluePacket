@@ -32,7 +32,8 @@ class TestLibExport(unittest.TestCase):
 
     p = Parser()
     cls.all_data = p.parse(
-      glob.glob(os.path.join(TESTDATA_DIR, "Demo*.bp"))
+      glob.glob(os.path.join(TESTDATA_DIR, "Demo*.bp")) +
+      glob.glob(os.path.join(TESTDATA_DIR, "TestDedent.bp"))
     )
 
   def test_testCoverage(self):

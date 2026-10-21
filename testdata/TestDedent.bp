@@ -1,0 +1,17 @@
+# Test for bug fix: indentation is used to leave a class
+# Fields after inner class/enum should belong to the parent packet
+
+TestDedent:
+    int a
+    E: enum
+        X, Y
+    int b
+    Inner:
+        int c
+    int d
+    AnotherInner:
+        int e
+    int f
+    AnotherEnum: enum
+        A, B
+    int g
