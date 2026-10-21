@@ -1,6 +1,6 @@
 # Cross-language
 
-- H: Sequence length prefix is broken for 128-254 byte strings and 128-254 element lists: the
+- H: FIXED Sequence length prefix is broken for 128-254 byte strings and 128-254 element lists: the
   writer uses a signed int8 while the format is an unsigned byte. Java writes the low 8 bits
   (correct on the wire, no guard); Python and JS both throw.
   - JS: FIXED (writeUnsignedByte + int32 sentinel, single readSequenceLength used by

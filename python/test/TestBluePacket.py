@@ -431,6 +431,33 @@ class TestBluePacket(unittest.TestCase):
     with self.assertRaises(TypeError) as ex:
       _ = t.DemoOuter(282, ":-)")
 
+  def testSequenceLengthBoundaries(self):
+    """Test string and list serialization at 128-254 byte boundary where signed/unsigned byte matters."""
+    # Test strings at critical lengths: 127, 128, 254, 255, 256
+    for length in [127, 128, 254, 255, 256]:
+      s = "x" * length
+      packet = t.DemoPacket2(aString=[s])
+      data = packet.serialize()
+      restored = self._BP_REGISTRY.deserialize(data)
+      self.assertEqual(restored.aString[0], s, f"String length {length} failed round-trip")
+
+    # Test lists at critical lengths
+    for length in [127, 128, 254, 255, 256]:
+      packet = t.DemoPacket2(aInt=list(range(length)))
+      data = packet.serialize()
+      restored = self._BP_REGISTRY.deserialize(data)
+      self.assertEqual(len(restored.aInt), length, f"List length {length} failed round-trip")
+      self.assertEqual(restored.aInt, list(range(length)), f"List content {length} mismatch")
+
+    # Test large enum list (uses writeArrayLargeEnum) at critical lengths
+    for length in [127, 128, 254, 255, 256]:
+      enums = [t.DemoEnum260(i % 260) for i in range(length)]
+      packet = t.DemoPacket2(aLargeEnum=enums)
+      data = packet.serialize()
+      restored = self._BP_REGISTRY.deserialize(data)
+      self.assertEqual(len(restored.aLargeEnum), length, f"LargeEnum list length {length} failed round-trip")
+      self.assertEqual([e.value for e in restored.aLargeEnum], [e.value for e in enums], f"LargeEnum content {length} mismatch")
+
 
 if __name__ == '__main__':
     unittest.main()

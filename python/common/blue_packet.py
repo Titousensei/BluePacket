@@ -176,9 +176,9 @@ class _BluePacketWriter(bytearray):
 
   def _writeSeqLength(self, length):
     if (length < _MAX_UNSIGNED_BYTE):
-      self.writeByte(length)
+      self.writeUnsignedByte(length)
     else:
-      self.writeByte(_MAX_UNSIGNED_BYTE)
+      self.writeUnsignedByte(_MAX_UNSIGNED_BYTE)
       self.writeInt(length)
 
   def writeString(self, field):
@@ -221,7 +221,7 @@ class _BluePacketWriter(bytearray):
 
   def writeArrayLargeEnum(self, field):
     if field is None:
-        self.writeShort(0)
+        self._writeSeqLength(0)
     else:
         self._writeSeqLength(len(field))
         for b in field:
@@ -260,6 +260,12 @@ class _BluePacketReader(deque):
   def readByte(self):
     return self._readStruct('!b', 1)
 
+  def readSequenceLength(self):
+    l = self.readUnsignedByte()
+    if l == _MAX_UNSIGNED_BYTE:
+      l = self.readInt()
+    return l
+
   def readDouble(self):
     return self._readStruct('!d', 8)
 
@@ -281,9 +287,7 @@ class _BluePacketReader(deque):
     return self._readStruct('!H', 2)
 
   def readListBool(self):
-    l = self.readUnsignedByte()
-    if l == _MAX_UNSIGNED_BYTE:
-      l = self.readLong()
+    l = self.readSequenceLength()
     ret = []
     for i in range(l):
       if i % 8 == 0:
@@ -293,9 +297,7 @@ class _BluePacketReader(deque):
     return ret
 
   def readString(self):
-    l = self.readUnsignedByte()
-    if l == _MAX_UNSIGNED_BYTE:
-      l = self.readLong()
+    l = self.readSequenceLength()
     i = self.offset
     self.offset += l
     return self.buffer[i:self.offset].decode('utf-8')

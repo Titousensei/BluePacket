@@ -213,7 +213,7 @@ def produceDeserializer(out, data, fields, indent, field_is_enum, parent_name):
         println(out, f"{indent}  self.{pf.name} = bpr.readListBool();")
         continue
       println(out, f"{indent}  self.{pf.name} = []")
-      println(out, f"{indent}  for _ in range(bpr.readUnsignedByte()):")
+      println(out, f"{indent}  for _ in range(bpr.readSequenceLength()):")
       if pf.type in PYTHON_READER:
         println(out, f"{indent}    x = {PYTHON_READER[pf.type]}")
       elif pf.type in field_is_enum:
