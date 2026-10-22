@@ -1,0 +1,9 @@
+# Test file for list packet encoding
+
+# Packet with monomorphic list (list DemoOuter)
+OuterContainer:
+    list DemoOuter outerList
+
+# Packet with polymorphic list (list packet)
+PolyContainer:
+    list packet polyList

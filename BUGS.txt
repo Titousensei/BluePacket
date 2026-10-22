@@ -8,7 +8,7 @@
   - Python: OPEN. _writeSeqLength uses writeByte, and writeArrayLargeEnum(None) writes a 2-byte
     length while readers expect 1 byte (python/common/blue_packet.py).
   - No fixture exceeded 127 bytes, so the format was never exercised.
-- H: `list packet` encoding disagrees: Python and JS write the 8-byte hash per element; Java's
+- H: FIXED `list packet` encoding disagrees: Python and JS write the 8-byte hash per element; Java's
   writeArray(BluePacket[]) writes only the body while its reader expects a hash. No fixture covers
   it; JS follows the hash-per-element format (the only one that can deserialize polymorphically).
 - M: `null`, `""` (and JS `undefined`) strings are indistinguishable on the wire (all length 0).

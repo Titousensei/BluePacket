@@ -163,7 +163,15 @@ def produceSerializer(out, fields, indent, field_is_enum):
     if (not pf.is_list and pf.type == 'bool') or not pf.name:
       continue
     if pf.is_list:
-      if field_is_enum.get(pf.type, 0) > 256:
+      if pf.type == "packet":
+        println(out, f"{indent}  if (this.{pf.name} == null) {{ s.writeByte(0); }}")
+        println(out, f"{indent}  else {{")
+        println(out, f"{indent}    writeSequenceLength(s, this.{pf.name}.length);")
+        println(out, f"{indent}    for (BluePacket elem : this.{pf.name}) {{")
+        println(out, f"{indent}      writeBluePacket(s, elem);")
+        println(out, f"{indent}    }}")
+        println(out, f"{indent}  }}")
+      elif field_is_enum.get(pf.type, 0) > 256:
         println(out, f"{indent}  writeArrayLargeEnum(s, this.{pf.name});")
       else:
         println(out, f"{indent}  writeArray(s, this.{pf.name});")
