@@ -1,21 +1,5 @@
 # Cross-language
 
-- H: FIXED Sequence length prefix is broken for 128-254 byte strings and 128-254 element lists: the
-  writer uses a signed int8 while the format is an unsigned byte. Java writes the low 8 bits
-  (correct on the wire, no guard); Python and JS both throw.
-  - JS: FIXED (writeUnsignedByte + int32 sentinel, single readSequenceLength used by
-    readString/readListBool/readArrayNative). Verified at 127/128/254/255/256/1000.
-  - Python: OPEN. _writeSeqLength uses writeByte, and writeArrayLargeEnum(None) writes a 2-byte
-    length while readers expect 1 byte (python/common/blue_packet.py).
-  - No fixture exceeded 127 bytes, so the format was never exercised.
-- H: FIXED `list packet` encoding disagrees: Python and JS write the 8-byte hash per element; Java's
-  writeArray(BluePacket[]) writes only the body while its reader expects a hash. No fixture covers
-  it; JS follows the hash-per-element format (the only one that can deserialize polymorphically).
-- M: `null`, `""` (and JS `undefined`) strings are indistinguishable on the wire (all length 0).
-  Java reads `null`; Python/JS read `""`. JS now defaults strings to `""` so defaults round-trip;
-  explicitly assigning `null`/`undefined` still normalizes to `""` (caller's responsibility).
-  Python still defaults to `None`, so its defaults do not round-trip. The cross-language decision
-  is deferred.
 - Default-constructor round-trip idempotence (defaults must equal decoded values):
   - H (Python): OPEN. Every constructor field defaults to `None`, but readers produce
     `0`/`false`/`""`/`[]`; numeric default packets cannot even serialize (`writeInt(None)`).
@@ -30,58 +14,8 @@ Reviewed against IMPLEMENTATION_GUIDE.md (parser contract, IR, and hash rules). 
 Severity: H = wrong hashes/output or generates invalid code; M = accepts bad input / rejects legal
 input / loses diagnostics; L = polish.
 
-## H - Version hashes (versionString / versionHash)
+## L - Indentation / parser state
 
-- H: the recursion cut uses one global `seen` set keyed by bare type name (lines 120 and 133), so
-  inner types from different packets are conflated. With `A: Inner inner` / `B: Inner inner` (each
-  defining `Inner`) and `C: A a` / `B b`, C expands A's Inner but abbreviates B's to `{Inner+...}`
-  because `Inner` was already seen. Changing `B.Inner` changes A/B's hashes but **not C's**, so the
-  compatibility hash of a packet can ignore a real change in its dependency. This is legal input
-  (guide §3 explicitly allows cross-packet inner-name collisions).
-- H: `_mergeUniquely` (108-115) rejects a legal cross-packet inner collision when it is reachable:
-  `C` defining `X` and holding a field of type `A`, where `A` also defines `X`, fails with
-  "Duplicate definition of in A: X X". The guide says the parser tolerates the collision and the
-  exporter handles it; the shared hashing must tolerate it too.
-- H: enum hashing has four different representations for the same enum type, and one is
-  comment-sensitive:
-  - top-level enum from a top-level field: `{E+A+B}` (155-159);
-  - top-level enum reached from an inner class: `{E+A:+B:}` (169-170, via packet recursion);
-  - inner enum reached from an inner class: `{E+N=A+N=B D=['a comment']}` (167-168 uses
-    `str(PacketField)`, not `.name`, and does not filter unnamed comment paragraphs);
-  - a second field of the same top-level enum inside an inner class: `{E+...}` (133), because the
-    first traversal added `E` to `seen`.
-  Repro: moving a `# comment` before an inner-enum value changes the owning packet's `version`.
-  `testdata/versionString.txt` pins the current output (`DemoPacket ... iEnum:{MyEnum+N=DUNNO+...
-  +D=['Another local comment', ...]}`), so fixing this changes DemoPacket's hash and needs a
-  deliberate fixture/API-version update.
-  Related: `field_is_enum` is populated only on the owning top-level packet (359), but versionString
-  recurses with the inner `PacketData` (166), so inner fields never take the enum branch.
-- M: `origin_name` and field-name normalization split on every `__` (129, 260). A legal name that
-  contains `__` (e.g. `Some__Thing`) is treated as deprecated and rejected unless it ends with its
-  own hash. Field names `a` and `a__X` hash identically. The cut branch (133-135) emits the raw
-  suffixed type name (`{T__HEX+...}`) while every other branch normalizes to `origin_name`, so a
-  repeated deprecated type hashes differently from its first occurrence.
-
-## H - Indentation / parser state
-
-- H: FIXED indentation is never used to leave a class. `self.data` changes only on the next class line,
-  so everything after an inner class or enum stays inside it:
-  ```
-  P:
-      int a
-      E: enum
-          X, Y
-      int b
-      Inner:
-          int c
-      int d
-  ```
-  yields `P.fields=[a]`, `E.fields=[X, Y, "int b"]`, `Inner.fields=[c, d]`. A dedented field becomes
-  an enum value, and fields after an inner class are silently attached to that inner class.
-  Demo.bp only works because every inner type is declared after all fields. `self.indent` is assigned
-  (290) but never read by any reader.
-- H: FIXED `read_abstracts` ignores every indented line (206-209), so a field or typo under
-  `X: abstract` is silently dropped.
 - L: `PacketData.__init__` contains `self.indent: 0` (79), a no-op annotation; the attribute is never
   assigned.
 

@@ -9,7 +9,7 @@ from libexport import Parser, SourceException, versionString
 TESTDATA_DIR = "../../testdata"
 
 _API_VERSIONS = [
-  ("example_rpc.bp", -6803416483160598136),
+  ("example_rpc.bp", -8206535558625135915),
   ("DemoDeprecated.bp", -6691353770427087024),
 ]
 

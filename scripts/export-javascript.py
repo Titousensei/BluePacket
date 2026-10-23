@@ -369,7 +369,7 @@ def get_args():
 if __name__ == "__main__":
   args = get_args()
   p = Parser()
-  all_data = p.parse(args.packets)
+  all_data = p.parse(args.packets, manifest_path=args.output_dir)
   if args.debug:
     for cl, lf in all_data.items():
       print(cl, lf)

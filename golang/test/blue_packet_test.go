@@ -228,9 +228,9 @@ func TestDemoBluePacketToString(t *testing.T) {
 
 func TestDemoBluePacketHash(t *testing.T) {
 	test := setUp(t)
-	testPacketHash(t, "testVersionHash", &test.demoPacket, 2881186351897802917)
-	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -4035910894404497038)
-	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 3706623474888074790)
+	testPacketHash(t, "testVersionHash", &test.demoPacket, -7655671355778935868)
+	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -2843842372215306214)
+	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 7017743869305026213)
 	testPacketHash(t, "testVersionHashU", &test.demoPacketU, 4436886959950420991)
 
 	testPacketHash(t, "testDeprecated1", &DemoVersionΔ3FC7F86674610139{}, 4595915063677747513)

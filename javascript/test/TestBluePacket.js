@@ -228,15 +228,15 @@ function testPacketHash(expected, packetClass, label)
 }
 
 _runTest("testPacketHash DemoPacket", () => {
-    testPacketHash(2881186351897802917n, T.DemoPacket, "DemoPacket");
+    testPacketHash(-7655671355778935868n, T.DemoPacket, "DemoPacket");
 });
 
 _runTest("testPacketHash DemoPacket2", () => {
-    testPacketHash(-4035910894404497038n, T.DemoPacket2, "DemoPacket2");
+    testPacketHash(-2843842372215306214n, T.DemoPacket2, "DemoPacket2");
 });
 
 _runTest("testPacketHash DemoPacket3", () => {
-    testPacketHash(3706623474888074790n, T.DemoPacket3, "DemoPacket3");
+    testPacketHash(7017743869305026213n, T.DemoPacket3, "DemoPacket3");
 });
 
 _runTest("testPacketHash DemoUnsigned", () => {

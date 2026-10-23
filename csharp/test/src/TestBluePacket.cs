@@ -260,9 +260,9 @@ class TestBluePacket
     test.TestToString("testToString2", "toString2.txt", test.demoPacket2);
     test.TestToString("testToString3", "toString3.txt", test.demoPacket3);
     test.TestToString("testToStringU", "toStringU.txt", test.demoPacketU);
-    test.TestPacketHash("testVersionHash", test.demoPacket, 2881186351897802917L);
-    test.TestPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
-    test.TestPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
+    test.TestPacketHash("testVersionHash", test.demoPacket, -7655671355778935868L);
+    test.TestPacketHash("testVersionHash2", test.demoPacket2, -2843842372215306214L);
+    test.TestPacketHash("testVersionHash3", test.demoPacket3, 7017743869305026213L);
     test.TestPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);
     test.TestSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.TestSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);

@@ -122,9 +122,9 @@ class TestBluePacket(unittest.TestCase):
 
 
   @parameters(
-    (2881186351897802917, "DemoPacket"),
-    (-4035910894404497038, "DemoPacket2"),
-    (3706623474888074790, "DemoPacket3"),
+    (-7655671355778935868, "DemoPacket"),
+    (-2843842372215306214, "DemoPacket2"),
+    (7017743869305026213, "DemoPacket3"),
     (4436886959950420991, "DemoPacketU"),
     (4595915063677747513, "DemoVersion__3FC7F86674610139"),
     (7260826007793545337, "DemoVersion"),

@@ -149,7 +149,7 @@ def produceSerializer(out, fields, indent, field_is_enum):
     println(out, f"{indent}  if self.{pf.name}: bin |= {1<<(bool_counter%8)}")
     bool_counter += 1
 
-  if  bool_counter % 8 != 0:
+  if bool_counter > 0:
     println(out, f"{indent}  bpw.writeUnsignedByte(bin)")
 
   println(out, f"{indent}  # Non-boolean fields")
@@ -456,7 +456,7 @@ def get_args():
 if __name__ == "__main__":
   args = get_args()
   p = Parser()
-  all_data = p.parse(args.packets)
+  all_data = p.parse(args.packets, manifest_path=args.output_dir)
   if args.debug:
     for cl, lf in all_data.items():
       print(cl, lf)

@@ -145,7 +145,7 @@ def produceSerializer(out, namespace, name, fields, field_is_enum):
     println(out, f"\tif bp.{pf.name} {{ bin |= {1<<(bool_counter%8)} }}")
     bool_counter += 1
 
-  if  bool_counter % 8 != 0:
+  if bool_counter > 0:
     println(out, f"\tw.WriteByte(bin)")
 
   println(out, f"\t// Non-boolean fields")
@@ -460,7 +460,7 @@ if __name__ == "__main__":
   args = get_args()
   p = Parser()
   _GOLANG_DEPRECATED = args.marker_deprecated
-  all_data = p.parse(args.packets)
+  all_data = p.parse(args.packets, manifest_path=args.output_dir)
   if args.debug:
     for cl, lf in all_data.items():
       print(cl, lf)

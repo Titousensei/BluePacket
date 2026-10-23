@@ -1,4 +1,4 @@
-  #! /usr/bin/env python3
+#! /usr/bin/env python3
 import os, sys
 
 from hashlib import md5
@@ -117,7 +117,7 @@ def _mergeUniquely(a, b, msg):
 
 def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
   """Generate version string for a packet/enum/inner type.
-  
+
   Args:
     data: PacketData to generate version string for
     all_data: All top-level packets
@@ -129,38 +129,40 @@ def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
   # Build fully qualified name for this type
   qualified_name = prefix + (data.origin_name or data.name)
   ret = data.origin_name or data.name
-  
+
   # Cycle detection: track object identity
   data_id = id(data)
   if data_id in seen_objects:
     # This type was already expanded - abbreviate to break cycle
     return f"{{{qualified_name}+...}}"
   seen_objects.add(data_id)
-  
+
   # Merge inner types and enums from the top-level definition if this is a top-level packet
   if data.name in all_data:
     my_inner = _mergeUniquely(my_inner, all_data[data.name].inner, data.name)
     my_enums = _mergeUniquely(my_enums, all_data[data.name].enums, data.name)
-  
+
   # New prefix for nested types: add this type's name
   nested_prefix = qualified_name + "."
-  
+
   for pf in sorted(data.fields, key=str):
     if not pf.name:
       continue
     # un-deprecate
     fname, *_ = pf.name.split(MARKER_DEPRECATED)
     ftype = pf.type
-    
+
     ret += f"+{fname}:"
     if pf.is_list:
       if ftype in my_inner:
         ret += "{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen_objects, nested_prefix) + "}"
       elif ftype in data.field_is_enum or ftype in my_enums:
         if ftype in my_enums:
-          ret += f"[]{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
+          enum_data = my_enums[ftype]
+          ret += f"[]{{{ftype}__{enum_data.version & 0xFFFFFFFFFFFFFFFF:0X}}}"
         elif ftype in all_data:
-          ret += f"[]{{{ftype}+" + "+".join(pe.name for pe in all_data[ftype].fields if pe.name) + "}"
+          enum_data = all_data[ftype]
+          ret += f"[]{{{ftype}__{enum_data.version & 0xFFFFFFFFFFFFFFFF:0X}}}"
         else:
           raise Exception(f"Unknown enum type in {pf.type} {pf.name} in {ret}")
       elif ftype in all_data:
@@ -174,9 +176,11 @@ def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
         raise SourceException("Unexpected: Unknown {LIST_LABEL} field type", what=f"{LIST_LABEL} {ftype} {fname}")
     elif ftype in data.field_is_enum:
       if ftype in my_enums:
-        ret += f"{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
+        enum_data = my_enums[ftype]
+        ret += f"{{{ftype}__{enum_data.version & 0xFFFFFFFFFFFFFFFF:0X}}}"
       elif ftype in all_data:
-        ret += f"{{{ftype}+" + "+".join(pe.name for pe in all_data[ftype].fields if pe.name) + "}"
+        enum_data = all_data[ftype]
+        ret += f"{{{ftype}__{enum_data.version & 0xFFFFFFFFFFFFFFFF:0X}}}"
       else:
         # Should never happen, but we raise in case of a bug in this lib
         raise SourceException("Unexpected: Unknown enum type", what=f"{ftype} {fname}")
@@ -185,11 +189,13 @@ def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
     elif ftype in my_inner:
         ret += "{" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen_objects, nested_prefix) + "}"
     elif ftype in my_enums:
-        ret += f"{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
+        enum_data = my_enums[ftype]
+        ret += f"{{{ftype}__{enum_data.version & 0xFFFFFFFFFFFFFFFF:0X}}}"
     elif ftype in all_data:
         if all_data[ftype].is_enum:
-            # Top-level enum: format inline without recursion
-            ret += f"{{{ftype}+" + "+".join(pe.name for pe in all_data[ftype].fields if pe.name) + "}"
+            # Top-level enum: use hash format
+            enum_data = all_data[ftype]
+            ret += f"{{{ftype}__{enum_data.version & 0xFFFFFFFFFFFFFFFF:0X}}}"
         else:
             # Top-level packet: use fresh dicts so it uses its own inner/enums
             ret += "{" + versionString(all_data[ftype], all_data, {}, {}, seen_objects, nested_prefix) + "}"
@@ -266,7 +272,7 @@ class Parser:
     # Push current context onto stack when entering a nested class/enum
     if self.data is not None:
       self.context_stack.append((self.data, self.state, self.indent))
-    
+
     self.data = PacketData()
     self.data.docstring = docstring
     self.indent = indent
@@ -298,7 +304,7 @@ class Parser:
       self.data.abstracts = option.split()
       self.state = self.read_field
 
-  def parse(self, files, annotations=None):
+  def parse(self, files, annotations=None, manifest_path=None):
     if isinstance(files, str):
       files = [files]
     for path in files:
@@ -329,13 +335,13 @@ class Parser:
 
           try:
             indent = len(line) - len(line.lstrip())
-            
+
             # Handle dedent: if we're in a nested context and the new line's indent
             # is <= the current context's indent, pop back to the parent context
             while self.context_stack and indent <= self.indent:
               self.data, self.state, self.indent = self.context_stack.pop()
-            
-            # If this line starts a new class/enum/abstract (contains ':'), 
+
+            # If this line starts a new class/enum/abstract (contains ':'),
             # call read_class directly instead of the current state
             if ':' in sline:
               self.read_class(line, indent, docstring)
@@ -389,6 +395,18 @@ class Parser:
             en = self.packet_list.get(pf.type) or data.enums.get(pf.type)
             data.field_is_enum[pf.type] = sum(1 for f in en.fields if f.name)
 
+    # Compute version for inner enums first (needed by top-level packets/enums)
+    for _, data in self.packet_list.items():
+      for inner_enum in data.enums.values():
+        inner_enum.version = versionHash(inner_enum, self.packet_list)
+
+    # Compute version for top-level enums (needed by packets)
+    for _, data in self.packet_list.items():
+      if data.is_enum:
+        data.version = versionHash(data, self.packet_list)
+
+    # Compute version for packets (non-enum, non-abstract)
+    for _, data in self.packet_list.items():
       if not data.is_enum and not data.is_abstract:
         data.version = versionHash(data, self.packet_list)
 
@@ -396,7 +414,39 @@ class Parser:
     for pk_name, pk in self.packet_list.items():
       if pk.name == pk.origin_name:
         self.api_version ^= pk.version or 0
+
+    # Generate manifest_bp.csv with (hash, packet name) for all top-level packets and enums
+    if manifest_path is not None:
+        self._generate_manifest(manifest_path)
+
     return self.packet_list
+
+  def _generate_manifest(self, manifest_path):
+    """Generate manifest_bp.csv with (hash, packet name, deprecated) for top-level packets and enums."""
+    import csv
+    import os
+    manifest_file = os.path.join(manifest_path, "manifest_bp.csv")
+
+    rows = []
+    for name, data in self.packet_list.items():
+      if data.is_enum:
+        # Top-level enums get their own hash
+        version = versionHash(data, self.packet_list)
+        deprecated = "true" if data.name != data.origin_name else "false"
+        rows.append((f"{version & 0xFFFFFFFFFFFFFFFF:0X}", data.origin_name, deprecated))
+      elif not data.is_abstract:
+        # Top-level packets (not abstract) get their version hash
+        deprecated = "true" if data.name != data.origin_name else "false"
+        rows.append((f"{data.version & 0xFFFFFFFFFFFFFFFF:0X}", data.origin_name, deprecated))
+      # Skip abstracts and inner classes/enums
+
+    # Sort by name for stable output
+    rows.sort(key=lambda r: r[1])
+
+    with open(manifest_file, "w", newline="\n") as f:
+      writer = csv.writer(f)
+      writer.writerow(["hash", "name", "deprecated"])
+      writer.writerows(rows)
 
 
 if __name__ == "__main__":
@@ -406,4 +456,4 @@ if __name__ == "__main__":
     if data.is_enum or data.is_abstract:
       print(data)
     else:
-      print(versionString(data, all_data))
+      print(versionString(data, all_data, {}, {}, set()))

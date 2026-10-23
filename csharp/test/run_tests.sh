@@ -12,7 +12,7 @@ mkdir -p gen/test build
 echo "=== COMPILING ==="
 if [[ $(type -P mono-csc) ]]
 then
-  mono-csc -out:build/Test ../../csharp/common/src/* src/* gen/test/*
+  mono-csc -out:build/Test ../../csharp/common/src/*.cs src/*.cs gen/test/*.cs
 else
   echo skipping: mono-csc not found
 fi

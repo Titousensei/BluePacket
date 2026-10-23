@@ -347,9 +347,9 @@ class TestBluePacket
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
     test.testToString("testToString3", "toString3.txt", test.demoPacket3);
     test.testToString("testToStringU", "toStringU.txt", test.demoPacketU);
-    test.testPacketHash("testVersionHash", test.demoPacket, 2881186351897802917L);
-    test.testPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
-    test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
+    test.testPacketHash("testVersionHash", test.demoPacket, -7655671355778935868L);
+    test.testPacketHash("testVersionHash2", test.demoPacket2, -2843842372215306214L);
+    test.testPacketHash("testVersionHash3", test.demoPacket3, 7017743869305026213L);
     test.testPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);
     test.testSerialize("testSerialize", test.demoPacket, test.demoPacketBin);
     test.testSerialize("testSerialize2", test.demoPacket2, test.demoPacket2Bin);
