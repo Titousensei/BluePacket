@@ -1,6 +1,11 @@
 === Unit Tests ===
 - negative tests for parser
 
+=== High Priority ===
+- lib load manifest and verify
+  - save manifest (hash, packet)
+- parameter --namespace
+
 === Export Tests ===
 - hash version
 - to string
@@ -9,7 +14,9 @@
 
 === Possible Future Features ===
 - java helper BitSet for boolean[]
-- enum deprecation
+- enum version hash instead of listing all the values
+  - enum deprecation
+  - Enums automatic value mapping, not ordinal casts.
 - xint: variable length int, mostly small.
   - start with a byte, if value == -128 read a short, if value == -127 read an int.
 - enum power of 2 for masking, new type mask

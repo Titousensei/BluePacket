@@ -150,8 +150,12 @@ func setUp(t *testing.T) testData {
 	var packet3 bluepacket.BluePacket
 	packet3 = &data.demoPacket3
 	data.demoPacket.XPacket = &packet3
+	var emptyPacket bluepacket.BluePacket
+	emptyPacket = &DemoPacket0{}
+	data.demoPacket.EmptyPacket = &emptyPacket
 
 	bluepacket.Register(&DemoPacket{})
+	bluepacket.Register(&DemoPacket0{})
 	bluepacket.Register(&DemoPacket2{})
 	bluepacket.Register(&DemoPacket3{})
 	bluepacket.Register(&DemoUnsigned{})
@@ -224,7 +228,7 @@ func TestDemoBluePacketToString(t *testing.T) {
 
 func TestDemoBluePacketHash(t *testing.T) {
 	test := setUp(t)
-	testPacketHash(t, "testVersionHash", &test.demoPacket, -777183301505584489)
+	testPacketHash(t, "testVersionHash", &test.demoPacket, 2881186351897802917)
 	testPacketHash(t, "testVersionHash2", &test.demoPacket2, -4035910894404497038)
 	testPacketHash(t, "testVersionHash3", &test.demoPacket3, 3706623474888074790)
 	testPacketHash(t, "testVersionHashU", &test.demoPacketU, 4436886959950420991)

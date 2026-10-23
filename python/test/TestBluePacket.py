@@ -84,6 +84,7 @@ class TestBluePacket(unittest.TestCase):
       _TEST_DATA['DemoPacket3.bin'] = f.read()
 
     demoPacket.xPacket = demoPacket3
+    demoPacket.emptyPacket = t.DemoPacket0()
 
     _TEST_DATA['DemoPacketU'] = demoPacketU = t.DemoUnsigned()
     demoPacketU.ub = 200
@@ -121,7 +122,7 @@ class TestBluePacket(unittest.TestCase):
 
 
   @parameters(
-    (-777183301505584489, "DemoPacket"),
+    (2881186351897802917, "DemoPacket"),
     (-4035910894404497038, "DemoPacket2"),
     (3706623474888074790, "DemoPacket3"),
     (4436886959950420991, "DemoPacketU"),

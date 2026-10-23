@@ -115,28 +115,47 @@ def _mergeUniquely(a, b, msg):
   return ret
 
 
-def versionString(data, all_data, my_enums, my_inner, seen):
+def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
+  """Generate version string for a packet/enum/inner type.
+  
+  Args:
+    data: PacketData to generate version string for
+    all_data: All top-level packets
+    my_enums: Local enums dict (merged from parent)
+    my_inner: Local inner types dict (merged from parent)
+    seen_objects: Set of id(data) for cycle detection (tracks object identity)
+    prefix: Qualified name prefix for the current type (e.g., "Container.PacketA.")
+  """
+  # Build fully qualified name for this type
+  qualified_name = prefix + (data.origin_name or data.name)
   ret = data.origin_name or data.name
-  if data.name not in PRIMITIVE_TYPES:
-    seen.add(data.name)
+  
+  # Cycle detection: track object identity
+  data_id = id(data)
+  if data_id in seen_objects:
+    # This type was already expanded - abbreviate to break cycle
+    return f"{{{qualified_name}+...}}"
+  seen_objects.add(data_id)
+  
+  # Merge inner types and enums from the top-level definition if this is a top-level packet
   if data.name in all_data:
     my_inner = _mergeUniquely(my_inner, all_data[data.name].inner, data.name)
     my_enums = _mergeUniquely(my_enums, all_data[data.name].enums, data.name)
+  
+  # New prefix for nested types: add this type's name
+  nested_prefix = qualified_name + "."
+  
   for pf in sorted(data.fields, key=str):
     if not pf.name:
       continue
     # un-deprecate
     fname, *_ = pf.name.split(MARKER_DEPRECATED)
     ftype = pf.type
-
+    
     ret += f"+{fname}:"
-    if ftype in seen:
-      ary = "[]" if pf.is_list else ""
-      ret += f"{{{ary}{ftype}+...}}"
-      continue
     if pf.is_list:
       if ftype in my_inner:
-        ret += "{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
+        ret += "{[]" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen_objects, nested_prefix) + "}"
       elif ftype in data.field_is_enum or ftype in my_enums:
         if ftype in my_enums:
           ret += f"[]{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
@@ -145,7 +164,8 @@ def versionString(data, all_data, my_enums, my_inner, seen):
         else:
           raise Exception(f"Unknown enum type in {pf.type} {pf.name} in {ret}")
       elif ftype in all_data:
-        ret += "{[]" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
+        # Top-level packet: use fresh dicts so it uses its own inner/enums
+        ret += "{[]" + versionString(all_data[ftype], all_data, {}, {}, seen_objects, nested_prefix) + "}"
       elif ftype in PRIMITIVE_TYPES:
         ret += "[]" + ftype
       else:
@@ -163,11 +183,16 @@ def versionString(data, all_data, my_enums, my_inner, seen):
     elif ftype in PRIMITIVE_TYPES:
         ret += ftype
     elif ftype in my_inner:
-        ret += "{" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen) + "}"
+        ret += "{" + versionString(my_inner[ftype], all_data, my_enums, my_inner, seen_objects, nested_prefix) + "}"
     elif ftype in my_enums:
-        ret += f"{{{ftype}+" + "+".join(str(f) for f in my_enums[ftype].fields) + "}"
+        ret += f"{{{ftype}+" + "+".join(pe.name for pe in my_enums[ftype].fields if pe.name) + "}"
     elif ftype in all_data:
-        ret += "{" + versionString(all_data[ftype], all_data, my_enums, my_inner, seen) + "}"
+        if all_data[ftype].is_enum:
+            # Top-level enum: format inline without recursion
+            ret += f"{{{ftype}+" + "+".join(pe.name for pe in all_data[ftype].fields if pe.name) + "}"
+        else:
+            # Top-level packet: use fresh dicts so it uses its own inner/enums
+            ret += "{" + versionString(all_data[ftype], all_data, {}, {}, seen_objects, nested_prefix) + "}"
     elif not data.is_enum:
       # Should never happen, but we raise in case of a bug in this lib
       raise SourceException("Unexpected: Unknown field type", what=f"{ftype} {fname}")

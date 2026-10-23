@@ -1,1 +1,1 @@
-{BinaryTreeNode 0x9ACDB5922AD47345 data="root" left={BinaryTreeNode 0x9ACDB5922AD47345 data="left"} right={BinaryTreeNode 0x9ACDB5922AD47345 data="right" left={BinaryTreeNode 0x9ACDB5922AD47345 data="right.left"}}}
+{BinaryTreeNode 0x99B3361398DEFE45 data="root" left={BinaryTreeNode 0x99B3361398DEFE45 data="left"} right={BinaryTreeNode 0x99B3361398DEFE45 data="right" left={BinaryTreeNode 0x99B3361398DEFE45 data="right.left"}}}

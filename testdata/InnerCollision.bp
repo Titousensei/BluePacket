@@ -1,0 +1,17 @@
+# Test case for inner type name collision across packets
+
+PacketA:
+    Inner innerA
+
+    Inner:
+        int valueA
+
+PacketB:
+    Inner innerB
+
+    Inner:
+        string valueB
+
+Container:
+    PacketA a
+    PacketB b

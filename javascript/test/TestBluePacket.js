@@ -160,6 +160,7 @@ demoPacket2.aLargeEnum = [T.DemoEnum260.z3, T.DemoEnum260.d7, T.DemoEnum260.z7];
 let demoPacket3 = new T.DemoPacket3();
 demoPacket3.possible = [T.DemoEnum.NO_DOUBT, T.DemoEnum.YES];
 demoPacket.xPacket = demoPacket3;
+demoPacket.emptyPacket = new T.DemoPacket0();
 
 // DemoUnsigned
 let demoPacketU = new T.DemoUnsigned();
@@ -227,7 +228,7 @@ function testPacketHash(expected, packetClass, label)
 }
 
 _runTest("testPacketHash DemoPacket", () => {
-    testPacketHash(-777183301505584489n, T.DemoPacket, "DemoPacket");
+    testPacketHash(2881186351897802917n, T.DemoPacket, "DemoPacket");
 });
 
 _runTest("testPacketHash DemoPacket2", () => {
@@ -247,7 +248,7 @@ _runTest("testPacketHash DemoPacket0", () => {
 });
 
 _runTest("testPacketHash BinaryTreeNode", () => {
-    testPacketHash(-7291972582254546107n, T.BinaryTreeNode, "BinaryTreeNode");
+    testPacketHash(-7371488707278340539n, T.BinaryTreeNode, "BinaryTreeNode");
 });
 
 _runTest("testPacketHash DemoPacketAbs1", () => {

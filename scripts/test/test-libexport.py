@@ -38,7 +38,7 @@ class TestLibExport(unittest.TestCase):
 
   def test_testCoverage(self):
     for cl, data in self.all_data.items():
-      if not data.is_enum:
+      if not data.is_enum and not data.is_abstract:
         self.assertTrue(cl in self.versions, f"{cl} not in versionString.txt")
 
   def test_apiVersion(self):

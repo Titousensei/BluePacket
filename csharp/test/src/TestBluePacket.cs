@@ -119,6 +119,7 @@ class TestBluePacket
     demoPacket3Bin = File.ReadAllBytes(TESTDATA_DIR + "DemoPacket3.bin");
 
     demoPacket.xPacket = demoPacket3;
+    demoPacket.emptyPacket = new DemoPacket0();
 
     demoPacketU = new DemoUnsigned {
         ub = 200,
@@ -259,7 +260,7 @@ class TestBluePacket
     test.TestToString("testToString2", "toString2.txt", test.demoPacket2);
     test.TestToString("testToString3", "toString3.txt", test.demoPacket3);
     test.TestToString("testToStringU", "toStringU.txt", test.demoPacketU);
-    test.TestPacketHash("testVersionHash", test.demoPacket, -777183301505584489L);
+    test.TestPacketHash("testVersionHash", test.demoPacket, 2881186351897802917L);
     test.TestPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
     test.TestPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.TestPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);

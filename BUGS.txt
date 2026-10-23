@@ -166,6 +166,10 @@ suites pass, but the fixtures only contain 1 or 19 scalar booleans, one self-rec
 converters whose source fields are a subset of the destination. The findings below were verified
 with generated output from synthetic .bp files or by direct inspection.
 
+- M: try to enforce similar command line parameters for all exporters
+- H: add --runtime-package / --namespace options to the exporters
+
+
 ## H - Scalar boolean packing drops the final byte for a multiple of 8
 
 Python (138-153), Java (144-159), C# (92-107) and Go (133-149) share the same writer loop: the

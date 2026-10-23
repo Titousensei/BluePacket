@@ -1,0 +1,15 @@
+# Test case for _mergeUniquely collision
+# C defines X and holds a field of type A, where A also defines X
+
+PacketA:
+    X xA
+
+    X:
+        int valueA
+
+PacketC:
+    X xC
+    PacketA a
+
+    X:
+        string valueC

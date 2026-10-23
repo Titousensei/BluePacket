@@ -140,6 +140,9 @@ class TestBluePacket
     demoPacket.setAOuter(new DemoOuter[1]);
     demoPacket.aOuter[0] = new DemoOuter().setOInt(282).setOString(":-)");
 
+    demoPacket.xPacket = demoPacket3;
+    demoPacket.emptyPacket = new DemoPacket0();
+
     demoPacketBin = readBinary(TESTDATA_DIR + "DemoPacket.bin");
 
     demoPacket2 = new DemoPacket2()
@@ -344,7 +347,7 @@ class TestBluePacket
     test.testToString("testToString2", "toString2.txt", test.demoPacket2);
     test.testToString("testToString3", "toString3.txt", test.demoPacket3);
     test.testToString("testToStringU", "toStringU.txt", test.demoPacketU);
-    test.testPacketHash("testVersionHash", test.demoPacket, -777183301505584489L);
+    test.testPacketHash("testVersionHash", test.demoPacket, 2881186351897802917L);
     test.testPacketHash("testVersionHash2", test.demoPacket2, -4035910894404497038L);
     test.testPacketHash("testVersionHash3", test.demoPacket3, 3706623474888074790L);
     test.testPacketHash("testVersionHashU", test.demoPacketU, 4436886959950420991L);
