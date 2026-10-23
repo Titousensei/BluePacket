@@ -1,3 +1,6 @@
+Reviewed against IMPLEMENTATION_GUIDE.md (parser contract, IR, and hash rules).
+Severity: H = wrong hashes/output or generates invalid code; M = accepts bad input / rejects legal input / loses diagnostics; L = polish.
+
 # Cross-language
 
 - Default-constructor round-trip idempotence (defaults must equal decoded values):
@@ -5,14 +8,6 @@
     `0`/`false`/`""`/`[]`; numeric default packets cannot even serialize (`writeInt(None)`).
   - M (Java): OPEN for list/array fields. Arrays default to `null`, but readers allocate empty arrays,
     so `null` becomes `[]` after a round-trip. Scalar strings are consistent (`null` → `null`).
-  - JS: FIXED. Strings default to `""`, lists to `[]`, enums to the first value, and packets to
-    `null`, matching the readers. `testDefault round-trip` covers every exported packet class.
-
-# Parser / libexport.py - review (open)
-
-Reviewed against IMPLEMENTATION_GUIDE.md (parser contract, IR, and hash rules). No code changed.
-Severity: H = wrong hashes/output or generates invalid code; M = accepts bad input / rejects legal
-input / loses diagnostics; L = polish.
 
 ## L - Indentation / parser state
 
@@ -86,56 +81,32 @@ input / loses diagnostics; L = polish.
 
 ## Parser tests - open
 
-- The skipped negatives hide the unvalidated paths above: `NegativeDuplicateInnerOuterEnum.bp.skip`,
+- L: The skipped negatives hide the unvalidated paths above: `NegativeDuplicateInnerOuterEnum.bp.skip`,
   `NegativeDuplicateInnerOuterType.bp.skip`, `NegativeInnerEnum.bp.skip`,
   `NegativeInnerEnumOuterType.bp.skip`, `NegativeListType.bp.skip`, `NegativeType.bp.skip`. Either
   make them pass or update their `@what` to the intended message.
-- No test covers: dedent / field-after-inner, enum inline comments, duplicate inner names within one
+- L: No test covers: dedent / field-after-inner, enum inline comments, duplicate inner names within one
   packet, abstract-as-field, multi-token convert, reserved packet/enum/field names, or Parser reuse.
 
 # Exporters (scripts/export-*.py) - review (open)
 
-Reviewed all five exporters against IMPLEMENTATION_GUIDE.md §4/§7/§10/§11. All language test
-suites pass, but the fixtures only contain 1 or 19 scalar booleans, one self-recursive packet, and
-converters whose source fields are a subset of the destination. The findings below were verified
-with generated output from synthetic .bp files or by direct inspection.
-
-- M: try to enforce similar command line parameters for all exporters
-- H: add --runtime-package / --namespace options to the exporters
-
-
-## H - Scalar boolean packing drops the final byte for a multiple of 8
-
-Python (138-153), Java (144-159), C# (92-107) and Go (133-149) share the same writer loop: the
-buffered byte is flushed at the start of the *next* 8-bool group, and the post-loop flush is guarded
-by `bool_counter % 8 != 0`. When the number of scalar bool fields is a positive multiple of 8:
-
-- 8 bools: zero bytes are written, while the generated reader reads one byte (Python 194-204, Java
-  195-206, C# 155-166, Go 195-207);
-- 16 bools: one byte is written, the reader reads two.
-
-Repro: a packet with exactly 8 bool fields generates no `writeByte(bin)`/`writeUnsignedByte(bin)` in
-Python/Java/C#/Go. Any following field is then read from the bool block (misalignment, or EOF).
-JS (84-92) writes the final byte unconditionally and is correct. The fixtures only have 1 bool
-(`DemoPacket`) and 19 bools (`DemoUnsigned`), so no test catches this; add an 8/16/24-bool fixture.
+- L: try to enforce similar command line parameters for all exporters
 
 ## H - Python: inner classes cannot reference outer types or siblings
 
-`header` (42-64) computes imports from `data.fields` only; fields of inner classes and enums are
-never scanned. With `Outer.Inner { TopEnum te; Sibling sib; Other o }`:
-
-- `TopEnum` and `Other` are not imported, so the generated module raises `NameError` when the inner
+- H: `header` (42-64) computes imports from `data.fields` only; fields of inner classes and enums are
+  never scanned. With `Outer.Inner { TopEnum te; Sibling sib; Other o }`:
+- H: `TopEnum` and `Other` are not imported, so the generated module raises `NameError` when the inner
   class is constructed/deserialized.
-- The constructor and deserializer prefix a top-level enum with the owner: `Outer.TopEnum(0)` and
+- H: The constructor and deserializer prefix a top-level enum with the owner: `Outer.TopEnum(0)` and
   `self.te = Outer.TopEnum(...)`. Top-level enums are module-level classes, so this raises
   `AttributeError: type object 'Outer' has no attribute 'TopEnum'`.
-- A sibling inner class reference is emitted bare (`Sibling()`), but classes are lexically nested
+- H: A sibling inner class reference is emitted bare (`Sibling()`), but classes are lexically nested
   and Python method bodies do not see the enclosing class namespace, so it raises `NameError`.
-- A list field of an owner inner enum inside an inner class is emitted as bare `MyEnum(...)`
+- H: A list field of an owner inner enum inside an inner class is emitted as bare `MyEnum(...)`
   (line 221) for the same reason; the scalar branch (229-236) does add the prefix.
-
-No fixture exercises an inner class with a type outside its own packet; DemoPacket's inner class
-only uses its own inner enum. Repro file and generated `Outer.py` verified.
+- H: No fixture exercises an inner class with a type outside its own packet; DemoPacket's inner class
+  only uses its own inner enum. Repro file and generated `Outer.py` verified.
 
 ## H - Python: mutually recursive packets cannot be imported
 
@@ -173,16 +144,16 @@ are affected. Add a fixture with sibling inner classes and a top-level enum.
 
 ## M - Go: abstracts and the aggregate convert() API are missing
 
-- `data.abstracts` is never read by export-golang.py. Abstract definitions are emitted as empty
+- M: `data.abstracts` is never read by export-golang.py. Abstract definitions are emitted as empty
   structs with `SerializeData`/`String`, and concrete packets have no interface or marker
   relationship to them. Java/C#/Python/JS generate marker types and implementor links. This is a
   silent acceptance of input the language cannot represent, not a documented rejection.
-- The guide requires `X.convert()` returning all convertible packets. Go only emits per-source
+- M: The guide requires `X.convert()` returning all convertible packets. Go only emits per-source
   `NewX` methods (310-323); its test calls `NewDemoSecond` and never exercises an aggregate.
-- `produceConvert` (310) uses `data.name` and `ctype` raw, while structs and files use
+- M: `produceConvert` (310) uses `data.name` and `ctype` raw, while structs and files use
   `_getGoType` (deprecated `__HASH` names become `Δ`). Converting from/to a deprecated packet
   therefore emits references to a type that is not generated.
-- `produceToString` runs after the fields were capitalized, so Go prints `AppendFields(sb, "Inner",
+- M: `produceToString` runs after the fields were capitalized, so Go prints `AppendFields(sb, "Inner",
   ...)` (capitalized names) while every other language and the `toString*.txt` fixtures use the
   declared lower-case names. `golang/test/blue_packet_test.go` hides this by lowercasing both
   sides. Keep the original field names for output, or map them back before emitting.
@@ -276,41 +247,6 @@ emitting (the field loops already use `sorted(key=str)`).
   `serializeData` (compile error), and C#/Go emit similar invalid calls. Reject abstract-typed
   fields until a polymorphic representation exists.
 
-# JS runtime - fixed (javascript/common/blue_packet.js)
-
-- Reader and writer disagreed at the 255 sentinel (writer int32, reader long): now one
-  readSequenceLength.
-- BluePacketRegistry._deserializeInternal reassigned a const: unknown hash now throws.
-- toSignedByte(127/255) and toSignedShort(32767/65535) threw (off-by-one): fixed, boundary tests added.
-- writeArrayLargeEnum(null) wrote a 2-byte length: now 1 byte.
-- long contract is BigInt end-to-end: 0n default, _checkLong rejects Number, readLong returns
-  BigInt. Required for masked 64-bit values. Consequence: JSON.stringify throws on long fields.
-- Enum strictness: createEnum tags entries with `type`, _assertOther compares it. Cross-enum
-  assignment and mixed enum lists throw. Tests added.
-- toString/_fieldsToString moved into BluePacket and driven by TYPE_INFO; the per-class
-  duplication and the nonexistent appendIfNotEmpty calls are gone from gen.js.
-- _checkInt bounds to int32; _checkBluePacket uses instanceof BluePacket.
-- defineTypedProperties backing fields are non-enumerable, so Object.keys(packet) is exactly the
-  fields and JSON.stringify does not leak _x duplicates.
-- Instances are sealed after init (closed struct). Classes are no longer sealed/frozen: that only
-  locked statics and blocked the _IMPLEMENTORS assignment.
-- Unknown enum ordinals now fail loudly. Generated code reads enums through enumFromWire, which
-  throws "Unknown <Enum> value: N" for both scalar and list fields. Before, a scalar became
-  undefined and re-encoded as 0 (silent corruption), while a list threw FieldTypeException.
-  Tests: testUnknownEnum scalar/list.
-- readFloat no longer throws for |v| >= 1e7. It now returns the shortest decimal that round-trips
-  to the same float32 (tries 1..9 significant digits) instead of toFixed(6 - log10). That also
-  matches Java's numeric Float.toString values (text formatting still differs, e.g. 1e7 prints
-  10000000). Tests: 1e7, 1234567, 3.4e38, 1.23456789, 1e-45.
-- JSON.stringify(packet) now works with long fields. BluePacket.toJSON walks TYPE_INFO and
-  recursively converts all BigInts (scalar and list) to decimal strings, nested packets to plain
-  objects, and arrays element-wise. Circular packet graphs throw "Cannot convert a circular
-  BluePacket structure to JSON" instead of overflowing. Tests: default/value/list/nested long,
-  long round-trip, circular.
-  Restoring needs BigInt conversion: JSON.parse yields strings and constructors reject them.
-  toJSON emits no class marker, so concrete fields are recoverable from the parent TYPE_INFO but
-  polymorphic `packet` fields lose their concrete class (see JS runtime - open).
-
 # JS runtime - open
 
 - M: toJSON has no class marker. A polymorphic `packet` field serializes to its fields only, so a
@@ -337,36 +273,8 @@ emitting (the field loops already use `sorted(key=str)`).
   registry.
 - M: No `list packet` fixture; it was verified manually only (see the cross-language item).
 
-# JS reference and tests
-
-- javascript/test/gen.js (hand-written reference) has been removed. javascript/test/run_tests.sh
-  now exports Demo.bp, DemoDeprecated.bp and DemoConvert.bp into gen/gen.js and runs the 120 tests
-  against that bundle. The test takes an optional bundle path (default ./gen/gen.js).
-- Field names and types match the parser for every class.
-- Exporter output is byte-identical to Python for every packet without a .bin fixture (DemoVersion,
-  DemoIncludeVersion both variants, BinaryTreeNode, DemoPacket0, DemoFirst, DemoSecond) and for
-  emptyPacket/aZero/aEmpty/aNull inside the demo packets.
-- BluePacketAPI.VERSION now matches Java (6289540679487913423 / 0x5748EFECB13EFDCF). The
-  hand-written gen.js had a wrong stub value (0x9C8BDBF134428CBD), so this is a real fix.
-- New language-neutral fixtures: testdata/DemoPacket0.bin, testdata/toString0.txt,
-  testdata/toStringBT.txt. Java and Python tests should adopt them; Java has no vectors for these.
-- Removed the Python copies under javascript/ (common/blue_packet.py,
-  common/blue_packet_rpc_client.py, test/TestBluePacket.py) and the python/rpc copy in
-  javascript/rpc (build.sh, run_client.sh, run_tests.sh, example_client.py,
-  result_tests.expected). Only the Node TCP echo demos remain.
-
 # JS exporter (scripts/export-javascript.py)
 
-- Implemented. Emits one bundle, <output_dir>/gen.js: enums (top-level then inner) at module scope,
-  inner classes before their packet, TYPE_INFO with enum defaults, one-line constructor via
-  initFields, packed bools, sorted field order, serializeData/populateData, converts, abstract
-  markers with Symbol.hasInstance, _IMPLEMENTORS, registry, BluePacketAPI and exports. Docstrings
-  are emitted as JSDoc/line comments.
-- --runtime <path> sets the require path for the runtime, relative to the generated file (default
-  ./blue_packet.js). --package was dropped; JS has no packages.
-- Exporting the same inner class or inner enum name from two packets now raises "Duplicate JS
-  identifier in bundle" instead of emitting invalid JS. The parser still allows it
-  (NegativeDuplicateInnerOuterType.bp is skipped); the exporter is the guard for now.
 - M: converts require the source type to be a top-level packet in the same export (same
   limitation as Python/Java).
 - L: no exporter unit test. The JS suite is the acceptance test and only covers the Demo*.bp

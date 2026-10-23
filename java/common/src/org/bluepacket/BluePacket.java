@@ -249,7 +249,7 @@ public abstract class BluePacket
       byte bin = 0;
       for(int i = 0 ; i < arr.length ; i ++) {
         if (arr[i]) {
-          bin |= 1 << (i%8);
+          bin |= (byte)(1 << (i%8));
         }
         if (i % 8 == 7) {
           dos.writeByte(bin);
