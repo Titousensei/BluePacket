@@ -376,6 +376,43 @@ class TestBluePacket
     test.testConvert("testConvert");
     test.testApiVersion("testApiVersion");
     test.testListPacketEncoding("testListPacketEncoding");
+    test.testMutuallyRecursivePackets("testMutuallyRecursivePackets");
+  }
+
+  private void testMutuallyRecursivePackets(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+
+    // Test 1: Create instances and set references
+    RecursiveA a = new RecursiveA();
+    RecursiveB b = new RecursiveB();
+    a.setB(b);
+    assertEquals(b, a.b, "set reference");
+
+    // Test 2: Serialize/deserialize with reference
+    byte[] data = a.serialize();
+    BluePacket bp = BluePacket.deserialize(registry_, data);
+    RecursiveA restored = (RecursiveA) bp;
+    assertEquals(b.toString(), restored.b.toString(), "deserialize with reference");
+
+    // Test 3: Empty reference
+    RecursiveA aEmpty = new RecursiveA();
+    byte[] dataEmpty = aEmpty.serialize();
+    BluePacket bpEmpty = BluePacket.deserialize(registry_, dataEmpty);
+    RecursiveA restoredEmpty = (RecursiveA) bpEmpty;
+    assertTrue(restoredEmpty.b == null, "deserialize empty reference");
+
+    // Test 4: Reverse direction
+    RecursiveB b2 = new RecursiveB();
+    RecursiveA a2 = new RecursiveA();
+    b2.setA(a2);
+    byte[] data2 = b2.serialize();
+    BluePacket bp2 = BluePacket.deserialize(registry_, data2);
+    RecursiveB restored2 = (RecursiveB) bp2;
+    assertEquals(a2.toString(), restored2.a.toString(), "deserialize reverse reference");
+
+    System.out.println("PASS");
   }
 
   private void testListPacketEncoding(String name)

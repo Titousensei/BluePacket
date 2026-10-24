@@ -286,5 +286,41 @@ class TestBluePacket
 
     test.testConvert("testConvert");
     test.testApiVersion("testApiVersion");
+    test.TestMutuallyRecursivePackets("testMutuallyRecursivePackets");
+  }
+
+  private void TestMutuallyRecursivePackets(String name)
+  {
+    Console.Write(name + ": ");
+
+    // Test 1: Create instances and set references
+    RecursiveA a = new RecursiveA();
+    RecursiveB b = new RecursiveB();
+    a.b = b;
+    AssertEquals(b, a.b, "set reference");
+
+    // Test 2: Serialize/deserialize with reference
+    byte[] data = a.Serialize();
+    BluePacket bp = BluePacket.Deserialize(data);
+    RecursiveA restored = (RecursiveA) bp;
+    AssertEquals(b.ToString(), restored.b.ToString(), "deserialize with reference");
+
+    // Test 3: Empty reference
+    RecursiveA aEmpty = new RecursiveA();
+    byte[] dataEmpty = aEmpty.Serialize();
+    BluePacket bpEmpty = BluePacket.Deserialize(dataEmpty);
+    RecursiveA restoredEmpty = (RecursiveA) bpEmpty;
+    AssertTrue(restoredEmpty.b == null, "deserialize empty reference");
+
+    // Test 4: Reverse direction
+    RecursiveB b2 = new RecursiveB();
+    RecursiveA a2 = new RecursiveA();
+    b2.a = a2;
+    byte[] data2 = b2.Serialize();
+    BluePacket bp2 = BluePacket.Deserialize(data2);
+    RecursiveB restored2 = (RecursiveB) bp2;
+    AssertEquals(a2.ToString(), restored2.a.ToString(), "deserialize reverse reference");
+
+    Console.WriteLine("PASS");
   }
 }

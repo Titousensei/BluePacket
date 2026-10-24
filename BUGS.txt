@@ -108,18 +108,6 @@ Severity: H = wrong hashes/output or generates invalid code; M = accepts bad inp
 - H: No fixture exercises an inner class with a type outside its own packet; DemoPacket's inner class
   only uses its own inner enum. Repro file and generated `Outer.py` verified.
 
-## H - Python: mutually recursive packets cannot be imported [FIXED]
-
-`header` (52-58) emits normal top-level relative imports (`from .B import B`), and
-`exportInit` imports every module. `A { B b }` / `B { A a }` therefore fails with
-`ImportError: cannot import name 'A' from partially initialized module 'gmut.A'`. Recursive packets
-are an explicit design goal; self-recursion works only because `not_import` contains `data.name`.
-Use deferred imports (`TYPE_CHECKING` + string annotations, or import inside the method) or drop
-the imports in favor of late lookup.
-
-Fixed by using TYPE_CHECKING for field type imports and inline imports in deserialize methods.
-Test added: testMutuallyRecursivePackets in TestBluePacket.py.
-
 ## H - Python: generated list readers ignore the 0xFF extended length
 
 Line 216 hardcodes `for _ in range(bpr.readUnsignedByte())` for every non-bool list type. A list of 255+

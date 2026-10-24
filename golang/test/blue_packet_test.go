@@ -278,3 +278,54 @@ func TestApiVersion(t *testing.T) {
 	assertTrue(t, "BluePacketAPIVersion calculated", BluePacketApiVersion != 0)
 	assertTrue(t, "BluePacketAPIVersionHex calculated", BluePacketApiVersionHex != "")
 }
+
+func TestMutuallyRecursivePackets(t *testing.T) {
+	t.Log("-- TestMutuallyRecursivePackets")
+
+	// Register the recursive types
+	bluepacket.Register(&RecursiveA{})
+	bluepacket.Register(&RecursiveB{})
+
+	// Test 1: Create instances and set references
+	a := &RecursiveA{}
+	b := &RecursiveB{}
+	a.B = b
+	assertEquals(t, "set reference", b, a.B)
+
+	// Test 2: Serialize/deserialize with reference
+	var packetA bluepacket.BluePacket = a
+	data := bluepacket.Serialize(&packetA)
+	bp, err := bluepacket.Deserialize(data)
+	if err != nil {
+		t.Log("ERROR - " + err.Error())
+		t.FailNow()
+	}
+	restored := (*bp).(*RecursiveA)
+	assertEquals(t, "deserialize with reference", b.String(), restored.B.String())
+
+	// Test 3: Empty reference
+	aEmpty := &RecursiveA{}
+	var packetAEmpty bluepacket.BluePacket = aEmpty
+	dataEmpty := bluepacket.Serialize(&packetAEmpty)
+	bpEmpty, err := bluepacket.Deserialize(dataEmpty)
+	if err != nil {
+		t.Log("ERROR - " + err.Error())
+		t.FailNow()
+	}
+	restoredEmpty := (*bpEmpty).(*RecursiveA)
+	assertTrue(t, "deserialize empty reference", restoredEmpty.B == nil)
+
+	// Test 4: Reverse direction
+	b2 := &RecursiveB{}
+	a2 := &RecursiveA{}
+	b2.A = a2
+	var packetB bluepacket.BluePacket = b2
+	data2 := bluepacket.Serialize(&packetB)
+	bp2, err := bluepacket.Deserialize(data2)
+	if err != nil {
+		t.Log("ERROR - " + err.Error())
+		t.FailNow()
+	}
+	restored2 := (*bp2).(*RecursiveB)
+	assertEquals(t, "deserialize reverse reference", a2.String(), restored2.A.String())
+}

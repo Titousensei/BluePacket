@@ -1106,6 +1106,42 @@ _runTest("testForceInitNamedParamsNegative", () => {
 });
 
 // ============================================================================
+// Mutually Recursive Packets Tests
+// ============================================================================
+
+_runTest("testMutuallyRecursivePackets create and reference", () => {
+    let a = new T.RecursiveA();
+    let b = new T.RecursiveB();
+    a.b = b;
+    _assertEqual(b, a.b, "set reference");
+});
+
+_runTest("testMutuallyRecursivePackets serialize deserialize", () => {
+    let a = new T.RecursiveA();
+    let b = new T.RecursiveB();
+    a.b = b;
+    let data = a.serialize();
+    let restored = T.registry.deserialize(data);
+    _assertEqual(b.toString(), restored.b.toString(), "deserialize with reference");
+});
+
+_runTest("testMutuallyRecursivePackets empty reference", () => {
+    let a = new T.RecursiveA();
+    let data = a.serialize();
+    let restored = T.registry.deserialize(data);
+    _assertEqual(null, restored.b, "deserialize empty reference");
+});
+
+_runTest("testMutuallyRecursivePackets reverse direction", () => {
+    let b = new T.RecursiveB();
+    let a = new T.RecursiveA();
+    b.a = a;
+    let data = b.serialize();
+    let restored = T.registry.deserialize(data);
+    _assertEqual(a.toString(), restored.a.toString(), "deserialize reverse reference");
+});
+
+// ============================================================================
 // Results
 // ============================================================================
 
