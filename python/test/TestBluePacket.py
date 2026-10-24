@@ -508,5 +508,31 @@ class TestBluePacket(unittest.TestCase):
     self.assertEqual(restored.polyList[1].oString, 'y')
 
 
+    def testMutuallyRecursivePackets(self):
+        """Test mutually recursive packets (RecursiveA <-> RecursiveB)."""
+        a = t.RecursiveA()
+        b = t.RecursiveB()
+        a.b = b
+        self.assertEqual(a.b, b)
+
+        data = a.serialize()
+        restored = self._BP_REGISTRY.deserialize(data)
+        self.assertIsNotNone(restored.b)
+        self.assertEqual(str(restored.b), str(b))
+
+        a_empty = t.RecursiveA()
+        data_empty = a_empty.serialize()
+        restored_empty = self._BP_REGISTRY.deserialize(data_empty)
+        self.assertIsNone(restored_empty.b)
+
+        b2 = t.RecursiveB()
+        a2 = t.RecursiveA()
+        b2.a = a2
+        data2 = b2.serialize()
+        restored2 = self._BP_REGISTRY.deserialize(data2)
+        self.assertIsNotNone(restored2.a)
+        self.assertEqual(str(restored2.a), str(a2))
+
+
 if __name__ == '__main__':
     unittest.main()

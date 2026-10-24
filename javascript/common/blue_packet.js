@@ -318,17 +318,19 @@ class BluePacketRegistry {
 }
 
 class BluePacketWriter {
-  constructor() {
-    this.buffer = Buffer.alloc(64);
+  constructor(initialCapacity = 64) {
+    this.buffer = new Uint8Array(initialCapacity);
+    this.view = new DataView(this.buffer.buffer);
     this.offset = 0;
   }
 
   _ensure(size) {
     if (this.offset + size > this.buffer.length) {
       const newSize = Math.max(this.buffer.length * 2, this.offset + size);
-      const newBuf = Buffer.alloc(newSize);
-      this.buffer.copy(newBuf);
+      const newBuf = new Uint8Array(newSize);
+      newBuf.set(this.buffer);
       this.buffer = newBuf;
+      this.view = new DataView(this.buffer.buffer);
     }
   }
 
@@ -337,14 +339,14 @@ class BluePacketWriter {
     packet.serializeData(this);
   }
 
-  writeByte(v) { this._ensure(1); this.offset = this.buffer.writeInt8(v, this.offset); }
-  writeUnsignedByte(v) { this._ensure(1); this.offset = this.buffer.writeUInt8(v, this.offset); }
-  writeShort(v) { this._ensure(2); this.offset = this.buffer.writeInt16BE(v, this.offset); }
-  writeUnsignedShort(v) { this._ensure(2); this.offset = this.buffer.writeUInt16BE(v, this.offset); }
-  writeInt(v) { this._ensure(4); this.offset = this.buffer.writeInt32BE(v, this.offset); }
-  writeLong(v) { this._ensure(8); this.offset = this.buffer.writeBigInt64BE(typeof v === 'bigint' ? v : BigInt(v), this.offset); }
-  writeFloat(v) { this._ensure(4); this.offset = this.buffer.writeFloatBE(v, this.offset); }
-  writeDouble(v) { this._ensure(8); this.offset = this.buffer.writeDoubleBE(v, this.offset); }
+  writeByte(v) { this._ensure(1); this.view.setInt8(this.offset, v); this.offset += 1; }
+  writeUnsignedByte(v) { this._ensure(1); this.view.setUint8(this.offset, v); this.offset += 1; }
+  writeShort(v) { this._ensure(2); this.view.setInt16(this.offset, v); this.offset += 2; }
+  writeUnsignedShort(v) { this._ensure(2); this.view.setUint16(this.offset, v); this.offset += 2; }
+  writeInt(v) { this._ensure(4); this.view.setInt32(this.offset, v); this.offset += 4; }
+  writeLong(v) { this._ensure(8); this.view.setBigInt64(this.offset, typeof v === 'bigint' ? v : BigInt(v)); this.offset += 8; }
+  writeFloat(v) { this._ensure(4); this.view.setFloat32(this.offset, v); this.offset += 4; }
+  writeDouble(v) { this._ensure(8); this.view.setFloat64(this.offset, v); this.offset += 8; }
 
   _writeSeqLength(length) {
     if (length < _MAX_UNSIGNED_BYTE) {
@@ -359,10 +361,11 @@ class BluePacketWriter {
     if (field == null) {
       this.writeUnsignedByte(0);
     } else {
-      const b = Buffer.from(field, 'utf-8');
+      const encoder = new TextEncoder();
+      const b = encoder.encode(field);
       this._writeSeqLength(b.length);
       this._ensure(b.length);
-      b.copy(this.buffer, this.offset);
+      this.buffer.set(b, this.offset);
       this.offset += b.length;
     }
   }
@@ -439,13 +442,23 @@ class BluePacketWriter {
   }
 
   toBuffer() {
-    return this.buffer.slice(0, this.offset);
+    const result = this.buffer.slice(0, this.offset);
+    // Return Buffer in Node.js for backward compatibility, Uint8Array in browser
+    if (typeof Buffer !== 'undefined' && Buffer.from) {
+      return Buffer.from(result);
+    }
+    return result;
   }
 }
 
 class BluePacketReader {
   constructor(buffer) {
-    this.buffer = buffer;
+    // Always create a new Uint8Array to ensure we have a proper ArrayBuffer.
+    // Node.js Buffer has a shared underlying ArrayBuffer with offset.
+    this.buffer = buffer instanceof Uint8Array
+      ? new Uint8Array(buffer)  // Copy to get standalone buffer
+      : new Uint8Array(buffer);
+    this.view = new DataView(this.buffer.buffer);
     this.offset = 0;
   }
 
@@ -456,25 +469,25 @@ class BluePacketReader {
   }
 
   readUnsignedByte() {
-    const v = this.buffer.readUInt8(this.offset);
+    const v = this.view.getUint8(this.offset);
     this.offset += 1;
     return v;
   }
 
   readByte() {
-    const v = this.buffer.readInt8(this.offset);
+    const v = this.view.getInt8(this.offset);
     this.offset += 1;
     return v;
   }
 
   readDouble() {
-    const v = this.buffer.readDoubleBE(this.offset);
+    const v = this.view.getFloat64(this.offset);
     this.offset += 8;
     return v;
   }
 
   readFloat() {
-    const v = this.buffer.readFloatBE(this.offset);
+    const v = this.view.getFloat32(this.offset);
     this.offset += 4;
     if (v === 0) return v;
     // Shortest decimal that round-trips to the same float32.
@@ -486,25 +499,25 @@ class BluePacketReader {
   }
 
   readInt() {
-    const v = this.buffer.readInt32BE(this.offset);
+    const v = this.view.getInt32(this.offset);
     this.offset += 4;
     return v;
   }
 
   readLong() {
-    const v = this.buffer.readBigInt64BE(this.offset);
+    const v = this.view.getBigInt64(this.offset);
     this.offset += 8;
     return v;
   }
 
   readShort() {
-    const v = this.buffer.readInt16BE(this.offset);
+    const v = this.view.getInt16(this.offset);
     this.offset += 2;
     return v;
   }
 
   readUnsignedShort() {
-    const v = this.buffer.readUInt16BE(this.offset);
+    const v = this.view.getUint16(this.offset);
     this.offset += 2;
     return v;
   }
@@ -537,13 +550,15 @@ class BluePacketReader {
 
   readString() {
     const length = this.readSequenceLength();
-    const i = this.offset;
+    const decoder = new TextDecoder();
+    const slice = this.buffer.slice(this.offset, this.offset + length);
     this.offset += length;
-    return this.buffer.toString('utf-8', i, this.offset);
+    return decoder.decode(slice);
   }
 }
 
-module.exports = {
+// Global exposure for browser compatibility
+const _exports = {
   FieldTypeException,
   assertType,
   initFields,
@@ -560,3 +575,13 @@ module.exports = {
   BluePacketWriter,
   BluePacketReader,
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = _exports;
+}
+if (typeof window !== 'undefined') {
+  window.BluePacketLib = _exports;
+}
+if (typeof globalThis !== 'undefined') {
+  globalThis.BluePacketLib = _exports;
+}

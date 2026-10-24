@@ -39,12 +39,14 @@ PYTHON_READER = {
 }
 
 
-def header(out, data):
+def header(out, data, field_is_enum=None):
     println(out, "# WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
     println(out, "import enum")
     println(out)
     if not data.is_enum:
       println(out, "from blue_packet import BluePacket, assertType, toQuotedString")
+      println(out, "from typing import TYPE_CHECKING")
+      println(out)
       not_import = { data.name, 'bool' }
       not_import.update(PYTHON_READER)
       not_import.update(data.inner)
@@ -54,12 +56,27 @@ def header(out, data):
         for pf in data.fields
         if pf.name and pf.type not in not_import
       }
-      for ftype in needed_imports:
+      # External enums used in constructor need runtime imports
+      external_enums = set()
+      if field_is_enum:
+        for pf in data.fields:
+          if pf.name and pf.type in field_is_enum and pf.type not in data.enums:
+            external_enums.add(pf.type)
+      # Abstracts and converts need runtime imports (abstracts for inheritance, converts for convert() methods)
+      for ftype in sorted(data.abstracts):
         println(out, f"from .{ftype} import {ftype}")
-      for ftype in data.abstracts:
+      for ftype in sorted(data.converts):
         println(out, f"from .{ftype} import {ftype}")
-      for ftype in data.converts:
+      # External enums used in constructor need runtime imports
+      for ftype in sorted(external_enums):
         println(out, f"from .{ftype} import {ftype}")
+      # Other field types can use TYPE_CHECKING to avoid circular imports
+      type_checking_imports = needed_imports - external_enums
+      if type_checking_imports:
+        println(out, "if TYPE_CHECKING:")
+        for ftype in sorted(type_checking_imports):
+          println(out, f"  from .{ftype} import {ftype}")
+        println(out)
       println(out)
 
 
@@ -191,6 +208,13 @@ def produceDeserializer(out, data, fields, indent, field_is_enum, parent_name):
     println(out, f"{indent}    pass")
     return
 
+  # Collect external packet types that need runtime imports
+  external_packet_types = set()
+  for pf in fields:
+    if not pf.name or pf.type == 'bool' or pf.type in PYTHON_READER or pf.type in field_is_enum or pf.type in data.inner or pf.type in data.enums:
+      continue
+    external_packet_types.add(pf.type)
+
   bool_counter = 0
   for pf in fields:
     if pf.is_list or pf.type != 'bool':
@@ -204,6 +228,12 @@ def produceDeserializer(out, data, fields, indent, field_is_enum, parent_name):
     bool_counter += 1
 
   println(out, f"{indent}  # Non-boolean fields")
+  # Add inline imports for external packet types to avoid circular imports
+  for ftype in sorted(external_packet_types):
+    println(out, f"{indent}  from .{ftype} import {ftype}")
+  if external_packet_types:
+    println(out)
+
   for pf in fields:
     if (not pf.is_list and pf.type == 'bool') or not pf.name:
       continue
@@ -362,7 +392,7 @@ def exportClass(out_dir, data, version, all_data):
   path = os.path.join(out_dir, data.name + ".py")
   print("[ExporterPython] BluePacket class", path, file=sys.stderr)
   with open(path, "w") as out:
-    header(out, data)
+    header(out, data, data.field_is_enum)
 
     sorted_fields = list(sorted(data.fields, key=str))
     if data.abstracts:
@@ -409,7 +439,7 @@ def exportEnum(out_dir, data):
   path = os.path.join(out_dir, data.name + ".py")
   print("[ExporterPython] BluePacket enum", path, file=sys.stderr)
   with open(path, "w") as out:
-    header(out, data)
+    header(out, data, None)
     exportInnerEnum(out, data, "")
 
 
@@ -417,7 +447,7 @@ def exportAbstract(out_dir, data):
   path = os.path.join(out_dir, data.name + ".py")
   print("[ExporterPython] BluePacket abstract", path, file=sys.stderr)
   with open(path, "w") as out:
-    header(out, data)
+    header(out, data, None)
     println(out, f"class {data.name}():")
     produceDocstring(out, "    ", data.docstring)
     println(out, f"    pass")

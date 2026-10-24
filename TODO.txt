@@ -4,7 +4,8 @@
 === High Priority ===
 - lib load manifest and verify
   - save manifest (hash, packet)
-- parameter --namespace
+- javascript -> emit an obfuscated ECMAScript Modules
+  - IIFE is properly wrapping the gen.js code
 
 === Export Tests ===
 - hash version

@@ -75,6 +75,26 @@ def produceTypeInfo(out, data, owner, all_data, indent):
     println(out, f"{indent}{INDENT}{pf.name}: {entry}],")
   println(out, indent + "};")
 
+def produceSetters(out, data, indent):
+  """Generate fluent setXxx() methods for chaining, matching Java API."""
+  fields = sortedFields(data.fields)
+  if not fields:
+    return
+  println(out)
+  for pf in fields:
+    produceComment(out, indent, [f"Fluent setter for {pf.name}.", "@param val value", "@return this"])
+    method_name = "set" + pf.name[0].upper() + pf.name[1:]
+    if pf.is_list:
+      println(out, indent + f"{method_name}(val) {{")
+      println(out, indent + INDENT + f"this.{pf.name} = val;")
+      println(out, indent + INDENT + "return this;")
+      println(out, indent + "}")
+    else:
+      println(out, indent + f"{method_name}(val) {{")
+      println(out, indent + INDENT + f"this.{pf.name} = val;")
+      println(out, indent + INDENT + "return this;")
+      println(out, indent + "}")
+
 
 def produceSerializer(out, data, owner, indent):
   field_is_enum = owner.field_is_enum
@@ -224,6 +244,7 @@ def produceClass(out, data, owner, all_data, version):
   produceSerializer(out, data, owner, INDENT)
   println(out)
   produceDeserializer(out, data, owner, INDENT)
+  produceSetters(out, data, INDENT)
 
   if data.converts:
     println(out)
@@ -256,7 +277,7 @@ def produceAbstract(out, data):
   println(out, "}")
 
 
-def exportBundle(out_dir, runtime, all_data, api_version):
+def exportBundle(out_dir, runtime, all_data, api_version, browser_mode):
   os.makedirs(out_dir, exist_ok=True)
   path = os.path.join(out_dir, OUTPUT_FILE)
   print("[ExporterJavaScript] BluePacket bundle", path, file=sys.stderr)
@@ -289,10 +310,31 @@ def exportBundle(out_dir, runtime, all_data, api_version):
     println(out, "// Do not add fields or override serializeData/populateData.")
     println(out, '"use strict";')
     println(out)
-    println(out, f"const bp = require('{runtime}');")
+
+    if browser_mode:
+      println(out, "// Browser-compatible bundle (IIFE)")
+      println(out, "(function() {")
+      println(out)
+      println(out, "  // Resolve runtime from globals (set by blue_packet.js) or fall back to require")
+      println(out, "  let bp;")
+      println(out, "  if (typeof window !== 'undefined' && window.BluePacketLib) {")
+      println(out, "    bp = window.BluePacketLib;")
+      println(out, "  } else if (typeof globalThis !== 'undefined' && globalThis.BluePacketLib) {")
+      println(out, "    bp = globalThis.BluePacketLib;")
+      println(out, "  } else if (typeof require !== 'undefined') {")
+      println(out, f"    bp = require('{runtime}');")
+      println(out, "  } else {")
+      println(out, "    throw new Error('BluePacket runtime not found. Include blue_packet.js first or ensure require() is available.');")
+      println(out, "  }")
+    else:
+      println(out, f"const bp = require('{runtime}');")
+
     for name in ("BluePacket", "BluePacketRegistry", "assertType", "createEnum", "enumFromWire",
                  "initFields", "toSignedByte", "toSignedShort", "toUnsignedByte", "toUnsignedShort"):
-      println(out, f"const {name} = bp.{name};")
+      if browser_mode:
+        println(out, f"  const {name} = bp.{name};")
+      else:
+        println(out, f"const {name} = bp.{name};")
 
     if enums:
       println(out)
@@ -347,20 +389,40 @@ def exportBundle(out_dir, runtime, all_data, api_version):
     println(out)
     println(out, "// --- exports ---")
     println(out)
-    println(out, "module.exports = {")
+    if browser_mode:
+      println(out, "  const exports = {")
+    else:
+      println(out, "module.exports = {")
     for data in all_data.values():
       println(out, INDENT + f"{data.name},")
     for name in ("BluePacketRegistry", "registry", "BluePacketAPI",
                  "toSignedByte", "toSignedShort", "toUnsignedByte", "toUnsignedShort"):
       println(out, INDENT + f"{name},")
-    println(out, "};")
-
+    if browser_mode:
+      println(out, "  };")
+      println(out)
+      println(out, "  // Global exposure for browser")
+      println(out, "  if (typeof window !== 'undefined') {")
+      println(out, "    window.BluePacketGen = exports;")
+      println(out, "  }")
+      println(out, "  if (typeof globalThis !== 'undefined') {")
+      println(out, "    globalThis.BluePacketGen = exports;")
+      println(out, "  }")
+      println(out)
+      println(out, "  // Node.js CommonJS export")
+      println(out, "  if (typeof module !== 'undefined' && module.exports) {")
+      println(out, "    module.exports = exports;")
+      println(out, "  }")
+      println(out, "})();")
+    else:
+      println(out, "};")
 
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', required=True, help='Directory where the bundle will be generated')
   parser.add_argument('--runtime', default=DEFAULT_RUNTIME,
                       help=f'Module path used to require the BluePacket runtime (default: {DEFAULT_RUNTIME})')
+  parser.add_argument('--browser', action='store_true', help='Generate browser-compatible bundle (IIFE with global exposure)')
   parser.add_argument('--debug', action='store_true', help='Print parser debug info')
   parser.add_argument('packets', nargs='+', help='List of .bp files to process')
   return parser.parse_args()
@@ -373,4 +435,4 @@ if __name__ == "__main__":
   if args.debug:
     for cl, lf in all_data.items():
       print(cl, lf)
-  exportBundle(args.output_dir, args.runtime, all_data, p.api_version)
+  exportBundle(args.output_dir, args.runtime, all_data, p.api_version, args.browser)

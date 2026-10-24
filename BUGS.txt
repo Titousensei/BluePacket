@@ -108,7 +108,7 @@ Severity: H = wrong hashes/output or generates invalid code; M = accepts bad inp
 - H: No fixture exercises an inner class with a type outside its own packet; DemoPacket's inner class
   only uses its own inner enum. Repro file and generated `Outer.py` verified.
 
-## H - Python: mutually recursive packets cannot be imported
+## H - Python: mutually recursive packets cannot be imported [FIXED]
 
 `header` (52-58) emits normal top-level relative imports (`from .B import B`), and
 `exportInit` imports every module. `A { B b }` / `B { A a }` therefore fails with
@@ -116,6 +116,9 @@ Severity: H = wrong hashes/output or generates invalid code; M = accepts bad inp
 are an explicit design goal; self-recursion works only because `not_import` contains `data.name`.
 Use deferred imports (`TYPE_CHECKING` + string annotations, or import inside the method) or drop
 the imports in favor of late lookup.
+
+Fixed by using TYPE_CHECKING for field type imports and inline imports in deserialize methods.
+Test added: testMutuallyRecursivePackets in TestBluePacket.py.
 
 ## H - Python: generated list readers ignore the 0xFF extended length
 
@@ -253,14 +256,33 @@ emitting (the field loops already use `sorted(key=str)`).
   generic JSON round-trip cannot recreate the concrete class. Decide whether to add a marker
   (e.g. "$type") or require schema knowledge.
 
-# JS design decisions
+# JS Gaps
 
-- Generated classes are intentionally not final. Behavior may be extended (subclass methods,
-  prototype helpers/mixins); state may not. Instances are sealed, so a subclass that adds fields
-  fails at construction. Do not override serializeData/populateData. The contract is stated in the
-  generated bundle header and IMPLEMENTATION_GUIDE.md, and pinned by testSubclass methods/fields.
-  Subclass helpers do not appear on registry-deserialized instances; use prototype helpers for
-  those.
+- H: Flat JS bundle can't represent duplicate inner type names across packets.
+  - Java/C# get scoping for free via nesting; the JS exporter emits every inner
+    enum/class into one flat namespace. RegistrationResponse.ErrorCode and
+    LoginFail.ErrorCode collide.
+  - this is different from  the duplicate-inner-name guard ("the duplicate
+    inner-name guard is exporter-only") but not about the legitimate cross-packet
+    case. This is the strongest contribution candidate.
+- H: JS enum validation is name-based and unsound.
+  - _assertOther in blue_packet.js only does x.type === type (and
+    constructor.name). Once enum identifiers are qualified, that fails; once
+    two owners share a simple enum name, it can't tell them apart.
+  - Proper fix: put the actual enum object (or a stable identifier) into
+    TYPE_INFO and validate identity/membership, not string suffixes. This pairs
+    with issue 1.
+- M: No scalar boolean primitive in the JS writer/reader.
+  - only writeListBool/readListBool; scalar bools are bit-packed by the
+    generated code, no need writeBoolean/readBoolean today.
+  - some use-cases might need one-byte scalar bools inline. a scalar
+    writeBoolean/readBoolean is a reasonable primitive-completeness addition
+    upstream (Java/C# have boolean handling, just via packed generated code).
+- M: normalizeData mutates the parser IR in place.
+  - I replace data.fields and inject attributes. Upstream's own BUGS.txt
+    explicitly warns exporters against mutating the parser IR in place (called
+    out for Go). If the multi-parser adapter were contributed, it should build
+    copies, not mutate.
 
 # JS tests - open
 
