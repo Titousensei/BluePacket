@@ -4,7 +4,7 @@ import unittest, traceback
 
 sys.path.append('..')
 
-from libexport import Parser, SourceException, versionString
+from libexport import Parser, SourceException, versionString, versionHash
 
 TESTDATA_DIR = "../../testdata"
 
@@ -75,6 +75,83 @@ class TestLibExport(unittest.TestCase):
         with self.assertRaises(SourceException) as cm:
           data = p.parse([filepath], annotations=annotations)
         self.assertEqual(annotations['@what'], cm.exception.what, ''.join(traceback.format_exception(cm.exception)))
+
+  def test_salt_version_string(self):
+    """Test that salt changes the versionString output."""
+    # Use a simple packet for testing
+    p = Parser()
+    all_data = p.parse([os.path.join(TESTDATA_DIR, "Demo.bp")])
+    data = all_data["DemoPacket"]
+
+    # Version string without salt
+    vs_no_salt = versionString(data, all_data, {}, {}, set())
+
+    # Version string with salt
+    vs_with_salt = versionString(data, all_data, {}, {}, set(), salt="my_salt_")
+
+    # Salt should be prefixed to the version string
+    self.assertTrue(vs_with_salt.startswith("my_salt_"))
+    self.assertEqual(vs_with_salt, "my_salt_" + vs_no_salt)
+
+  def test_salt_version_hash(self):
+    """Test that salt changes the versionHash output."""
+    p = Parser()
+    all_data = p.parse([os.path.join(TESTDATA_DIR, "Demo.bp")])
+    data = all_data["DemoPacket"]
+
+    # Hash without salt
+    hash_no_salt = versionHash(data, all_data)
+
+    # Hash with salt
+    hash_with_salt = versionHash(data, all_data, salt="my_salt_")
+
+    # Hashes should be different
+    self.assertNotEqual(hash_no_salt, hash_with_salt)
+
+    # Same salt should produce same hash
+    hash_with_salt2 = versionHash(data, all_data, salt="my_salt_")
+    self.assertEqual(hash_with_salt, hash_with_salt2)
+
+    # Different salt should produce different hash
+    hash_with_salt3 = versionHash(data, all_data, salt="different_salt_")
+    self.assertNotEqual(hash_with_salt, hash_with_salt3)
+
+  def test_salt_parser(self):
+    """Test that Parser with salt computes correct versions."""
+    # Parse with no salt
+    p1 = Parser(salt="")
+    all_data1 = p1.parse([os.path.join(TESTDATA_DIR, "Demo.bp")])
+    version1 = all_data1["DemoPacket"].version
+
+    # Parse with salt
+    p2 = Parser(salt="test_salt_")
+    all_data2 = p2.parse([os.path.join(TESTDATA_DIR, "Demo.bp")])
+    version2 = all_data2["DemoPacket"].version
+
+    # Versions should be different
+    self.assertNotEqual(version1, version2)
+
+    # API versions should also be different
+    self.assertNotEqual(p1.api_version, p2.api_version)
+
+  def test_salt_manifest(self):
+    """Test that manifest includes salted hashes."""
+    import tempfile
+    import os
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      # Parse with salt and generate manifest
+      p = Parser(salt="manifest_salt_")
+      p.parse([os.path.join(TESTDATA_DIR, "Demo.bp")], manifest_path=tmpdir)
+
+      # Read manifest
+      manifest_file = os.path.join(tmpdir, "manifest_bp.csv")
+      self.assertTrue(os.path.exists(manifest_file))
+
+      with open(manifest_file) as f:
+        content = f.read()
+        # Should contain the salted hash
+        self.assertIn("DemoPacket", content)
 
 if __name__ == '__main__':
     unittest.main()

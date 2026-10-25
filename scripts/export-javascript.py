@@ -277,7 +277,7 @@ def produceAbstract(out, data):
   println(out, "}")
 
 
-def exportBundle(out_dir, runtime, all_data, api_version, browser_mode):
+def exportBundle(out_dir, runtime, all_data, api_version, browser_mode, salt=""):
   os.makedirs(out_dir, exist_ok=True)
   path = os.path.join(out_dir, OUTPUT_FILE)
   print("[ExporterJavaScript] BluePacket bundle", path, file=sys.stderr)
@@ -357,7 +357,7 @@ def exportBundle(out_dir, runtime, all_data, api_version, browser_mode):
       println(out)
       println(out, f"// --- {data.name} ---")
       println(out)
-      produceClass(out, data, data, all_data, versionHash(data, all_data))
+      produceClass(out, data, data, all_data, versionHash(data, all_data, salt=salt))
 
     if abstracts:
       println(out)
@@ -423,6 +423,7 @@ def get_args():
   parser.add_argument('--runtime', default=DEFAULT_RUNTIME,
                       help=f'Module path used to require the BluePacket runtime (default: {DEFAULT_RUNTIME})')
   parser.add_argument('--browser', action='store_true', help='Generate browser-compatible bundle (IIFE with global exposure)')
+  parser.add_argument('--salt', default='', help='Salt prefix added to versionString before hashing packets')
   parser.add_argument('--debug', action='store_true', help='Print parser debug info')
   parser.add_argument('packets', nargs='+', help='List of .bp files to process')
   return parser.parse_args()
@@ -430,9 +431,9 @@ def get_args():
 
 if __name__ == "__main__":
   args = get_args()
-  p = Parser()
+  p = Parser(salt=args.salt)
   all_data = p.parse(args.packets, manifest_path=args.output_dir)
   if args.debug:
     for cl, lf in all_data.items():
       print(cl, lf)
-  exportBundle(args.output_dir, args.runtime, all_data, p.api_version, args.browser)
+  exportBundle(args.output_dir, args.runtime, all_data, p.api_version, args.browser, args.salt)

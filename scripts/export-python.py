@@ -478,6 +478,7 @@ def exportInit(out_dir, all_data):
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
+  parser.add_argument('--salt', default='', help='Salt prefix added to versionString before hashing packets')
   parser.add_argument('--debug', action='store_true', help='Print parser debug info')
   parser.add_argument('packets', nargs='+', help='List of .bp files to process')
   return parser.parse_args()
@@ -485,7 +486,7 @@ def get_args():
 
 if __name__ == "__main__":
   args = get_args()
-  p = Parser()
+  p = Parser(salt=args.salt)
   all_data = p.parse(args.packets, manifest_path=args.output_dir)
   if args.debug:
     for cl, lf in all_data.items():
@@ -498,6 +499,6 @@ if __name__ == "__main__":
     elif data.is_abstract:
       exportAbstract(args.output_dir, data)
     else:
-      version = versionHash(data, all_data)
+      version = versionHash(data, all_data, salt=args.salt)
       exportClass(args.output_dir, data, version, all_data)
   exportApiVersion(args.output_dir, p.api_version)

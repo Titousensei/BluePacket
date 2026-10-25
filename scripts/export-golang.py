@@ -447,6 +447,7 @@ def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', help='Directory where the sources will be generated')
   parser.add_argument('--package', help='Package for the generated classes')
+  parser.add_argument('--salt', default='', help='Salt prefix added to versionString before hashing packets')
   parser.add_argument('--debug', action='store_true', help='Print parser debug info')
   # Golint might not like __ in names, so there's an option to replace this marker with another string. 
   # We should pick special letters that look like separators and are easy to distinguish from alphabetic letters.
@@ -458,7 +459,7 @@ def get_args():
 
 if __name__ == "__main__":
   args = get_args()
-  p = Parser()
+  p = Parser(salt=args.salt)
   _GOLANG_DEPRECATED = args.marker_deprecated
   all_data = p.parse(args.packets, manifest_path=args.output_dir)
   if args.debug:
@@ -467,7 +468,7 @@ if __name__ == "__main__":
 
   # compute version hashes before fields are capitalized
   versions = {
-     _getGoType(data.name): versionHash(data, all_data)
+     _getGoType(data.name): versionHash(data, all_data, salt=args.salt)
     for _, data in all_data.items()
   }
 

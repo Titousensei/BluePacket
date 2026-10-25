@@ -115,7 +115,7 @@ def _mergeUniquely(a, b, msg):
   return ret
 
 
-def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
+def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix="", salt=""):
   """Generate version string for a packet/enum/inner type.
 
   Args:
@@ -125,10 +125,11 @@ def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
     my_inner: Local inner types dict (merged from parent)
     seen_objects: Set of id(data) for cycle detection (tracks object identity)
     prefix: Qualified name prefix for the current type (e.g., "Container.PacketA.")
+    salt: Optional salt prefix to add before hashing
   """
   # Build fully qualified name for this type
   qualified_name = prefix + (data.origin_name or data.name)
-  ret = data.origin_name or data.name
+  ret = salt + (data.origin_name or data.name)
 
   # Cycle detection: track object identity
   data_id = id(data)
@@ -205,15 +206,15 @@ def versionString(data, all_data, my_enums, my_inner, seen_objects, prefix=""):
   return ret
 
 
-def versionHash(data, all_data, prefix=""):
-  s = prefix+versionString(data, all_data, {}, {}, set())
+def versionHash(data, all_data, prefix="", salt=""):
+  s = prefix+versionString(data, all_data, {}, {}, set(), prefix=salt)
   h = md5(s.encode("utf-8"))
   ret, _ = unpack("!2q", h.digest())
   return ret
 
 
 class Parser:
-  def __init__(self):
+  def __init__(self, salt=""):
     self.packet_list = {}
     self.data = None
     self.indent = 0
@@ -221,6 +222,7 @@ class Parser:
     self.top = None
     self.api_version = None
     self.context_stack = []  # Stack of (data, state, indent) for nested contexts
+    self.salt = salt
 
   def read_enums(self, line, indent, docstring):
     for en in line.strip().split(','):
@@ -359,7 +361,7 @@ class Parser:
     for _, data in self.packet_list.items():
         if data.origin_name == data.name:
             continue
-        version = versionHash(data, self.packet_list)
+        version = versionHash(data, self.packet_list, salt=self.salt)
         hexname = f"{data.origin_name}__{version & 0xFFFFFFFFFFFFFFFF:0X}"
         if data.name != hexname:
           raise SourceException(
@@ -398,17 +400,17 @@ class Parser:
     # Compute version for inner enums first (needed by top-level packets/enums)
     for _, data in self.packet_list.items():
       for inner_enum in data.enums.values():
-        inner_enum.version = versionHash(inner_enum, self.packet_list)
+        inner_enum.version = versionHash(inner_enum, self.packet_list, salt=self.salt)
 
     # Compute version for top-level enums (needed by packets)
     for _, data in self.packet_list.items():
       if data.is_enum:
-        data.version = versionHash(data, self.packet_list)
+        data.version = versionHash(data, self.packet_list, salt=self.salt)
 
     # Compute version for packets (non-enum, non-abstract)
     for _, data in self.packet_list.items():
       if not data.is_enum and not data.is_abstract:
-        data.version = versionHash(data, self.packet_list)
+        data.version = versionHash(data, self.packet_list, salt=self.salt)
 
     self.api_version = 0
     for pk_name, pk in self.packet_list.items():
@@ -431,7 +433,7 @@ class Parser:
     for name, data in self.packet_list.items():
       if data.is_enum:
         # Top-level enums get their own hash
-        version = versionHash(data, self.packet_list)
+        version = versionHash(data, self.packet_list, salt=self.salt)
         deprecated = "true" if data.name != data.origin_name else "false"
         rows.append((f"{version & 0xFFFFFFFFFFFFFFFF:0X}", data.origin_name, deprecated))
       elif not data.is_abstract:
@@ -456,4 +458,4 @@ if __name__ == "__main__":
     if data.is_enum or data.is_abstract:
       print(data)
     else:
-      print(versionString(data, all_data, {}, {}, set()))
+      print(versionString(data, all_data, {}, {}, set(), salt=p.salt))
