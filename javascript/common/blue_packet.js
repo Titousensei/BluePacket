@@ -153,6 +153,119 @@ function enumFromWire(enumType, value) {
   return entry;
 }
 
+const _BP_FALSE_STRINGS = new Set(['', 'false', 'f', '0', 'no', 'n', 'off', 'null', 'none']);
+
+function bpFormatFloat(value) {
+  if (Number.isNaN(value)) return 'nan';
+  if (value === Infinity) return 'inf';
+  if (value === -Infinity) return '-inf';
+  if (Object.is(value, -0)) return '-0.0';
+  const text = String(value);
+  if (text.includes('.') || text.includes('e') || text.includes('E')) return text;
+  return text + '.0';
+}
+
+function bpToString(value, isFloat = false) {
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number') return isFloat ? bpFormatFloat(value) : String(value);
+  if (value && value.type !== undefined && value.name !== undefined) return value.name;
+  return String(value);
+}
+
+function bpStringToBool(value) {
+  return !_BP_FALSE_STRINGS.has(value.trim().toLowerCase());
+}
+
+function bpToBool(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'bigint') return value !== 0n;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') return bpStringToBool(value);
+  return value !== null && value !== undefined;
+}
+
+function bpToNumber(value) {
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'bigint') return Number(value);
+  if (typeof value === 'number') return value;
+  if (value && value.type !== undefined && typeof value.value === 'number') return value.value;
+  const text = String(value).trim();
+  if (/^[+-]?\d+$/.test(text)) return Number(text);
+  const number = Number(text);
+  return Number.isNaN(number) ? 0 : number;
+}
+
+function bpToInt(value, low, high) {
+  const number = bpToNumber(value);
+  if (Number.isNaN(number)) return 0;
+  if (!Number.isFinite(number)) return number > 0 ? high : low;
+  return Math.min(high, Math.max(low, Math.trunc(number)));
+}
+
+function bpToBigInt(value, low, high) {
+  let number;
+  if (typeof value === 'bigint') {
+    number = value;
+  } else if (typeof value === 'boolean') {
+    number = value ? 1n : 0n;
+  } else if (typeof value === 'string') {
+    const text = value.trim();
+    try {
+      number = BigInt(text);
+    } catch (e) {
+      const parsed = Number(text);
+      number = Number.isNaN(parsed) ? 0n : BigInt(Math.trunc(parsed));
+    }
+  } else if (value && value.type !== undefined && typeof value.value === 'number') {
+    number = BigInt(Math.trunc(value.value));
+  } else {
+    const parsed = Number(value);
+    number = Number.isNaN(parsed) ? 0n : BigInt(Math.trunc(parsed));
+  }
+  if (number < low) return low;
+  if (number > high) return high;
+  return number;
+}
+
+function bpToFloat(value, isFloat) {
+  const number = bpToNumber(value);
+  if (!isFloat) return number;
+  if (Number.isNaN(number)) return number;
+  const limit = 3.4028234663852886e38;
+  if (number === Infinity) return limit;
+  if (number === -Infinity) return -limit;
+  if (number > limit) return limit;
+  if (number < -limit) return -limit;
+  return number;
+}
+
+function bpFirstEnum(enumType) {
+  const values = Object.values(enumType);
+  return values.length === 0 ? undefined : values[0];
+}
+
+function bpEnumFromOrdinal(enumType, value) {
+  const entry = enumType.valueOf(Math.trunc(Number(value)));
+  return entry === undefined ? bpFirstEnum(enumType) : entry;
+}
+
+function bpToEnum(enumType, value) {
+  if (value && value.type === enumType[_ENUM_TYPE_NAME]) return value;
+  if (value && value.type !== undefined && typeof value.value === 'number') {
+    return bpEnumFromOrdinal(enumType, value.value);
+  }
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (enumType[text] !== undefined) return enumType[text];
+    const number = Number(text);
+    if (!Number.isNaN(number)) return bpEnumFromOrdinal(enumType, number);
+    return bpFirstEnum(enumType);
+  }
+  if (typeof value === 'boolean') return bpEnumFromOrdinal(enumType, value ? 1 : 0);
+  return bpEnumFromOrdinal(enumType, value);
+}
+
 function toQuotedString(x) {
   return x ? '"' + x + '"' : '';
 }
@@ -569,6 +682,12 @@ const _exports = {
   toQuotedString,
   createEnum,
   enumFromWire,
+  bpToBool,
+  bpToBigInt,
+  bpToEnum,
+  bpToFloat,
+  bpToInt,
+  bpToString,
   defineTypedProperties,
   BluePacket,
   BluePacketRegistry,

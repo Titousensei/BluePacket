@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 import argparse
+import json
 import os
 import sys
 
-from libexport import Parser, SourceException, println, versionHash
+from libexport import CONVERT_CONST, CONVERT_COPY, CONVERT_FORCE, CONVERT_IGNORE, CONVERT_WIDEN, Parser, SourceException, println, versionHash
 
 OUTPUT_FILE = "gen.js"
 INDENT = "    "
@@ -208,14 +209,96 @@ def produceConvertAll(out, data, indent):
   println(out, indent + "}")
 
 
-def produceConvert(out, data, ctype, all_data, indent):
-  other = all_data.get(ctype)
-  if not other:
-    raise SourceException("Converter from unknown type", what=ctype)
-  options = ", ".join(f"{pf.name}: other.{pf.name}" for pf in sortedFields(other.fields))
+def jsConstant(data, mapping):
+  constant = mapping.constant
+  if constant.kind == "bool":
+    return "true" if constant.value else "false"
+  if constant.kind == "string":
+    return json.dumps(constant.value)
+  if constant.kind == "enum":
+    qualifier, value = constant.value
+    enum_type = qualifier or mapping.target_type
+    if mapping.target_type in data.enums:
+      enum_type = f"{data.name}.{enum_type}"
+    return f"{enum_type}.{value}"
+  if mapping.target_type == "long":
+    return f"{constant.value}n"
+  return str(constant.value)
+
+
+JS_INT_BOUNDS = {
+  "byte": (-(2 ** 7), 2 ** 7 - 1),
+  "ubyte": (0, 2 ** 8 - 1),
+  "short": (-(2 ** 15), 2 ** 15 - 1),
+  "ushort": (0, 2 ** 16 - 1),
+  "int": (-(2 ** 31), 2 ** 31 - 1),
+}
+
+
+def jsEnumType(data, enum_type):
+  if enum_type in data.enums:
+    return f"{data.name}.{enum_type}"
+  return enum_type
+
+
+def jsConversion(data, mapping, expression):
+  same_type = mapping.source_type == mapping.target_type
+  force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
+  if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
+    return expression
+  if mapping.operator == CONVERT_WIDEN:
+    if mapping.target_type == "string":
+      if mapping.source_type == "string":
+        return expression
+      is_float = mapping.source_type in ("float", "double")
+      return f"bpToString({expression}, {str(is_float).lower()})"
+    if mapping.target_type == "long" and mapping.source_type != "long":
+      return f"BigInt({expression})"
+    return expression
+
+  target = mapping.target_type
+  if mapping.target_kind == "enum":
+    return f"bpToEnum({jsEnumType(data, target)}, {expression})"
+  if target == "string":
+    if mapping.source_type == "string":
+      return expression
+    is_float = mapping.source_type in ("float", "double")
+    return f"bpToString({expression}, {str(is_float).lower()})"
+  if target == "bool":
+    if mapping.source_type == "bool":
+      return expression
+    if mapping.source_kind == "enum":
+      return "true"
+    return f"bpToBool({expression})"
+  if target in JS_INT_BOUNDS:
+    low, high = JS_INT_BOUNDS[target]
+    return f"bpToInt({expression}, {low}, {high})"
+  if target == "long":
+    return f"bpToBigInt({expression}, -9223372036854775808n, 9223372036854775807n)"
+  if target == "float":
+    return f"bpToFloat({expression}, true)"
+  if target == "double":
+    return f"bpToFloat({expression}, false)"
+  return expression
+
+
+def produceConvert(out, data, ctype, mappings, indent):
+  options = []
+  for mapping in mappings:
+    if mapping.target == CONVERT_IGNORE:
+      continue
+    if mapping.operator == CONVERT_CONST:
+      value = jsConstant(data, mapping)
+    elif mapping.target_is_list:
+      source = f"other.{mapping.source}"
+      element = jsConversion(data, mapping, "x")
+      value = source if element == "x" else f"{source}.map(x => {element})"
+    else:
+      value = jsConversion(data, mapping, f"other.{mapping.source}")
+    options.append(f"{mapping.target}: {value}")
   println(out, indent + f"static convert{ctype}(other) {{")
   println(out, indent + INDENT + f"assertType(other, {ctype}, false);")
-  println(out, indent + INDENT + f"return new {data.name}({{{options}}});")
+  println(out, indent + INDENT + f"return new {data.name}({{{', '.join(options)}}});")
   println(out, indent + "}")
 
 
@@ -249,9 +332,9 @@ def produceClass(out, data, owner, all_data, version):
   if data.converts:
     println(out)
     produceConvertAll(out, data, INDENT)
-    for ctype in data.converts:
+    for ctype, mappings in data.converts.items():
       println(out)
-      produceConvert(out, data, ctype, all_data, INDENT)
+      produceConvert(out, data, ctype, mappings, INDENT)
   println(out, "}")
 
 
@@ -330,7 +413,8 @@ def exportBundle(out_dir, runtime, all_data, api_version, browser_mode, salt="")
       println(out, f"const bp = require('{runtime}');")
 
     for name in ("BluePacket", "BluePacketRegistry", "assertType", "createEnum", "enumFromWire",
-                 "initFields", "toSignedByte", "toSignedShort", "toUnsignedByte", "toUnsignedShort"):
+                 "initFields", "toSignedByte", "toSignedShort", "toUnsignedByte", "toUnsignedShort",
+                 "bpToBool", "bpToBigInt", "bpToEnum", "bpToFloat", "bpToInt", "bpToString"):
       if browser_mode:
         println(out, f"  const {name} = bp.{name};")
       else:

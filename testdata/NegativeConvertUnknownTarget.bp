@@ -1,0 +1,11 @@
+# Expected to fail because the mapping target field does not exist
+# @what New.Old: missing<-a
+
+Old:
+    int a
+
+New:
+    int a
+
+    convert Old:
+        missing <- a

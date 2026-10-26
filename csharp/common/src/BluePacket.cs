@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -662,6 +663,141 @@ namespace BluePackets
         }
       }
       sb.Append('}');
+    }
+
+    private static readonly HashSet<string> BP_FALSE_STRINGS = new HashSet<string>
+    {
+      "", "false", "f", "0", "no", "n", "off", "null", "none"
+    };
+
+    /// <summary>Canonical string representation used by convert mappings</summary>
+    public static string BpToString(object value)
+    {
+      if (value is bool) return ((bool) value) ? "true" : "false";
+      if (value is Enum) return value.ToString();
+      if (value is float) {
+        float number = (float) value;
+        if (float.IsNaN(number)) return "nan";
+        if (float.IsPositiveInfinity(number)) return "inf";
+        if (float.IsNegativeInfinity(number)) return "-inf";
+        return BpEnsureDecimal(number.ToString("R", CultureInfo.InvariantCulture));
+      }
+      if (value is double) {
+        double number = (double) value;
+        if (double.IsNaN(number)) return "nan";
+        if (double.IsPositiveInfinity(number)) return "inf";
+        if (double.IsNegativeInfinity(number)) return "-inf";
+        return BpEnsureDecimal(number.ToString("R", CultureInfo.InvariantCulture));
+      }
+      return Convert.ToString(value, CultureInfo.InvariantCulture);
+    }
+
+    private static string BpEnsureDecimal(string text)
+    {
+      bool hasDecimal = text.IndexOf('.') >= 0 || text.IndexOf('E') >= 0 || text.IndexOf('e') >= 0;
+      return hasDecimal ? text : text + ".0";
+    }
+
+    /// <summary>Interpret a string as a boolean using the canonical false list</summary>
+    public static bool BpStringToBool(string value)
+    {
+      return !BP_FALSE_STRINGS.Contains(value.Trim().ToLowerInvariant());
+    }
+
+    /// <summary>Best-effort conversion to boolean</summary>
+    public static bool BpToBool(object value)
+    {
+      if (value is bool) return (bool) value;
+      if (value is string) return BpStringToBool((string) value);
+      return Convert.ToDouble(value, CultureInfo.InvariantCulture) != 0;
+    }
+
+    /// <summary>Best-effort conversion to a clamped 64-bit integer</summary>
+    public static long BpToLong(object value, long low, long high)
+    {
+      if (value is bool) return ((bool) value) ? 1L : 0L;
+      if (value is string) return BpStringToLong((string) value, low, high);
+      if (value is float || value is double) {
+        double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+        if (double.IsNaN(number)) return 0L;
+        if (number <= low) return low;
+        if (number >= high) return high;
+        return (long) number;
+      }
+      return Math.Max(low, Math.Min(high, Convert.ToInt64(value, CultureInfo.InvariantCulture)));
+    }
+
+    private static long BpStringToLong(string value, long low, long high)
+    {
+      string text = value.Trim();
+      long number;
+      if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number)) {
+        return Math.Max(low, Math.Min(high, number));
+      }
+      double floating;
+      if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out floating)) return 0L;
+      if (double.IsNaN(floating)) return 0L;
+      if (floating <= low) return low;
+      if (floating >= high) return high;
+      return (long) floating;
+    }
+
+    /// <summary>Best-effort conversion to floating point</summary>
+    public static double BpToDouble(object value, bool isFloat)
+    {
+      double result;
+      if (value is bool) {
+        result = ((bool) value) ? 1.0 : 0.0;
+      } else if (value is string) {
+        if (!double.TryParse(((string) value).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out result)) {
+          result = 0.0;
+        }
+      } else {
+        result = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+      }
+      if (isFloat && !double.IsNaN(result)) {
+        double limit = 3.4028234663852886e38;
+        if (result > limit) result = limit;
+        else if (result < -limit) result = -limit;
+      }
+      return result;
+    }
+
+    /// <summary>Best-effort conversion to an enum value</summary>
+    public static T BpToEnum<T>(object value) where T : struct
+    {
+      T[] values = (T[]) Enum.GetValues(typeof(T));
+      if (value is T) return (T) value;
+      if (value is string) {
+        string text = ((string) value).Trim();
+        foreach (T entry in values) {
+          if (entry.ToString() == text) return entry;
+        }
+        long number;
+        if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number)) {
+          return BpEnumFromLong(values, number);
+        }
+        double floating;
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out floating) && !double.IsNaN(floating)) {
+          return BpEnumFromLong(values, (long) floating);
+        }
+        return values.Length == 0 ? default(T) : values[0];
+      }
+      if (value is bool) return BpEnumFromLong(values, ((bool) value) ? 1L : 0L);
+      if (value is Enum) return BpEnumFromLong(values, Convert.ToInt64(value, CultureInfo.InvariantCulture));
+      if (value is float || value is double) {
+        double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+        if (double.IsNaN(number)) return values.Length == 0 ? default(T) : values[0];
+        return BpEnumFromLong(values, (long) number);
+      }
+      return BpEnumFromLong(values, Convert.ToInt64(value, CultureInfo.InvariantCulture));
+    }
+
+    private static T BpEnumFromLong<T>(T[] values, long ordinal) where T : struct
+    {
+      if (values.Length == 0) return default(T);
+      if (ordinal < 0 || ordinal >= values.Length) return values[0];
+      return values[(int) ordinal];
     }
   }
 }

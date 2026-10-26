@@ -1,8 +1,9 @@
 #! /usr/bin/env python3
 import argparse
+import json
 import os, sys
 
-from libexport import Parser, SourceException, println, versionHash
+from libexport import CONVERT_CONST, CONVERT_COPY, CONVERT_FORCE, CONVERT_IGNORE, CONVERT_WIDEN, Parser, SourceException, println, versionHash
 
 DEFAULT_INDENT = "  "
 INNER_INDENT = DEFAULT_INDENT + "  "
@@ -287,24 +288,124 @@ def produceConvertAll(out, name, converts, indent):
   println(out, indent + "}")
 
 
-def produceConvert(out, name, ctype, copts, other_fields, indent):
+def javaConstant(mapping):
+  constant = mapping.constant
+  target_type = mapping.target_type
+  if constant.kind == "bool":
+    return "true" if constant.value else "false"
+  if constant.kind == "string":
+    return json.dumps(constant.value)
+  if constant.kind == "enum":
+    qualifier, value = constant.value
+    enum_type = qualifier or target_type
+    return f"{enum_type}.{value}"
+  if target_type in ("byte", "ubyte"):
+    return f"(byte) {constant.value}"
+  if target_type in ("short", "ushort"):
+    return f"(short) {constant.value}"
+  if target_type == "long":
+    return f"{constant.value}L"
+  if target_type == "float":
+    return f"{float(constant.value)}f"
+  if target_type == "double":
+    return repr(float(constant.value))
+  return str(constant.value)
+
+
+def javaCast(ftype, expression):
+  return f"({JAVA_TYPE.get(ftype, ftype)}) {expression}"
+
+
+JAVA_INT_BOUNDS = {
+  "byte": ("-128", "127"),
+  "ubyte": ("0", "255"),
+  "short": ("-32768", "32767"),
+  "ushort": ("0", "65535"),
+  "int": ("-2147483648", "2147483647"),
+  "long": ("-9223372036854775808", "9223372036854775807"),
+}
+
+
+def javaConversion(mapping, expression):
+  same_type = mapping.source_type == mapping.target_type
+  force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
+  if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
+    return expression
+  if mapping.operator == CONVERT_WIDEN:
+    if mapping.target_type == "string":
+      if mapping.source_type == "string":
+        return expression
+      return f"bpToString({expression})"
+    if mapping.source_type in ("ubyte", "ushort"):
+      expression = f"unsigned({expression})"
+    if mapping.target_type == mapping.source_type:
+      return expression
+    return javaCast(mapping.target_type, expression)
+
+  target = mapping.target_type
+  if mapping.target_kind == "enum":
+    return f"bpToEnum({target}.class, {expression})"
+  if target == "string":
+    return f"bpToString({expression})"
+  if target == "bool":
+    if mapping.source_type == "bool":
+      return expression
+    if mapping.source_kind == "enum":
+      return "true"
+    return f"bpToBool({expression})"
+  if mapping.source_kind == "enum":
+    expression = f"bpEnumOrdinal({expression})"
+  elif mapping.source_type in ("ubyte", "ushort"):
+    expression = f"unsigned({expression})"
+  if target in JAVA_INT_BOUNDS:
+    low, high = JAVA_INT_BOUNDS[target]
+    value = f"bpToLong({expression}, {low}L, {high}L)"
+    return value if target == "long" else javaCast(target, value)
+  if target in ("float", "double"):
+    is_float = "true" if target == "float" else "false"
+    value = f"bpToDouble({expression}, {is_float})"
+    return javaCast(target, value)
+  return expression
+
+
+def produceConvert(out, data, ctype, mappings, indent):
   println(out)
   produceDocstring(out, indent,
     [
-      f"Converter method to build a {name} from an instance of {ctype}",
+      f"Converter method to build a {data.name} from an instance of {ctype}",
       f"@param other populated instance of {ctype}",
-      f"@return new instance of {name} populated with data from other"
+      f"@return new instance of {data.name} populated with data from other"
     ]
   )
-  println(out, f"{indent}public static {name} convert({ctype} other)")
+  println(out, f"{indent}public static {data.name} convert({ctype} other)")
   println(out, indent + "{")
-  println(out, indent + f"  return new {name}()")
+  println(out, f"{indent}  {data.name} result = new {data.name}();")
 
-  for pf in other_fields:
-    if pf.name:
-      println(out, f"{indent}      .set{pf.name[0].upper()}{pf.name[1:]}(other.{pf.name})")
+  for i, mapping in enumerate(mappings):
+    if mapping.target == CONVERT_IGNORE:
+      continue
+    setter = f"set{mapping.target[0].upper()}{mapping.target[1:]}"
+    if mapping.operator == CONVERT_CONST:
+      value = javaConstant(mapping)
+    elif mapping.target_is_list:
+      source = f"other.{mapping.source}"
+      element = javaConversion(mapping, f"{source}[i]")
+      if element == f"{source}[i]":
+        value = source
+      else:
+        target_type = JAVA_TYPE.get(mapping.target_type, mapping.target_type)
+        temp = f"converted{i}"
+        println(out, f"{indent}  {target_type}[] {temp} = new {target_type}[{source}.length];")
+        println(out, f"{indent}  for (int i = 0; i < {source}.length; i++)")
+        println(out, indent + "  {")
+        println(out, f"{indent}    {temp}[i] = {element};")
+        println(out, indent + "  }")
+        value = temp
+    else:
+      value = javaConversion(mapping, f"other.{mapping.source}")
+    println(out, f"{indent}  result.{setter}({value});")
 
-  println(out, indent + "  ;")
+  println(out, f"{indent}  return result;")
   println(out, indent + "}")
 
 
@@ -399,12 +500,11 @@ def exportClass(out_dir, package, data, version, all_data):
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT)
     produceConvertAll(out, data.name, data.converts, DEFAULT_INDENT)
-    for ctype, copts in data.converts.items():
+    for ctype, mappings in data.converts.items():
       other = all_data.get(ctype)
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
-      cfields = list(sorted(other.fields, key=str))
-      produceConvert(out, data.name, ctype, copts, cfields, DEFAULT_INDENT)
+      produceConvert(out, data, ctype, mappings, DEFAULT_INDENT)
 
     if data.inner:
       println(out)

@@ -1,0 +1,14 @@
+# Expected to fail because force conversion does not support packets
+# @what New.Old: p<!p
+
+Old:
+    Other p
+
+New:
+    Other p
+
+    convert Old:
+        p <! p
+
+Other:
+    int value

@@ -314,6 +314,7 @@ class TestBluePacket
     DemoSecond d2 = DemoSecond.convert(d1);
     assertEquals(id, d2.id, "converted 'id' field value");
     assertEquals(text, d2.text, "Converted 'text' field value");
+    assertEquals(true, d2.enabled, "Converted constant 'enabled' field value");
 
     List<Long> expectedConvert1 = new ArrayList<>();
     List<Long> actualConvert1 = d1.convert().stream().map(BluePacket::getPacketHash).collect(Collectors.toList());
@@ -322,6 +323,69 @@ class TestBluePacket
     List<Long> expectedConvert2 = List.of(d1.getPacketHash());
     List<Long> actualConvert2 = d2.convert().stream().map(BluePacket::getPacketHash).collect(Collectors.toList());
     assertEquals(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond");
+
+    System.out.println("PASS");
+  }
+
+  private void testConvertMappings(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+
+    DemoThirdOld oldPacket = new DemoThirdOld()
+        .setField2(42)
+        .setField4(true)
+        .setField6("ignored");
+    DemoThirdNew newPacket = DemoThirdNew.convert(oldPacket);
+    assertEquals(42L, newPacket.field1, "Widened 'field1' field value");
+    assertEquals(true, newPacket.field3, "Copied 'field3' field value");
+    assertEquals(123, newPacket.field5, "Constant 'field5' field value");
+
+    System.out.println("PASS");
+  }
+
+  private void testForceConvert(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+
+    ForceSource source = new ForceSource()
+        .setIntValue(1)
+        .setIntText("300")
+        .setBoolText("false")
+        .setBoolValue(true)
+        .setLongValue(5000000000L)
+        .setEnumValue(ConvertEnum.TWO)
+        .setIntList(new int[]{-1, 0, 70000});
+    ForceTarget target = ForceTarget.convert(source);
+    assertEquals(false, target.boolFromText, "force string to bool");
+    assertEquals(true, target.boolFromInt, "force int to bool");
+    assertEquals(true, target.boolFromEnum, "force enum to bool");
+    assertEquals(300, target.intFromText, "force string to int");
+    assertEquals(2147483647, target.intFromLong, "force long to int clamps");
+    assertEquals(255, BluePacket.unsigned(target.byteFromText), "force string to ubyte clamps");
+    assertEquals("true", target.stringFromBool, "force bool to string");
+    assertEquals("TWO", target.stringFromEnum, "force enum to string");
+    assertEquals(0.0, target.doubleFromText, "force string to double");
+    assertEquals(ConvertEnum.ZERO, target.enumFromText, "force string to enum default");
+    assertEquals(ConvertEnum.ONE, target.enumFromInt, "force int to enum");
+    assertEquals(Arrays.toString(new int[]{-1, 0, 70000}), Arrays.toString(target.listDoubled), "force list copy");
+    assertEquals(Arrays.toString(new String[]{"-1", "0", "70000"}), Arrays.toString(target.listText), "force list conversion");
+
+    StringSource strings = new StringSource()
+        .setFlag(true)
+        .setNumber(-42)
+        .setRatio(1.5)
+        .setColor(ConvertEnum.TWO)
+        .setText("raw")
+        .setFlags(new boolean[]{true, false});
+    StringTarget widened = StringTarget.convert(strings);
+    assertEquals("true", widened.fromFlag, "widen bool to string");
+    assertEquals("-42", widened.fromNumber, "widen int to string");
+    assertEquals("1.5", widened.fromRatio, "widen double to string");
+    assertEquals("TWO", widened.fromColor, "widen enum to string");
+    assertEquals("raw", widened.fromText, "widen string to string");
+    assertEquals(Arrays.toString(new String[]{"true", "false"}), Arrays.toString(widened.fromFlags), "widen list bool to string");
 
     System.out.println("PASS");
   }
@@ -374,6 +438,8 @@ class TestBluePacket
     test.testPacketHash("testIncludeDeprecated2", new DemoIncludeVersion(), -4044184110803273943L);
 
     test.testConvert("testConvert");
+    test.testConvertMappings("testConvertMappings");
+    test.testForceConvert("testForceConvert");
     test.testApiVersion("testApiVersion");
     test.testListPacketEncoding("testListPacketEncoding");
     test.testMutuallyRecursivePackets("testMutuallyRecursivePackets");

@@ -410,6 +410,7 @@ class TestBluePacket(unittest.TestCase):
     d2 = t.DemoSecond.convertDemoFirst(d1)
     self.assertEqual(id, d2.id)
     self.assertEqual(text, d2.text)
+    self.assertTrue(d2.enabled)
 
     actualConvert1 = [p.packetHash for p in d1.convert()]
     self.assertEqual([], actualConvert1, "Empty List of convertible BluePackets for DemoFirst");
@@ -417,6 +418,55 @@ class TestBluePacket(unittest.TestCase):
     expectedConvert2 = [d1.packetHash]
     actualConvert2 = [p.packetHash for p in d2.convert()]
     self.assertEqual(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond")
+
+  def testConvertMappings(self):
+    old = t.DemoThirdOld(field2=42, field4=True, field6="ignored")
+    new = t.DemoThirdNew.convertDemoThirdOld(old)
+    self.assertEqual(42, new.field1)
+    self.assertTrue(new.field3)
+    self.assertEqual(123, new.field5)
+
+  def testForceConvert(self):
+    source = t.ForceSource(
+      intValue=1,
+      intText="300",
+      boolText="false",
+      boolValue=True,
+      longValue=5000000000,
+      enumValue=t.ConvertEnum.TWO,
+      intList=[-1, 0, 70000],
+    )
+    target = t.ForceTarget.convertForceSource(source)
+    self.assertFalse(target.boolFromText)
+    self.assertTrue(target.boolFromInt)
+    self.assertTrue(target.boolFromEnum)
+    self.assertEqual(300, target.intFromText)
+    self.assertEqual(2147483647, target.intFromLong)
+    self.assertEqual(255, target.byteFromText)
+    self.assertEqual("true", target.stringFromBool)
+    self.assertEqual("TWO", target.stringFromEnum)
+    self.assertEqual(0.0, target.doubleFromText)
+    self.assertEqual(t.ConvertEnum.ZERO, target.enumFromText)
+    self.assertEqual(t.ConvertEnum.ONE, target.enumFromInt)
+    self.assertEqual([-1, 0, 70000], target.listDoubled)
+    self.assertEqual(["-1", "0", "70000"], target.listText)
+
+  def testStringWidening(self):
+    source = t.StringSource(
+      flag=True,
+      number=-42,
+      ratio=1.5,
+      color=t.ConvertEnum.TWO,
+      text="raw",
+      flags=[True, False],
+    )
+    target = t.StringTarget.convertStringSource(source)
+    self.assertEqual("true", target.fromFlag)
+    self.assertEqual("-42", target.fromNumber)
+    self.assertEqual("1.5", target.fromRatio)
+    self.assertEqual("TWO", target.fromColor)
+    self.assertEqual("raw", target.fromText)
+    self.assertEqual(["true", "false"], target.fromFlags)
 
   def testApiVersion(self):
     self.assertNotEqual(0, t.BluePacketAPI.VERSION)

@@ -222,6 +222,53 @@ class TestBluePacket
     Console.WriteLine("PASS");
   }
 
+  private void testForceConvert(String name)
+  {
+    Console.Write(name + ": ");
+
+    ForceSource source = new ForceSource {
+      intValue = 1,
+      intText = "300",
+      boolText = "false",
+      boolValue = true,
+      longValue = 5000000000L,
+      enumValue = ConvertEnum.TWO,
+      intList = new int[] {-1, 0, 70000},
+    };
+    ForceTarget target = ForceTarget.convert(source);
+    AssertEquals(false, target.boolFromText, "force string to bool");
+    AssertEquals(true, target.boolFromInt, "force int to bool");
+    AssertEquals(true, target.boolFromEnum, "force enum to bool");
+    AssertEquals(300, target.intFromText, "force string to int");
+    AssertEquals(2147483647, target.intFromLong, "force long to int clamps");
+    AssertEquals(255, (int) target.byteFromText, "force string to ubyte clamps");
+    AssertEquals("true", target.stringFromBool, "force bool to string");
+    AssertEquals("TWO", target.stringFromEnum, "force enum to string");
+    AssertEquals(0.0, target.doubleFromText, "force string to double");
+    AssertEquals(ConvertEnum.ZERO, target.enumFromText, "force string to enum default");
+    AssertEquals(ConvertEnum.ONE, target.enumFromInt, "force int to enum");
+    AssertEquals("-1,0,70000", string.Join(",", target.listDoubled), "force list copy");
+    AssertEquals("-1,0,70000", string.Join(",", target.listText), "force list conversion");
+
+    StringSource strings = new StringSource {
+      flag = true,
+      number = -42,
+      ratio = 1.5,
+      color = ConvertEnum.TWO,
+      text = "raw",
+      flags = new bool[] {true, false},
+    };
+    StringTarget widened = StringTarget.convert(strings);
+    AssertEquals("true", widened.fromFlag, "widen bool to string");
+    AssertEquals("-42", widened.fromNumber, "widen int to string");
+    AssertEquals("1.5", widened.fromRatio, "widen double to string");
+    AssertEquals("TWO", widened.fromColor, "widen enum to string");
+    AssertEquals("raw", widened.fromText, "widen string to string");
+    AssertEquals("true,false", string.Join(",", widened.fromFlags), "widen list bool to string");
+
+    Console.WriteLine("PASS");
+  }
+
   private void testApiVersion(String name)
   {
     Console.Write(name + ": ");
@@ -239,6 +286,12 @@ class TestBluePacket
     DemoSecond d2 = DemoSecond.convert(d1);
     AssertEquals(id, d2.id, "converted 'id' field value");
     AssertEquals(text, d2.text, "Converted 'text' field value");
+    AssertEquals(true, d2.enabled, "Converted constant 'enabled' field value");
+    DemoThirdOld oldPacket = new DemoThirdOld { field2=42, field4=true, field6="ignored" };
+    DemoThirdNew newPacket = DemoThirdNew.convert(oldPacket);
+    AssertEquals(42L, newPacket.field1, "Widened 'field1' field value");
+    AssertEquals(true, newPacket.field3, "Copied 'field3' field value");
+    AssertEquals(123, newPacket.field5, "Constant 'field5' field value");
     
     List<long> expectedConvert1 = new List<long>(0);
     List<long> actualConvert1 = d1.convert().ConvertAll((p) => p.GetPacketHash());
@@ -285,6 +338,7 @@ class TestBluePacket
     test.TestPacketHash("testIncludeDeprecated2", new DemoIncludeVersion{}, -4044184110803273943L);
 
     test.testConvert("testConvert");
+    test.testForceConvert("testForceConvert");
     test.testApiVersion("testApiVersion");
     test.TestMutuallyRecursivePackets("testMutuallyRecursivePackets");
   }

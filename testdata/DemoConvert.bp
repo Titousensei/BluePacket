@@ -7,4 +7,89 @@ DemoSecond:
     list string text
     bool enabled
 
-    convert DemoFirst
+    convert DemoFirst:
+        enabled = true
+
+DemoThirdOld:
+    int field2
+    bool field4
+    string field6
+
+DemoThirdNew:
+    long field1
+    bool field3
+    int field5
+    
+    convert DemoThirdOld:
+        field1 <= field2  # cast
+        field3 <- field4  # identical (optional, default)
+        field5 = 123      # constant
+        _ <- field6       # ignore
+
+
+ConvertEnum: enum
+    ZERO, ONE, TWO
+
+ForceSource:
+    int intValue
+    string intText
+    string boolText
+    bool boolValue
+    long longValue
+    ConvertEnum enumValue
+    list int intList
+
+ForceTarget:
+    bool boolFromText
+    bool boolFromInt
+    bool boolFromEnum
+    int intFromText
+    int intFromLong
+    ubyte byteFromText
+    string stringFromBool
+    string stringFromEnum
+    double doubleFromText
+    ConvertEnum enumFromText
+    ConvertEnum enumFromInt
+    list int listDoubled
+    list string listText
+
+    convert ForceSource:
+        boolFromText <! boolText
+        boolFromInt <! intValue
+        boolFromEnum <! enumValue
+        intFromText <! intText
+        intFromLong <! longValue
+        byteFromText <! intText
+        stringFromBool <! boolValue
+        stringFromEnum <! enumValue
+        doubleFromText <! boolText
+        enumFromText <! boolText
+        enumFromInt <! intValue
+        listDoubled <! intList
+        listText <! intList
+
+StringSource:
+    bool flag
+    int number
+    double ratio
+    ConvertEnum color
+    string text
+    list bool flags
+
+StringTarget:
+    string fromFlag
+    string fromNumber
+    string fromRatio
+    string fromColor
+    string fromText
+    list string fromFlags
+
+    convert StringSource:
+        fromFlag <= flag
+        fromNumber <= number
+        fromRatio <= ratio
+        fromColor <= color
+        fromText <= text
+        fromFlags <= flags
+

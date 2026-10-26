@@ -1,0 +1,12 @@
+# Expected to fail because a source field must be mapped or ignored
+# @what New.Old: _<-b
+
+Old:
+    int a
+    int b
+
+New:
+    int a
+
+    convert Old:
+        a <- a

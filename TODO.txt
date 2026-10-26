@@ -7,6 +7,18 @@
 - javascript -> emit an obfuscated ECMAScript Modules
   - IIFE is properly wrapping the gen.js code
 
+=== Convert ===
+- convert: custom field mapping
+Example:
+```
+  NewPacket:
+    convert OldPacket:
+      field1 <= field2  # cast
+      field3 <- field4  # identical (optional, default)
+      field5 = constant
+      _ <- field6  # ignore
+```
+
 === Export Tests ===
 - hash version
 - to string

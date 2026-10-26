@@ -271,6 +271,59 @@ func TestDemoConvert(t *testing.T) {
 	for i, _ := range text {
 		assertEquals(t, "Converted 'text' field value[i]", text[i], d2.Text[i])
 	}
+	assertEquals(t, "Converted constant 'enabled' field value", true, d2.Enabled)
+}
+
+func TestDemoConvertMappings(t *testing.T) {
+	t.Log("-- testDemoConvertMappings")
+	oldPacket := &DemoThirdOld { Field2: 42, Field4: true, Field6: "ignored" }
+	newPacket := oldPacket.NewDemoThirdNew()
+	assertEquals(t, "Widened 'field1' field value", int64(42), newPacket.Field1)
+	assertEquals(t, "Copied 'field3' field value", true, newPacket.Field3)
+	assertEquals(t, "Constant 'field5' field value", int32(123), newPacket.Field5)
+}
+
+func TestDemoForceConvert(t *testing.T) {
+	t.Log("-- testDemoForceConvert")
+	source := &ForceSource {
+		IntValue: 1,
+		IntText: "300",
+		BoolText: "false",
+		BoolValue: true,
+		LongValue: 5000000000,
+		EnumValue: ConvertEnumTWO,
+		IntList: []int32 {-1, 0, 70000},
+	}
+	target := source.NewForceTarget()
+	assertEquals(t, "force string to bool", false, target.BoolFromText)
+	assertEquals(t, "force int to bool", true, target.BoolFromInt)
+	assertEquals(t, "force enum to bool", true, target.BoolFromEnum)
+	assertEquals(t, "force string to int", int32(300), target.IntFromText)
+	assertEquals(t, "force long to int clamps", int32(2147483647), target.IntFromLong)
+	assertEquals(t, "force string to ubyte clamps", byte(255), target.ByteFromText)
+	assertEquals(t, "force bool to string", "true", target.StringFromBool)
+	assertEquals(t, "force enum to string", "TWO", target.StringFromEnum)
+	assertEquals(t, "force string to double", float64(0), target.DoubleFromText)
+	assertEquals(t, "force string to enum default", ConvertEnumZERO, target.EnumFromText)
+	assertEquals(t, "force int to enum", ConvertEnumONE, target.EnumFromInt)
+	assertEquals(t, "force list copy", "[-1 0 70000]", fmt.Sprint(target.ListDoubled))
+	assertEquals(t, "force list conversion", "[-1 0 70000]", fmt.Sprint(target.ListText))
+
+	stringsSource := &StringSource {
+		Flag: true,
+		Number: -42,
+		Ratio: 1.5,
+		Color: ConvertEnumTWO,
+		Text: "raw",
+		Flags: []bool {true, false},
+	}
+	widened := stringsSource.NewStringTarget()
+	assertEquals(t, "widen bool to string", "true", widened.FromFlag)
+	assertEquals(t, "widen int to string", "-42", widened.FromNumber)
+	assertEquals(t, "widen double to string", "1.5", widened.FromRatio)
+	assertEquals(t, "widen enum to string", "TWO", widened.FromColor)
+	assertEquals(t, "widen string to string", "raw", widened.FromText)
+	assertEquals(t, "widen list bool to string", "[true false]", fmt.Sprint(widened.FromFlags))
 }
 
 func TestApiVersion(t *testing.T) {

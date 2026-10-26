@@ -11,6 +11,13 @@ DemoPacketAbs1 DemoPacketAbs1
 DemoPacketAbs12 DemoPacketAbs12
 DemoPacketAbs2 DemoPacketAbs2
 DemoSecond DemoSecond+enabled:bool+id:int+text:[]string
+DemoThirdNew DemoThirdNew+field1:long+field3:bool+field5:int
+DemoThirdOld DemoThirdOld+field2:int+field4:bool+field6:string
+ConvertEnum ConvertEnum+ONE:+TWO:+ZERO:
+ForceSource ForceSource+boolText:string+boolValue:bool+enumValue:{ConvertEnum__F72757D07E932CB2}+intList:[]int+intText:string+intValue:int+longValue:long
+ForceTarget ForceTarget+boolFromEnum:bool+boolFromInt:bool+boolFromText:bool+byteFromText:ubyte+doubleFromText:double+enumFromInt:{ConvertEnum__F72757D07E932CB2}+enumFromText:{ConvertEnum__F72757D07E932CB2}+intFromLong:int+intFromText:int+listDoubled:[]int+listText:[]string+stringFromBool:string+stringFromEnum:string
+StringSource StringSource+color:{ConvertEnum__F72757D07E932CB2}+flag:bool+flags:[]bool+number:int+ratio:double+text:string
+StringTarget StringTarget+fromColor:string+fromFlag:string+fromFlags:[]string+fromNumber:string+fromRatio:string+fromText:string
 DemoUnsigned DemoUnsigned+a0:bool+a1:bool+a2:bool+a3:bool+a4:bool+a5:bool+a6:bool+a7:bool+b0:bool+b1:bool+b2:bool+b3:bool+b4:bool+b5:bool+b6:bool+b7:bool+c0:bool+c1:bool+c2:bool+lub:[]ubyte+lus:[]ushort+ub:ubyte+us:ushort
 DemoVersion DemoVersion+major:int+minor:int+patch:int
 DemoVersion__3FC7F86674610139 DemoVersion+version:int

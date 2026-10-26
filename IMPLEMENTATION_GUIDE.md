@@ -121,7 +121,7 @@ ordered `dict[str, PacketData]`. Inspect it with `python3 scripts/libexport.py .
 | `fields` | `list[PacketField]` in **source order**. This includes enum values for enums. |
 | `inner` / `enums` | Direct inner classes / inner enums, `dict[name, PacketData]`. |
 | `field_is_enum` | `dict[type_name, value_count]`; use it to pick enum encoding width. |
-| `converts` | `dict[other_type_name, option_str]` from `convert OtherType` directives. |
+| `converts` | `dict[other_type_name, list[ConvertMapping]]` from `convert OtherType:` directives; mappings are validated and implicit same-name copies are appended. |
 | `abstracts` | Concrete packet's list of abstract marker names. |
 | `version` | Signed 64-bit structural hash, `None` for enums/abstracts. |
 
@@ -521,6 +521,22 @@ interface; Python uses a base class. Markers are not registered and have no hash
 
 The source type must be a top-level packet in the same export (same limitation as Python/Java).
 Do not silently skip an unknown convert source.
+
+Mappings inside a `convert` block use `target <op> source`:
+
+| Operator | Meaning |
+| --- | --- |
+| `<-` | Exact copy; both field types must be identical. |
+| `<=` | Lossless widening, or conversion of any scalar/enum to `string`. |
+| `<!` | Best-effort cast. Numeric targets clamp, invalid strings fall back per target, enum targets fall back to their first value. |
+| `=` | Constant initialization; only bool, integer, float, double, string, and enum scalars. |
+| `_ <- field` | Explicitly ignore a source field. |
+
+`<=` to `string` uses canonical formatting: booleans are `true`/`false`, enums use their symbolic
+name, integers are decimal, and floats use the shortest round-trip representation with a decimal
+point. `<!` to `bool` treats the trimmed, case-insensitive strings
+`""`, `false`, `f`, `0`, `no`, `n`, `off`, `null`, and `none` as false. `<!` list mappings apply the
+conversion element-wise; packet and inner-class fields are not supported by `<!`.
 
 ### 7.8 Docstrings
 

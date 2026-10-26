@@ -1,5 +1,5 @@
 from collections import deque
-from math import floor, log10
+from math import floor, inf, isnan, log10
 import inspect
 import struct
 
@@ -301,3 +301,125 @@ class _BluePacketReader(deque):
     i = self.offset
     self.offset += l
     return self.buffer[i:self.offset].decode('utf-8')
+
+
+# Canonical cross-language conversion helpers.
+_BP_FALSE_STRINGS = {"", "false", "f", "0", "no", "n", "off", "null", "none"}
+
+_BP_INT_RANGES = {
+  "byte": (-(2 ** 7), 2 ** 7 - 1),
+  "ubyte": (0, 2 ** 8 - 1),
+  "short": (-(2 ** 15), 2 ** 15 - 1),
+  "ushort": (0, 2 ** 16 - 1),
+  "int": (-(2 ** 31), 2 ** 31 - 1),
+  "long": (-(2 ** 63), 2 ** 63 - 1),
+}
+
+
+def bpFormatFloat(value):
+  if value != value:
+    return "nan"
+  if value == inf:
+    return "inf"
+  if value == -inf:
+    return "-inf"
+  text = repr(value)
+  if '.' in text or 'e' in text or 'E' in text:
+    return text
+  return text + ".0"
+
+
+def bpToString(value, is_enum=False):
+  if is_enum:
+    return value.name
+  if type(value) == bool:
+    return "true" if value else "false"
+  if type(value) == float:
+    return bpFormatFloat(value)
+  return str(value)
+
+
+def bpStringToBool(value):
+  return value.strip().lower() not in _BP_FALSE_STRINGS
+
+
+def bpToBool(value, is_enum=False):
+  if is_enum:
+    return True
+  if type(value) == bool:
+    return value
+  if type(value) in (int, float):
+    return value != 0
+  return bpStringToBool(value)
+
+
+def _bpParseInt(value):
+  text = value.strip()
+  try:
+    return int(text, 10)
+  except ValueError:
+    pass
+  try:
+    number = float(text)
+  except ValueError:
+    return 0
+  if isnan(number):
+    return 0
+  if number in (inf, -inf):
+    return number
+  return int(number)
+
+
+def bpToInt(value, target, is_enum=False):
+  if is_enum:
+    value = value.value
+  elif type(value) == bool:
+    value = 1 if value else 0
+  elif type(value) == str:
+    value = _bpParseInt(value)
+  low, high = _BP_INT_RANGES[target]
+  if type(value) == float:
+    if isnan(value):
+      return 0
+    if value == inf:
+      return high
+    if value == -inf:
+      return low
+    value = int(value)
+  return max(low, min(high, value))
+
+
+def bpToFloat(value, target, is_enum=False):
+  if is_enum:
+    value = value.value
+  elif type(value) == bool:
+    value = 1.0 if value else 0.0
+  elif type(value) == str:
+    try:
+      value = float(value.strip())
+    except ValueError:
+      value = 0.0
+  result = float(value)
+  if target == "float" and not isnan(result):
+    limit = 3.4028234663852886e38
+    result = max(-limit, min(limit, result))
+  return result
+
+
+def bpEnumFromOrdinal(enum_type, ordinal):
+  try:
+    return enum_type(int(ordinal))
+  except (ValueError, TypeError, OverflowError):
+    return next(iter(enum_type))
+
+
+def bpEnumFromString(enum_type, text):
+  name = text.strip()
+  try:
+    return enum_type[name]
+  except KeyError:
+    pass
+  try:
+    return bpEnumFromOrdinal(enum_type, _bpParseInt(name))
+  except ValueError:
+    return next(iter(enum_type))

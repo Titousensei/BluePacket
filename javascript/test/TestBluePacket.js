@@ -1010,6 +1010,13 @@ _runTest("testConvert", () => {
     let d2 = T.DemoSecond.convertDemoFirst(d1);
     _assertEqual(id, d2.id, "convert id");
     _assertEqual(text, d2.text, "convert text");
+    _assertEqual(true, d2.enabled, "convert constant enabled");
+
+    let oldPacket = new T.DemoThirdOld({field2: 42, field4: true, field6: "ignored"});
+    let newPacket = T.DemoThirdNew.convertDemoThirdOld(oldPacket);
+    _assertEqual(42n, newPacket.field1, "widen field1");
+    _assertEqual(true, newPacket.field3, "copy field3");
+    _assertEqual(123, newPacket.field5, "constant field5");
 
     let actualConvert1 = d1.convert().map(p => p.packetHash);
     _assertEqual(0, actualConvert1.length, "Empty List of convertible BluePackets for DemoFirst");
@@ -1017,6 +1024,48 @@ _runTest("testConvert", () => {
     let expectedConvert2 = [d1.packetHash];
     let actualConvert2 = d2.convert().map(p => p.packetHash);
     _assertEqual(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond");
+});
+
+_runTest("testForceConvert", () => {
+    let source = new T.ForceSource({
+        intValue: 1,
+        intText: "300",
+        boolText: "false",
+        boolValue: true,
+        longValue: 5000000000n,
+        enumValue: T.ConvertEnum.TWO,
+        intList: [-1, 0, 70000],
+    });
+    let target = T.ForceTarget.convertForceSource(source);
+    _assertEqual(false, target.boolFromText, "force string to bool");
+    _assertEqual(true, target.boolFromInt, "force int to bool");
+    _assertEqual(true, target.boolFromEnum, "force enum to bool");
+    _assertEqual(300, target.intFromText, "force string to int");
+    _assertEqual(2147483647, target.intFromLong, "force long to int clamps");
+    _assertEqual(255, target.byteFromText, "force string to ubyte clamps");
+    _assertEqual("true", target.stringFromBool, "force bool to string");
+    _assertEqual("TWO", target.stringFromEnum, "force enum to string");
+    _assertEqual(0.0, target.doubleFromText, "force string to double");
+    _assertEqual(T.ConvertEnum.ZERO, target.enumFromText, "force string to enum default");
+    _assertEqual(T.ConvertEnum.ONE, target.enumFromInt, "force int to enum");
+    _assertEqual([-1, 0, 70000], target.listDoubled, "force list copy");
+    _assertEqual(["-1", "0", "70000"], target.listText, "force list conversion");
+
+    let strings = new T.StringSource({
+        flag: true,
+        number: -42,
+        ratio: 1.5,
+        color: T.ConvertEnum.TWO,
+        text: "raw",
+        flags: [true, false],
+    });
+    let widened = T.StringTarget.convertStringSource(strings);
+    _assertEqual("true", widened.fromFlag, "widen bool to string");
+    _assertEqual("-42", widened.fromNumber, "widen int to string");
+    _assertEqual("1.5", widened.fromRatio, "widen double to string");
+    _assertEqual("TWO", widened.fromColor, "widen enum to string");
+    _assertEqual("raw", widened.fromText, "widen string to string");
+    _assertEqual(["true", "false"], widened.fromFlags, "widen list bool to string");
 });
 
 _runTest("testConvertNegative", () => {

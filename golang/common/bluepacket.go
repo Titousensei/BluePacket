@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -367,4 +368,241 @@ func AppendIfNotNilPacket(sb *strings.Builder, fname string, value *BluePacket) 
 	sb.WriteString(fname)
 	sb.WriteString("=")
 	sb.WriteString((*value).String())
+}
+
+// BpFalseStrings are the case-insensitive strings treated as false by force conversion.
+var BpFalseStrings = map[string]bool{
+	"": true, "false": true, "f": true, "0": true,
+	"no": true, "n": true, "off": true, "null": true, "none": true,
+}
+
+// BpFormatFloat renders a shortest round-trip float with a decimal point.
+func BpFormatFloat(value float64, bits int) string {
+	if math.IsNaN(value) {
+		return "nan"
+	}
+	if math.IsInf(value, 1) {
+		return "inf"
+	}
+	if math.IsInf(value, -1) {
+		return "-inf"
+	}
+	text := strconv.FormatFloat(value, 'g', -1, bits)
+	if !strings.ContainsAny(text, ".eE") {
+		text += ".0"
+	}
+	return text
+}
+
+// BpToString returns the canonical string representation used by convert mappings.
+func BpToString(value any) string {
+	switch v := value.(type) {
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case float32:
+		return BpFormatFloat(float64(v), 32)
+	case float64:
+		return BpFormatFloat(v, 64)
+	case string:
+		return v
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// BpStringToBool interprets a string using the canonical false list.
+func BpStringToBool(value string) bool {
+	return !BpFalseStrings[strings.ToLower(strings.TrimSpace(value))]
+}
+
+// BpToBool performs a best-effort conversion to bool.
+func BpToBool(value any) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return BpStringToBool(v)
+	case float32:
+		return v != 0
+	case float64:
+		return v != 0
+	case int:
+		return v != 0
+	case int8:
+		return v != 0
+	case int16:
+		return v != 0
+	case int32:
+		return v != 0
+	case int64:
+		return v != 0
+	case uint:
+		return v != 0
+	case uint8:
+		return v != 0
+	case uint16:
+		return v != 0
+	case uint32:
+		return v != 0
+	case uint64:
+		return v != 0
+	}
+	return false
+}
+
+// BpParseInt64 parses a decimal integer with a floating point fallback.
+func BpParseInt64(value string) (int64, bool) {
+	text := strings.TrimSpace(value)
+	if number, err := strconv.ParseInt(text, 10, 64); err == nil {
+		return number, true
+	}
+	number, err := strconv.ParseFloat(text, 64)
+	if err != nil && !math.IsInf(number, 0) {
+		return 0, false
+	}
+	if math.IsNaN(number) {
+		return 0, false
+	}
+	if number >= math.MaxInt64 {
+		return math.MaxInt64, true
+	}
+	if number <= math.MinInt64 {
+		return math.MinInt64, true
+	}
+	return int64(number), true
+}
+
+// BpToInt performs a best-effort conversion to int64.
+func BpToInt(value any) int64 {
+	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1
+		}
+		return 0
+	case string:
+		number, _ := BpParseInt64(v)
+		return number
+	case float32:
+		return BpFloatToInt64(float64(v))
+	case float64:
+		return BpFloatToInt64(v)
+	case int:
+		return int64(v)
+	case int8:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int64:
+		return v
+	case uint:
+		if uint64(v) > math.MaxInt64 {
+			return math.MaxInt64
+		}
+		return int64(v)
+	case uint8:
+		return int64(v)
+	case uint16:
+		return int64(v)
+	case uint32:
+		return int64(v)
+	case uint64:
+		if v > math.MaxInt64 {
+			return math.MaxInt64
+		}
+		return int64(v)
+	}
+	return 0
+}
+
+func BpFloatToInt64(value float64) int64 {
+	if math.IsNaN(value) {
+		return 0
+	}
+	if value >= math.MaxInt64 {
+		return math.MaxInt64
+	}
+	if value <= math.MinInt64 {
+		return math.MinInt64
+	}
+	return int64(value)
+}
+
+// BpClampInt64 clamps a value to the inclusive range.
+func BpClampInt64(value, low, high int64) int64 {
+	if value < low {
+		return low
+	}
+	if value > high {
+		return high
+	}
+	return value
+}
+
+// BpToFloat performs a best-effort conversion to float64.
+func BpToFloat(value any) float64 {
+	switch v := value.(type) {
+	case bool:
+		if v {
+			return 1
+		}
+		return 0
+	case string:
+		number, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			return 0
+		}
+		return number
+	case float32:
+		return float64(v)
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int8:
+		return float64(v)
+	case int16:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case uint:
+		return float64(v)
+	case uint8:
+		return float64(v)
+	case uint16:
+		return float64(v)
+	case uint32:
+		return float64(v)
+	case uint64:
+		return float64(v)
+	}
+	return 0
+}
+
+// BpToFloat32 performs a best-effort conversion clamped to the float32 range.
+func BpToFloat32(value any) float32 {
+	number := BpToFloat(value)
+	if math.IsNaN(number) {
+		return float32(number)
+	}
+	if math.IsInf(number, 1) {
+		return math.MaxFloat32
+	}
+	if math.IsInf(number, -1) {
+		return -math.MaxFloat32
+	}
+	if number > math.MaxFloat32 {
+		return math.MaxFloat32
+	}
+	if number < -math.MaxFloat32 {
+		return -math.MaxFloat32
+	}
+	return float32(number)
 }

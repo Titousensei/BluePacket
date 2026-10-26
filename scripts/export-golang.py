@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 import argparse
 import copy
+import json
 import os, sys
 
-from libexport import MARKER_DEPRECATED, Parser, println, versionHash
+from libexport import CONVERT_CONST, CONVERT_COPY, CONVERT_FORCE, CONVERT_IGNORE, CONVERT_WIDEN, MARKER_DEPRECATED, Parser, SourceException, println, versionHash
 
 GO_TYPE = {
   "bool": "bool",
@@ -65,10 +66,11 @@ def header(out, package, data):
     println(out, f"package {package}")
     println(out)
     if data.is_enum:
-      pass
+      if any(pf.name for pf in data.fields):
+        println(out, 'import (\n\t"github.com/bluepacket"\n)')
     elif data.is_abstract:
       println(out, 'import (\n\t"bytes"\n\t"strings"\n)')
-    elif any(pf.name for pf in data.fields):
+    elif any(pf.name for pf in data.fields) or data.enums or data.converts:
       println(out, 'import (\n\t"bytes"\n\t"github.com/bluepacket"\n\t"strings"\n)')
     else:
       println(out, 'import (\n\t"bytes"\n\t"strings"\n)')
@@ -307,19 +309,113 @@ def exportStructFunc(out, data, field_is_enum, namespace):
   produceDeserializer(out, namespace, goname, sorted_fields, all_enums)
   produceToString(out, namespace, goname, sorted_fields, all_enums)
 
-def produceConvert(out, name, ctype, copts, other_fields, indent):
+GO_INT_BOUNDS = {
+  "byte": ("-128", "127"),
+  "ubyte": ("0", "255"),
+  "short": ("-32768", "32767"),
+  "ushort": ("0", "65535"),
+  "int": ("-2147483648", "2147483647"),
+  "long": ("-9223372036854775808", "9223372036854775807"),
+}
+
+
+def goEnumType(data, enum_type):
+  enum_name = _getGoType(enum_type)
+  if enum_type in data.enums:
+    return _getGoType(data.name) + enum_name
+  return enum_name
+
+
+def goConstant(data, mapping):
+  constant = mapping.constant
+  if constant.kind == "bool":
+    return "true" if constant.value else "false"
+  if constant.kind == "string":
+    return json.dumps(constant.value)
+  if constant.kind == "enum":
+    qualifier, value = constant.value
+    enum_type = goEnumType(data, qualifier or mapping.target_type)
+    return f"{enum_type}{value}"
+  return str(constant.value)
+
+
+def goConversion(data, mapping, expression):
+  same_type = mapping.source_type == mapping.target_type
+  force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
+  if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
+    return expression
+  if mapping.operator == CONVERT_WIDEN:
+    if mapping.target_type == "string":
+      if mapping.source_type == "string":
+        return expression
+      if mapping.source_kind == "enum":
+        return f"{expression}.String()"
+      return f"bluepacket.BpToString({expression})"
+    if mapping.target_type == mapping.source_type:
+      return expression
+    target_type = GO_TYPE.get(mapping.target_type, mapping.target_type)
+    return f"{target_type}({expression})"
+
+  target = mapping.target_type
+  if mapping.target_kind == "enum":
+    enum_type = goEnumType(data, target)
+    if mapping.source_kind == "enum":
+      return f"{enum_type}FromOrdinal(int64({expression}))"
+    if mapping.source_type == "string":
+      return f"{enum_type}FromString({expression})"
+    return f"{enum_type}FromOrdinal(bluepacket.BpToInt({expression}))"
+  if target == "string":
+    if mapping.source_kind == "enum":
+      return f"{expression}.String()"
+    return f"bluepacket.BpToString({expression})"
+  if target == "bool":
+    if mapping.source_type == "bool":
+      return expression
+    if mapping.source_kind == "enum":
+      return "true"
+    return f"bluepacket.BpToBool({expression})"
+  source = f"int64({expression})" if mapping.source_kind == "enum" else expression
+  if target in GO_INT_BOUNDS:
+    low, high = GO_INT_BOUNDS[target]
+    value = f"bluepacket.BpClampInt64(bluepacket.BpToInt({source}), {low}, {high})"
+    return value if target == "long" else f"{GO_TYPE[target]}({value})"
+  if target == "float":
+    return f"bluepacket.BpToFloat32({source})"
+  if target == "double":
+    return f"bluepacket.BpToFloat({source})"
+  return expression
+
+
+def produceConvert(out, data, ctype, mappings, indent):
   println(out)
   produceDocstring(out, indent,
     [
-      f"Converter function to build an instance of {name} from an instance of {ctype}",
+      f"Converter function to build an instance of {data.name} from an instance of {ctype}",
     ]
   )
-  println(out, f"func (other *{ctype}) New{name}() *{name} {{")
-  println(out, indent + f"\treturn &{name}{{")
-  for pf in other_fields:
-    if pf.name:
-      println(out, f"{indent}\t\t{pf.name[0].upper()}{pf.name[1:]}: other.{pf.name[0].upper()}{pf.name[1:]},")
-  println(out, indent + "\t}")
+  println(out, f"func (other *{ctype}) New{data.name}() *{data.name} {{")
+  println(out, indent + f"\tret := &{data.name}{{}}")
+  for mapping in mappings:
+    if mapping.target == CONVERT_IGNORE:
+      continue
+    target = mapping.target[0].upper() + mapping.target[1:]
+    if mapping.operator == CONVERT_CONST:
+      println(out, f"{indent}\tret.{target} = {goConstant(data, mapping)}")
+    elif mapping.target_is_list:
+      source = mapping.source[0].upper() + mapping.source[1:]
+      element = goConversion(data, mapping, "v")
+      if element == "v":
+        println(out, f"{indent}\tret.{target} = other.{source}")
+      else:
+        target_type = GO_TYPE.get(mapping.target_type, mapping.target_type)
+        println(out, f"{indent}\tret.{target} = make([]{target_type}, len(other.{source}))")
+        println(out, f"{indent}\tfor i, v := range other.{source} {{")
+        println(out, f"{indent}\t\tret.{target}[i] = {element}")
+        println(out, f"{indent}\t}}")
+    else:
+      source = mapping.source[0].upper() + mapping.source[1:]
+      println(out, f"{indent}\tret.{target} = {goConversion(data, mapping, f'other.{source}')}")
+  println(out, indent + "\treturn ret")
   println(out, "}")
 
 def _innerFieldsWithNamespace(data):
@@ -361,12 +457,11 @@ def exportStruct(out_dir, package, data, version, all_data):
     println(out)
     exportStructFunc(out, data, data.field_is_enum, "")
 
-    for ctype, copts in data.converts.items():
+    for ctype, mappings in data.converts.items():
       other = all_data.get(ctype)
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
-      cfields = list(sorted(other.fields, key=str))
-      produceConvert(out, data.name, ctype, copts, cfields, "")
+      produceConvert(out, data, ctype, mappings, "")
 
     if data.inner:
       println(out)
@@ -426,6 +521,28 @@ def exportEnumDef(out, data, namespace):
     println(out, "\t}")
     println(out, f"\treturn shortName{namespace}{goname}[int(en)]")
     println(out, "}")
+    first = next((pf.name for pf in data.fields if pf.name), None)
+    if first:
+      println(out)
+      println(out, f"func {namespace}{goname}FromString(value string) {namespace}{goname} {{")
+      println(out, "\tswitch value {")
+      for pf in data.fields:
+        if pf.name:
+          println(out, f'\tcase "{pf.name}":')
+          println(out, f"\t\treturn {namespace}{goname}{pf.name}")
+      println(out, "\t}")
+      println(out, f"\tif number, ok := bluepacket.BpParseInt64(value); ok {{")
+      println(out, f"\t\treturn {namespace}{goname}FromOrdinal(number)")
+      println(out, "\t}")
+      println(out, f"\treturn {namespace}{goname}{first}")
+      println(out, "}")
+      println(out)
+      println(out, f"func {namespace}{goname}FromOrdinal(value int64) {namespace}{goname} {{")
+      println(out, f"\tif value < 0 || value >= {num} {{")
+      println(out, f"\t\treturn {namespace}{goname}{first}")
+      println(out, "\t}")
+      println(out, f"\treturn {namespace}{goname}(value)")
+      println(out, "}")
 
 
 def exportApiVersion(out_dir, package, api_version):

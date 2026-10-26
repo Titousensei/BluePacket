@@ -1,0 +1,11 @@
+# Expected to fail because long to int is narrowing
+# @what New.Old: a<=b
+
+Old:
+    long b
+
+New:
+    int a
+
+    convert Old:
+        a <= b

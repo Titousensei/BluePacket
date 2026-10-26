@@ -2,7 +2,7 @@
 import argparse
 import os, sys
 
-from libexport import Parser, println, versionHash
+from libexport import CONVERT_CONST, CONVERT_COPY, CONVERT_FORCE, CONVERT_IGNORE, CONVERT_WIDEN, Parser, println, versionHash
 
 DEFAULT_INDENT = "  "
 INNER_INDENT = DEFAULT_INDENT + "  "
@@ -44,7 +44,10 @@ def header(out, data, field_is_enum=None):
     println(out, "import enum")
     println(out)
     if not data.is_enum:
-      println(out, "from blue_packet import BluePacket, assertType, toQuotedString")
+      helpers = ""
+      if data.converts:
+        helpers = ", bpEnumFromOrdinal, bpEnumFromString, bpStringToBool, bpToBool, bpToFloat, bpToInt, bpToString"
+      println(out, f"from blue_packet import BluePacket, assertType, toQuotedString{helpers}")
       println(out, "from typing import TYPE_CHECKING")
       println(out)
       not_import = { data.name, 'bool' }
@@ -331,27 +334,98 @@ def produceConvertAll(out, name, converts, indent):
   println(out, indent + "  ]")
 
 
-def produceConvert(out, name, ctype, copts, other_fields, indent):
+def pythonEnumRef(data, enum_type):
+  if enum_type in data.enums:
+    return f"{data.name}.{enum_type}"
+  return enum_type
+
+
+def pythonConversion(data, mapping, expression):
+  same_type = mapping.source_type == mapping.target_type
+  force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
+  if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
+    return expression
+  if mapping.operator == CONVERT_WIDEN:
+    if mapping.target_type == "string":
+      if mapping.source_type == "string":
+        return expression
+      return f"bpToString({expression}, {mapping.source_kind == 'enum'})"
+    if mapping.target_type in ("float", "double") and mapping.source_type not in ("float", "double"):
+      return f"float({expression})"
+    return expression
+
+  target = mapping.target_type
+  if mapping.target_kind == "enum":
+    enum_ref = pythonEnumRef(data, target)
+    if mapping.source_kind == "enum":
+      return f"bpEnumFromOrdinal({enum_ref}, {expression}.value)"
+    if mapping.source_type == "string":
+      return f"bpEnumFromString({enum_ref}, {expression})"
+    return f"bpEnumFromOrdinal({enum_ref}, {expression})"
+  if target == "string":
+    if mapping.source_type == "string":
+      return expression
+    return f"bpToString({expression}, {mapping.source_kind == 'enum'})"
+  if target == "bool":
+    if mapping.source_type == "bool":
+      return expression
+    if mapping.source_kind == "enum":
+      return "True"
+    return f"bpToBool({expression})"
+  if target in ("byte", "ubyte", "short", "ushort", "int", "long"):
+    return f"bpToInt({expression}, {target!r}, {mapping.source_kind == 'enum'})"
+  if target in ("float", "double"):
+    return f"bpToFloat({expression}, {target!r}, {mapping.source_kind == 'enum'})"
+  return expression
+
+
+def produceConvert(out, data, ctype, mappings, indent):
   println(out)
   println(out, indent + "@staticmethod")
   println(out, f"{indent}def convert{ctype}(other):")
   produceDocstring(out, indent + "  ",
     [
-      f"Converter method to build a {name} from an instance of {ctype}",
+      f"Converter method to build a {data.name} from an instance of {ctype}",
       f"Args:",
       f"    other: populated instance of {ctype}",
       f"Returns:",
-      f"    new instance of {name} populated with data from other"
+      f"    new instance of {data.name} populated with data from other"
     ]
   )
   println(out, f"{indent}  assertType(other, {ctype}, False)")
-  println(out, f"{indent}  return {name}(")
+  println(out, f"{indent}  return {data.name}(")
 
-  for pf in other_fields:
-    if pf.name:
-      println(out, f"{indent}      {pf.name}=other.{pf.name},")
+  for mapping in mappings:
+    if mapping.target == CONVERT_IGNORE:
+      continue
+    if mapping.operator == CONVERT_CONST:
+      value = pythonConstant(data, mapping)
+    elif mapping.target_is_list:
+      element = pythonConversion(data, mapping, "x")
+      source = f"other.{mapping.source}"
+      value = source if element == "x" else f"[{element} for x in {source}]"
+    else:
+      value = pythonConversion(data, mapping, f"other.{mapping.source}")
+    println(out, f"{indent}      {mapping.target}={value},")
 
   println(out, indent + f"  )")
+
+
+def pythonConstant(data, mapping):
+  constant = mapping.constant
+  if constant.kind == "enum":
+    qualifier, value = constant.value
+    enum_type = qualifier or mapping.target_type
+    if mapping.target_type in data.enums:
+      enum_type = f"{data.name}.{enum_type}"
+    return f"{enum_type}.{value}"
+  if constant.kind == "string":
+    return repr(constant.value)
+  if constant.kind == "bool":
+    return "True" if constant.value else "False"
+  if mapping.target_type in ("float", "double") and constant.kind == "int":
+    return repr(float(constant.value))
+  return repr(constant.value)
 
 
 def exportInnerEnum(out, data, indent0):
@@ -415,12 +489,11 @@ def exportClass(out_dir, data, version, all_data):
     produceDeserializer(out, data, sorted_fields, DEFAULT_INDENT, data.field_is_enum, None)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceConvertAll(out, data.name, data.converts, DEFAULT_INDENT)
-    for ctype, copts in data.converts.items():
+    for ctype, mappings in data.converts.items():
       other = all_data.get(ctype)
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
-      cfields = list(sorted(other.fields, key=str))
-      produceConvert(out, data.name, ctype, copts, cfields, DEFAULT_INDENT)
+      produceConvert(out, data, ctype, mappings, DEFAULT_INDENT)
 
     if data.inner:
       println(out)

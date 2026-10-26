@@ -821,4 +821,180 @@ public abstract class BluePacket
     }
     sb.append('}');
   }
+
+  /** Case-insensitive strings that force conversion treats as false. */
+  private static final java.util.Set<String> BP_FALSE_STRINGS = new java.util.HashSet<>(
+      java.util.Arrays.asList("", "false", "f", "0", "no", "n", "off", "null", "none"));
+
+  /**
+   * Canonical string representation used by convert mappings.
+   * @param value scalar or enum value
+   * @return canonical representation
+   */
+  public static String bpToString(Object value) {
+    if (value instanceof Boolean) return ((Boolean) value) ? "true" : "false";
+    if (value instanceof Enum) return ((Enum<?>) value).name();
+    if (value instanceof Float) return bpFloatToString((Float) value);
+    if (value instanceof Double) return bpFloatToString((Double) value);
+    return String.valueOf(value);
+  }
+
+  private static String bpFloatToString(float value) {
+    if (Float.isNaN(value)) return "nan";
+    if (value == Float.POSITIVE_INFINITY) return "inf";
+    if (value == Float.NEGATIVE_INFINITY) return "-inf";
+    return bpEnsureDecimal(Float.toString(value));
+  }
+
+  private static String bpFloatToString(double value) {
+    if (Double.isNaN(value)) return "nan";
+    if (value == Double.POSITIVE_INFINITY) return "inf";
+    if (value == Double.NEGATIVE_INFINITY) return "-inf";
+    return bpEnsureDecimal(Double.toString(value));
+  }
+
+  private static String bpEnsureDecimal(String text) {
+    boolean hasDecimal = text.indexOf('.') >= 0 || text.indexOf('E') >= 0 || text.indexOf('e') >= 0;
+    return hasDecimal ? text : text + ".0";
+  }
+
+  /**
+   * Interpret a string as a boolean using the canonical false list.
+   * @param value string to parse
+   * @return parsed boolean
+   */
+  public static boolean bpStringToBool(String value) {
+    return !BP_FALSE_STRINGS.contains(value.trim().toLowerCase());
+  }
+
+  /**
+   * Best-effort conversion to boolean.
+   * @param value source value
+   * @return converted boolean
+   */
+  public static boolean bpToBool(Object value) {
+    if (value instanceof Boolean) return (Boolean) value;
+    if (value instanceof Number) return ((Number) value).doubleValue() != 0;
+    return bpStringToBool((String) value);
+  }
+
+  /**
+   * Ordinal of an enum value, zero for null.
+   * @param value enum value
+   * @return ordinal
+   */
+  public static long bpEnumOrdinal(Enum<?> value) {
+    return value == null ? 0L : value.ordinal();
+  }
+
+  /**
+   * Best-effort conversion to a clamped 64-bit integer.
+   * @param value source value
+   * @param low minimum allowed value
+   * @param high maximum allowed value
+   * @return converted value
+   */
+  public static long bpToLong(Object value, long low, long high) {
+    if (value instanceof Boolean) return ((Boolean) value) ? 1L : 0L;
+    if (value instanceof String) return bpStringToLong((String) value, low, high);
+    if (value instanceof Float || value instanceof Double) {
+      double number = ((Number) value).doubleValue();
+      if (Double.isNaN(number)) return 0L;
+      if (number <= low) return low;
+      if (number >= high) return high;
+      return (long) number;
+    }
+    return Math.max(low, Math.min(high, ((Number) value).longValue()));
+  }
+
+  private static long bpStringToLong(String value, long low, long high) {
+    String text = value.trim();
+    try {
+      return Math.max(low, Math.min(high, Long.parseLong(text)));
+    } catch (NumberFormatException e) {
+      // Fall through to floating point parsing.
+    }
+    try {
+      double number = Double.parseDouble(text);
+      if (Double.isNaN(number)) return 0L;
+      if (number <= low) return low;
+      if (number >= high) return high;
+      return (long) number;
+    } catch (NumberFormatException e) {
+      return 0L;
+    }
+  }
+
+  /**
+   * Best-effort conversion to floating point.
+   * @param value source value
+   * @param isFloat true to clamp to the 32-bit float range
+   * @return converted value
+   */
+  public static double bpToDouble(Object value, boolean isFloat) {
+    double result;
+    if (value instanceof Boolean) {
+      result = ((Boolean) value) ? 1.0 : 0.0;
+    } else if (value instanceof String) {
+      try {
+        result = Double.parseDouble(((String) value).trim());
+      } catch (NumberFormatException e) {
+        result = 0.0;
+      }
+    } else {
+      result = ((Number) value).doubleValue();
+    }
+    if (isFloat && !Double.isNaN(result)) {
+      double limit = 3.4028234663852886e38;
+      if (result > limit) result = limit;
+      else if (result < -limit) result = -limit;
+    }
+    return result;
+  }
+
+  /**
+   * Best-effort conversion to an enum value.
+   * @param enumType target enum class
+   * @param value source value
+   * @param <E> enum type
+   * @return converted enum value or the first enum constant
+   */
+  public static <E extends Enum<E>> E bpToEnum(Class<E> enumType, Object value) {
+    E[] values = enumType.getEnumConstants();
+    if (value != null && enumType.isInstance(value)) return enumType.cast(value);
+    if (value instanceof String) {
+      String text = ((String) value).trim();
+      for (E entry : values) {
+        if (entry.name().equals(text)) return entry;
+      }
+      return bpEnumFromLong(values, bpStringToOrdinal(text));
+    }
+    if (value instanceof Boolean) return bpEnumFromLong(values, ((Boolean) value) ? 1L : 0L);
+    if (value instanceof Enum) return bpEnumFromLong(values, ((Enum<?>) value).ordinal());
+    if (value instanceof Float || value instanceof Double) {
+      double number = ((Number) value).doubleValue();
+      if (Double.isNaN(number)) return bpEnumFromLong(values, 0L);
+      return bpEnumFromLong(values, (long) number);
+    }
+    if (value instanceof Number) return bpEnumFromLong(values, ((Number) value).longValue());
+    return bpEnumFromLong(values, 0L);
+  }
+
+  private static long bpStringToOrdinal(String text) {
+    try {
+      return Long.parseLong(text);
+    } catch (NumberFormatException e) {
+      try {
+        return (long) Double.parseDouble(text);
+      } catch (NumberFormatException ignored) {
+        return 0L;
+      }
+    }
+  }
+
+  private static <E extends Enum<E>> E bpEnumFromLong(E[] values, long ordinal) {
+    if (values.length == 0) return null;
+    if (ordinal < 0 || ordinal >= values.length) return values[0];
+    return values[(int) ordinal];
+  }
 }

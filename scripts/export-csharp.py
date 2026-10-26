@@ -1,8 +1,9 @@
 #! /usr/bin/env python3
 import argparse
+import json
 import os, sys
 
-from libexport import Parser, println, versionHash
+from libexport import CONVERT_CONST, CONVERT_COPY, CONVERT_FORCE, CONVERT_IGNORE, CONVERT_WIDEN, Parser, SourceException, println, versionHash
 
 DEFAULT_INDENT = "    "
 INNER_INDENT = DEFAULT_INDENT + "  "
@@ -11,6 +12,15 @@ CS_TYPE = {
   "byte": "sbyte",
   "packet": "BluePacket",
   "ubyte": "byte",
+}
+
+CS_INT_BOUNDS = {
+  "byte": ("-128", "127"),
+  "ubyte": ("0", "255"),
+  "short": ("-32768", "32767"),
+  "ushort": ("0", "65535"),
+  "int": ("-2147483648", "2147483647"),
+  "long": ("-9223372036854775808", "9223372036854775807"),
 }
 
 CS_WRITER = {
@@ -246,22 +256,89 @@ def produceConvertAll(out, name, converts, indent):
   println(out, indent + "}")
 
 
-def produceConvert(out, name, ctype, copts, other_fields, indent):
+def csConstant(mapping):
+  constant = mapping.constant
+  target_type = mapping.target_type
+  if constant.kind == "bool":
+    return "true" if constant.value else "false"
+  if constant.kind == "string":
+    return json.dumps(constant.value)
+  if constant.kind == "enum":
+    qualifier, value = constant.value
+    enum_type = qualifier or target_type
+    return f"{enum_type}.{value}"
+  if target_type == "long":
+    if constant.value == -(2 ** 63):
+      return "long.MinValue"
+    return f"{constant.value}L"
+  if target_type == "float":
+    return f"{float(constant.value)}f"
+  if target_type == "double":
+    return repr(float(constant.value))
+  return str(constant.value)
+
+
+def csConversion(mapping, expression):
+  same_type = mapping.source_type == mapping.target_type
+  force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
+  if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
+    return expression
+  if mapping.operator == CONVERT_WIDEN:
+    if mapping.target_type == "string":
+      if mapping.source_type == "string":
+        return expression
+      return f"BpToString({expression})"
+    if mapping.target_type == mapping.source_type:
+      return expression
+    return f"({CS_TYPE.get(mapping.target_type, mapping.target_type)}) {expression}"
+
+  target = mapping.target_type
+  if mapping.target_kind == "enum":
+    return f"BpToEnum<{target}>({expression})"
+  if target == "string":
+    return f"BpToString({expression})"
+  if target == "bool":
+    if mapping.source_type == "bool":
+      return expression
+    if mapping.source_kind == "enum":
+      return "true"
+    return f"BpToBool({expression})"
+  if target in CS_INT_BOUNDS:
+    low, high = CS_INT_BOUNDS[target]
+    value = f"BpToLong({expression}, {low}L, {high}L)"
+    return value if target == "long" else f"({CS_TYPE.get(target, target)}) {value}"
+  if target in ("float", "double"):
+    is_float = "true" if target == "float" else "false"
+    value = f"BpToDouble({expression}, {is_float})"
+    return value if target == "double" else f"(float) {value}"
+  return expression
+
+
+def produceConvert(out, data, ctype, mappings, indent):
   println(out)
   produceDocstring(out, indent,
     [
-      f"Converter method to build a {name} from an instance of {ctype}",
+      f"Converter method to build a {data.name} from an instance of {ctype}",
       f"@param other populated instance of {ctype}",
-      f"@return new instance of {name} populated with data from other"
+      f"@return new instance of {data.name} populated with data from other"
     ]
   )
-  println(out, f"{indent}public static {name} convert({ctype} other)")
+  println(out, f"{indent}public static {data.name} convert({ctype} other)")
   println(out, indent + "{")
-  println(out, indent + f"  return new {name} {{")
+  println(out, indent + f"  return new {data.name} {{")
 
-  for pf in other_fields:
-    if pf.name:
-      println(out, f"{indent}      {pf.name} = other.{pf.name},")
+  for mapping in mappings:
+    if mapping.target == CONVERT_IGNORE:
+      continue
+    if mapping.operator == CONVERT_CONST:
+      value = csConstant(mapping)
+    elif mapping.target_is_list:
+      source = f"other.{mapping.source}"
+      element = csConversion(mapping, "x")
+      value = source if element == "x" else f"Array.ConvertAll({source}, x => {element})"
+    else:
+      value = csConversion(mapping, f"other.{mapping.source}")
+    println(out, f"{indent}      {mapping.target} = {value},")
 
   println(out, indent + "  };")
   println(out, indent + "}")
@@ -343,12 +420,11 @@ def exportClass(out_dir, namespace, data, version, all_data):
     produceDeserializer(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceFieldsToString(out, data.name, sorted_fields, DEFAULT_INDENT, data.field_is_enum)
     produceConvertAll(out, data.name, data.converts, DEFAULT_INDENT)
-    for ctype, copts in data.converts.items():
+    for ctype, mappings in data.converts.items():
       other = all_data.get(ctype)
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
-      cfields = list(sorted(other.fields, key=str))
-      produceConvert(out, data.name, ctype, copts, cfields, DEFAULT_INDENT)
+      produceConvert(out, data, ctype, mappings, DEFAULT_INDENT)
 
     if data.inner:
       println(out)
