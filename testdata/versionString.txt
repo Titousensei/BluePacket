@@ -14,6 +14,10 @@ DemoSecond DemoSecond+enabled:bool+id:int+text:[]string
 DemoThirdNew DemoThirdNew+field1:long+field3:bool+field5:int
 DemoThirdOld DemoThirdOld+field2:int+field4:bool+field6:string
 ConvertEnum ConvertEnum+ONE:+TWO:+ZERO:
+ConvertEnumMore ConvertEnumMore+ONE:+THREE:+TWO:+ZERO:
+ConvertEnumNew ConvertEnumNew+ONE:+THREE:+TWO:
+EnumFieldSource EnumFieldSource+oldValue:{ConvertEnum__F72757D07E932CB2}
+EnumFieldTarget EnumFieldTarget+newValue:{ConvertEnumNew__EC9DA1CD780377F1}
 ForceSource ForceSource+boolText:string+boolValue:bool+enumValue:{ConvertEnum__F72757D07E932CB2}+intList:[]int+intText:string+intValue:int+longValue:long
 ForceTarget ForceTarget+boolFromEnum:bool+boolFromInt:bool+boolFromText:bool+byteFromText:ubyte+doubleFromText:double+enumFromInt:{ConvertEnum__F72757D07E932CB2}+enumFromText:{ConvertEnum__F72757D07E932CB2}+intFromLong:int+intFromText:int+listDoubled:[]int+listText:[]string+stringFromBool:string+stringFromEnum:string
 StringSource StringSource+color:{ConvertEnum__F72757D07E932CB2}+flag:bool+flags:[]bool+number:int+ratio:double+text:string

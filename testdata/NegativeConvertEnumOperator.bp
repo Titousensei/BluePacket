@@ -1,0 +1,11 @@
+# Expected to fail because enum conversion only supports the <- operator
+# @what EnumTarget.EnumSource: A<=A
+
+EnumSource: enum
+    A
+
+EnumTarget: enum
+    A
+
+    convert EnumSource:
+        A <= A

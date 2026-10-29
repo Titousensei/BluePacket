@@ -390,6 +390,31 @@ class TestBluePacket
     System.out.println("PASS");
   }
 
+  private void testEnumConvert(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+
+    assertEquals(ConvertEnumMore.ZERO, ConvertEnumMore.convertConvertEnum(ConvertEnum.ZERO), "enum convert identity ZERO");
+    assertEquals(ConvertEnumMore.TWO, ConvertEnumMore.convertConvertEnum(ConvertEnum.TWO), "enum convert identity TWO");
+    assertEquals(ConvertEnumNew.ONE, ConvertEnumNew.convertConvertEnum(ConvertEnum.ZERO), "enum convert ZERO to ONE");
+    assertEquals(ConvertEnumNew.ONE, ConvertEnumNew.convertConvertEnum(ConvertEnum.ONE), "enum convert ONE to ONE");
+    assertEquals(ConvertEnumNew.TWO, ConvertEnumNew.convertConvertEnum(ConvertEnum.TWO), "enum convert TWO to TWO");
+
+    EnumFieldSource source = new EnumFieldSource().setOldValue(ConvertEnum.ZERO);
+    EnumFieldTarget target = EnumFieldTarget.convert(source);
+    assertEquals(ConvertEnumNew.ONE, target.newValue, "packet enum field conversion");
+
+    try {
+      ConvertEnumNew.convertConvertEnum(ConvertEnum.valueOf(99));
+      throw new AssertionError("enum convert should reject unknown value");
+    } catch (RuntimeException expected) {
+      // Expected.
+    }
+
+    System.out.println("PASS");
+  }
+
   private void testApiVersion(String name)
   throws Exception
   {
@@ -440,6 +465,7 @@ class TestBluePacket
     test.testConvert("testConvert");
     test.testConvertMappings("testConvertMappings");
     test.testForceConvert("testForceConvert");
+    test.testEnumConvert("testEnumConvert");
     test.testApiVersion("testApiVersion");
     test.testListPacketEncoding("testListPacketEncoding");
     test.testMutuallyRecursivePackets("testMutuallyRecursivePackets");

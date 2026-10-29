@@ -269,6 +269,31 @@ class TestBluePacket
     Console.WriteLine("PASS");
   }
 
+  private void testEnumConvert(String name)
+  {
+    Console.Write(name + ": ");
+
+    AssertEquals(ConvertEnumMore.ZERO, ConvertEnumMoreEnumConverter.EnumConvert(ConvertEnum.ZERO), "enum convert identity ZERO");
+    AssertEquals(ConvertEnumMore.TWO, ConvertEnumMoreEnumConverter.EnumConvert(ConvertEnum.TWO), "enum convert identity TWO");
+    AssertEquals(ConvertEnumNew.ONE, ConvertEnumNewEnumConverter.EnumConvert(ConvertEnum.ZERO), "enum convert ZERO to ONE");
+    AssertEquals(ConvertEnumNew.ONE, ConvertEnumNewEnumConverter.EnumConvert(ConvertEnum.ONE), "enum convert ONE to ONE");
+    AssertEquals(ConvertEnumNew.TWO, ConvertEnumNewEnumConverter.EnumConvert(ConvertEnum.TWO), "enum convert TWO to TWO");
+
+    EnumFieldSource source = new EnumFieldSource { oldValue = ConvertEnum.ZERO };
+    EnumFieldTarget target = EnumFieldTarget.convert(source);
+    AssertEquals(ConvertEnumNew.ONE, target.newValue, "packet enum field conversion");
+
+    bool threw = false;
+    try {
+      ConvertEnumNewEnumConverter.EnumConvert((ConvertEnum) 99);
+    } catch (ArgumentException) {
+      threw = true;
+    }
+    AssertTrue(threw, "enum convert should reject unknown value");
+
+    Console.WriteLine("PASS");
+  }
+
   private void testApiVersion(String name)
   {
     Console.Write(name + ": ");
@@ -339,6 +364,7 @@ class TestBluePacket
 
     test.testConvert("testConvert");
     test.testForceConvert("testForceConvert");
+    test.testEnumConvert("testEnumConvert");
     test.testApiVersion("testApiVersion");
     test.TestMutuallyRecursivePackets("testMutuallyRecursivePackets");
   }

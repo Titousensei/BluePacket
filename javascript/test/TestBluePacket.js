@@ -1026,6 +1026,19 @@ _runTest("testConvert", () => {
     _assertEqual(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond");
 });
 
+_runTest("testEnumConvert", () => {
+    _assertEqual(T.ConvertEnumMore.ZERO, T.ConvertEnumMoreEnumConvert(T.ConvertEnum.ZERO), "enum convert identity ZERO");
+    _assertEqual(T.ConvertEnumMore.TWO, T.ConvertEnumMoreEnumConvert(T.ConvertEnum.TWO), "enum convert identity TWO");
+    _assertEqual(T.ConvertEnumNew.ONE, T.ConvertEnumNewEnumConvert(T.ConvertEnum.ZERO), "enum convert ZERO to ONE");
+    _assertEqual(T.ConvertEnumNew.ONE, T.ConvertEnumNewEnumConvert(T.ConvertEnum.ONE), "enum convert ONE to ONE");
+    _assertEqual(T.ConvertEnumNew.TWO, T.ConvertEnumNewEnumConvert(T.ConvertEnum.TWO), "enum convert TWO to TWO");
+    _assertThrowsMessage(() => T.ConvertEnumNewEnumConvert({type: "ConvertEnum", name: "MISSING", value: 99}), "Unknown ConvertEnum value", "enum convert unknown value");
+
+    let source = new T.EnumFieldSource({oldValue: T.ConvertEnum.ZERO});
+    let target = T.EnumFieldTarget.convertEnumFieldSource(source);
+    _assertEqual(T.ConvertEnumNew.ONE, target.newValue, "packet enum field conversion");
+});
+
 _runTest("testForceConvert", () => {
     let source = new T.ForceSource({
         intValue: 1,

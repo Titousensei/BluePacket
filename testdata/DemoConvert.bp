@@ -30,6 +30,28 @@ DemoThirdNew:
 ConvertEnum: enum
     ZERO, ONE, TWO
 
+ConvertEnumMore: enum
+    ZERO, ONE, TWO, THREE
+
+    convert ConvertEnum:
+
+ConvertEnumNew: enum
+    ONE, TWO, THREE
+
+    convert ConvertEnum:
+        ONE <- ZERO
+
+
+EnumFieldSource:
+    ConvertEnum oldValue
+
+EnumFieldTarget:
+    ConvertEnumNew newValue
+
+    convert EnumFieldSource:
+        newValue <- oldValue
+
+
 ForceSource:
     int intValue
     string intText

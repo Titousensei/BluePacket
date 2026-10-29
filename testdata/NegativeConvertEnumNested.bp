@@ -1,0 +1,10 @@
+# Expected to fail because enum conversion is only supported on top-level enums
+# @what Outer.Inner
+
+Outer:
+    int a
+
+    Inner: enum
+        A
+
+        convert Inner:

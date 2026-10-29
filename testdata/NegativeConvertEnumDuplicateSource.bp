@@ -1,0 +1,12 @@
+# Expected to fail because a source enum value can only be mapped once
+# @what EnumTarget.EnumSource: B<-A
+
+EnumSource: enum
+    A
+
+EnumTarget: enum
+    A, B
+
+    convert EnumSource:
+        A <- A
+        B <- A

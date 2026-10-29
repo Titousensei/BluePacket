@@ -66,6 +66,21 @@ class TestLibExport(unittest.TestCase):
         expected = self.intermediateRepresentation[data.name]
         self.assertEqual(expected, repr(data), cl)
 
+  def test_enumConvertResolution(self):
+    expected = {
+      "ConvertEnumMore": [("ZERO", "ZERO"), ("ONE", "ONE"), ("TWO", "TWO")],
+      "ConvertEnumNew": [("ZERO", "ONE"), ("ONE", "ONE"), ("TWO", "TWO")],
+    }
+    for target_name, pairs in expected.items():
+      target = self.all_data[target_name]
+      mappings = target.converts["ConvertEnum"]
+      self.assertEqual(pairs, [(m.source, m.target) for m in mappings], target_name)
+
+  def test_enumConvertFieldMapping(self):
+    target = self.all_data["EnumFieldTarget"]
+    mapping, = target.converts["EnumFieldSource"]
+    self.assertTrue(mapping.enum_convert, "Enum field mapping should use the enum converter")
+
   def test_negatives(self):
     path = os.path.join(TESTDATA_DIR, "Negative*.bp")
     for filepath in glob.glob(path):

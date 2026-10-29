@@ -1,0 +1,7 @@
+# Expected to fail because an enum cannot convert itself
+# @what EnumSelf.EnumSelf
+
+EnumSelf: enum
+    A
+
+    convert EnumSelf:

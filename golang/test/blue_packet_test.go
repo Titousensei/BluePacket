@@ -326,6 +326,26 @@ func TestDemoForceConvert(t *testing.T) {
 	assertEquals(t, "widen list bool to string", "[true false]", fmt.Sprint(widened.FromFlags))
 }
 
+func TestEnumConvert(t *testing.T) {
+	t.Log("-- testEnumConvert")
+	assertEquals(t, "enum convert identity ZERO", ConvertEnumMoreZERO, ConvertEnumMoreEnumConvert(ConvertEnumZERO))
+	assertEquals(t, "enum convert identity TWO", ConvertEnumMoreTWO, ConvertEnumMoreEnumConvert(ConvertEnumTWO))
+	assertEquals(t, "enum convert ZERO to ONE", ConvertEnumNewONE, ConvertEnumNewEnumConvert(ConvertEnumZERO))
+	assertEquals(t, "enum convert ONE to ONE", ConvertEnumNewONE, ConvertEnumNewEnumConvert(ConvertEnumONE))
+	assertEquals(t, "enum convert TWO to TWO", ConvertEnumNewTWO, ConvertEnumNewEnumConvert(ConvertEnumTWO))
+
+	source := &EnumFieldSource { OldValue: ConvertEnumZERO }
+	target := source.NewEnumFieldTarget()
+	assertEquals(t, "packet enum field conversion", ConvertEnumNewONE, target.NewValue)
+
+	defer func() {
+		if recover() == nil {
+			t.Error("enum convert should reject unknown value")
+		}
+	}()
+	ConvertEnumNewEnumConvert(ConvertEnum(99))
+}
+
 func TestApiVersion(t *testing.T) {
 	t.Log("-- testApiVersion")
 	assertTrue(t, "BluePacketAPIVersion calculated", BluePacketApiVersion != 0)

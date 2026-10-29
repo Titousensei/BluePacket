@@ -58,6 +58,9 @@ def header(out, namespace, data):
       println(out, "using System.Text;")
       println(out, "using BluePackets;")
       println(out)
+    elif data.is_enum and data.converts:
+      println(out, "using System;")
+      println(out)
     println(out, f"namespace {namespace}")
     println(out, "{")
 
@@ -283,6 +286,8 @@ def csConversion(mapping, expression):
   force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
   if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
     return expression
+  if mapping.enum_convert:
+    return f"{mapping.target_type}EnumConverter.EnumConvert({expression})"
   if mapping.operator == CONVERT_WIDEN:
     if mapping.target_type == "string":
       if mapping.source_type == "string":
@@ -442,12 +447,32 @@ def exportClass(out_dir, namespace, data, version, all_data):
     println(out, "}")
 
 
+def produceEnumConverter(out, data, indent):
+  if not data.converts:
+    return
+  println(out)
+  println(out, f"{indent}public static class {data.name}EnumConverter")
+  println(out, indent + "{")
+  for ctype, mappings in data.converts.items():
+    println(out, f"{indent}  public static {data.name} EnumConvert({ctype} value)")
+    println(out, indent + "  {")
+    println(out, f"{indent}    switch (value)")
+    println(out, indent + "    {")
+    for mapping in mappings:
+      println(out, f"{indent}      case {ctype}.{mapping.source}: return {data.name}.{mapping.target};")
+    println(out, f'{indent}      default: throw new ArgumentException($"Unknown {ctype} value: {{value}}");')
+    println(out, indent + "    }")
+    println(out, indent + "  }")
+  println(out, indent + "}")
+
+
 def exportEnum(out_dir, namespace, data):
   path = os.path.join(out_dir, data.name + ".cs")
   print("[ExporterCSharp] BluePacket enum", path, file=sys.stderr)
   with open(path, "w") as out:
     header(out, namespace, data)
     exportInnerEnum(out, data, "  ")
+    produceEnumConverter(out, data, "  ")
     println(out, "}")
 
 

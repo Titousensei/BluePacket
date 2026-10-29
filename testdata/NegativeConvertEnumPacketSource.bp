@@ -1,0 +1,10 @@
+# Expected to fail because a packet cannot convert from an enum
+# @what PacketTarget.EnumSource
+
+EnumSource: enum
+    A
+
+PacketTarget:
+    int a
+
+    convert EnumSource:

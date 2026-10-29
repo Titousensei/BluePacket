@@ -331,6 +331,8 @@ def javaConversion(mapping, expression):
   force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
   if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
     return expression
+  if mapping.enum_convert:
+    return f"{mapping.target_type}.convert{mapping.source_type}({expression})"
   if mapping.operator == CONVERT_WIDEN:
     if mapping.target_type == "string":
       if mapping.source_type == "string":
@@ -409,6 +411,26 @@ def produceConvert(out, data, ctype, mappings, indent):
   println(out, indent + "}")
 
 
+def produceEnumConvert(out, data, ctype, mappings, indent):
+  println(out)
+  produceDocstring(out, indent,
+    [
+      f"Converter method to build a {data.name} from an instance of {ctype}",
+      f"@param other instance of {ctype}",
+      f"@return matching {data.name} value",
+    ]
+  )
+  println(out, f"{indent}public static {data.name} convert{ctype}({ctype} other)")
+  println(out, indent + "{")
+  println(out, f"{indent}  switch (other)")
+  println(out, indent + "  {")
+  for mapping in mappings:
+    println(out, f"{indent}    case {mapping.source}: return {data.name}.{mapping.target};")
+  println(out, f'{indent}    default: throw new IllegalArgumentException("Unknown {ctype} value: " + other);')
+  println(out, indent + "  }")
+  println(out, indent + "}")
+
+
 def exportInnerEnum(out, data, indent0):
   println(out)
   produceDocstring(out, indent0, data.docstring)
@@ -442,6 +464,8 @@ def exportInnerEnum(out, data, indent0):
   println(out)
   produceDocstring(out, indent, ["Helper to lookup enum.", "@param v ordinal value ", "@return enum type value"])
   println(out, f"{indent}public static {data.name} valueOf(int v) {{ return map.get(v); }}")
+  for ctype, mappings in data.converts.items():
+    produceEnumConvert(out, data, ctype, mappings, indent)
   println(out, f"{indent0}}}")
 
 

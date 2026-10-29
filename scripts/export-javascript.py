@@ -246,6 +246,8 @@ def jsConversion(data, mapping, expression):
   force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
   if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
     return expression
+  if mapping.enum_convert:
+    return f"{jsEnumType(data, mapping.target_type)}EnumConvert({expression})"
   if mapping.operator == CONVERT_WIDEN:
     if mapping.target_type == "string":
       if mapping.source_type == "string":
@@ -338,6 +340,19 @@ def produceClass(out, data, owner, all_data, version):
   println(out, "}")
 
 
+def produceEnumConverter(out, data, ctype, mappings):
+  println(out)
+  println(out, f"function {data.name}EnumConvert(value) {{")
+  println(out, INDENT + "switch (value) {")
+  for mapping in mappings:
+    println(out, INDENT + f"  case {ctype}.{mapping.source}:")
+    println(out, INDENT + f"    return {data.name}.{mapping.target};")
+  println(out, INDENT + "  default:")
+  println(out, INDENT + f'    throw new Error("Unknown {ctype} value: " + value);')
+  println(out, INDENT + "}")
+  println(out, "}")
+
+
 def produceEnum(out, data):
   produceDocstring(out, "", data.docstring)
   println(out, f"const {data.name} = createEnum(")
@@ -349,6 +364,8 @@ def produceEnum(out, data):
     else:
       produceComment(out, INDENT, pf.docstring)
   println(out, ");")
+  for ctype, mappings in data.converts.items():
+    produceEnumConverter(out, data, ctype, mappings)
 
 
 def produceAbstract(out, data):
@@ -479,6 +496,9 @@ def exportBundle(out_dir, runtime, all_data, api_version, browser_mode, salt="")
       println(out, "module.exports = {")
     for data in all_data.values():
       println(out, INDENT + f"{data.name},")
+      if data.is_enum:
+        for ctype in data.converts:
+          println(out, INDENT + f"{data.name}EnumConvert,")
     for name in ("BluePacketRegistry", "registry", "BluePacketAPI",
                  "toSignedByte", "toSignedShort", "toUnsignedByte", "toUnsignedShort"):
       println(out, INDENT + f"{name},")

@@ -419,6 +419,21 @@ class TestBluePacket(unittest.TestCase):
     actualConvert2 = [p.packetHash for p in d2.convert()]
     self.assertEqual(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond")
 
+  def testEnumConvert(self):
+    self.assertEqual(t.ConvertEnumMore.ZERO, t.ConvertEnumMore.convertConvertEnum(t.ConvertEnum.ZERO))
+    self.assertEqual(t.ConvertEnumMore.TWO, t.ConvertEnumMore.convertConvertEnum(t.ConvertEnum.TWO))
+
+    self.assertEqual(t.ConvertEnumNew.ONE, t.ConvertEnumNew.convertConvertEnum(t.ConvertEnum.ZERO))
+    self.assertEqual(t.ConvertEnumNew.ONE, t.ConvertEnumNew.convertConvertEnum(t.ConvertEnum.ONE))
+    self.assertEqual(t.ConvertEnumNew.TWO, t.ConvertEnumNew.convertConvertEnum(t.ConvertEnum.TWO))
+
+    with self.assertRaises(ValueError):
+      t.ConvertEnumNew.convertConvertEnum(object())
+
+    source = t.EnumFieldSource(oldValue=t.ConvertEnum.ZERO)
+    target = t.EnumFieldTarget.convertEnumFieldSource(source)
+    self.assertEqual(t.ConvertEnumNew.ONE, target.newValue)
+
   def testConvertMappings(self):
     old = t.DemoThirdOld(field2=42, field4=True, field6="ignored")
     new = t.DemoThirdNew.convertDemoThirdOld(old)

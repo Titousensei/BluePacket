@@ -1,0 +1,10 @@
+# Expected to fail because every source enum value must be mapped
+# @what EnumTarget.EnumSource: B
+
+EnumSource: enum
+    A, B
+
+EnumTarget: enum
+    A
+
+    convert EnumSource:

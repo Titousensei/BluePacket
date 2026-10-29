@@ -1,0 +1,11 @@
+# Expected to fail because the source enum value does not exist
+# @what EnumTarget.EnumSource: A<-MISSING
+
+EnumSource: enum
+    A
+
+EnumTarget: enum
+    A
+
+    convert EnumSource:
+        A <- MISSING

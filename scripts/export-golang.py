@@ -344,6 +344,8 @@ def goConversion(data, mapping, expression):
   force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
   if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
     return expression
+  if mapping.enum_convert:
+    return f"{goEnumType(data, mapping.target_type)}EnumConvert({expression})"
   if mapping.operator == CONVERT_WIDEN:
     if mapping.target_type == "string":
       if mapping.source_type == "string":
@@ -485,6 +487,22 @@ def exportStruct(out_dir, package, data, version, all_data):
         exportEnumDef(out, x, goname)
 
 
+def produceEnumConverter(out, data, ctype, mappings):
+  goname = _getGoType(data.name)
+  source = _getGoType(ctype)
+  println(out)
+  produceDocstring(out, "", [f"Converter function to build {goname} from {source}."])
+  println(out, f"func {goname}EnumConvert(value {source}) {goname} {{")
+  println(out, "\tswitch value {")
+  for mapping in mappings:
+    println(out, f"\tcase {source}{mapping.source}:")
+    println(out, f"\t\treturn {goname}{mapping.target}")
+  println(out, "\tdefault:")
+  println(out, f'\t\tpanic("Unknown {source} value")')
+  println(out, "\t}")
+  println(out, "}")
+
+
 def exportEnum(out_dir, package, data):
   goname = _getGoType(data.name)
   path = os.path.join(out_dir, goname + ".go")
@@ -493,6 +511,8 @@ def exportEnum(out_dir, package, data):
     header(out, package, data)
     produceDocstring(out, "", data.docstring)
     exportEnumDef(out, data, "")
+    for ctype, mappings in data.converts.items():
+      produceEnumConverter(out, data, ctype, mappings)
 
 
 def exportEnumDef(out, data, namespace):

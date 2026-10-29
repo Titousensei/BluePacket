@@ -126,6 +126,8 @@ class ConvertMapping:
     self.source_kind = None
     self.target_is_list = False
     self.source_is_list = False
+    # Field mappings between two enum types that are resolved by the target enum's converter.
+    self.enum_convert = False
 
   def __repr__(self):
     if self.operator == CONVERT_CONST:
@@ -332,7 +334,12 @@ class Parser:
     self.salt = salt
 
   def read_enums(self, line, indent, docstring):
-    for en in line.strip().split(','):
+    line_info, _ = _splitComment(line)
+    text = line_info.strip()
+    if text.startswith(CONVERT_LABEL + ' ') or text == CONVERT_LABEL:
+      self.start_convert(text, indent)
+      return
+    for en in text.split(','):
       en = en.strip()
       if en in self.data.field_names:
         raise SourceException(f"Duplicate enum value", what=f"{self.data.name}.{en}")
@@ -594,6 +601,10 @@ class Parser:
     data = self.packet_list.get(ftype)
     return data if data and data.is_enum else None
 
+  def _topLevelEnum(self, owner, ftype):
+    enum = self._enumType(owner, ftype)
+    return enum if enum is not None and self.packet_list.get(ftype) is enum else None
+
   def _typeKind(self, owner, ftype):
     kind = self._typeIdentity(owner, ftype)[0]
     if kind == "primitive":
@@ -706,7 +717,13 @@ class Parser:
       same_type = self._typeIdentity(target, target_field.type) == self._typeIdentity(source, source_field.type)
       if mapping.operator == CONVERT_COPY:
         if not same_type:
-          self._conversionError("Copy requires identical field types, use <=", target, source, mapping)
+          target_enum = self._topLevelEnum(target, target_field.type)
+          source_enum = self._topLevelEnum(source, source_field.type)
+          has_enum_convert = target_enum is not None and source_enum is not None and source_enum.name in target_enum.converts
+          if has_enum_convert:
+            mapping.enum_convert = True
+          else:
+            self._conversionError("Copy requires identical field types, use <=", target, source, mapping)
       elif mapping.operator == CONVERT_FORCE:
         supported = mapping.target_kind in ("scalar", "enum") and mapping.source_kind in ("scalar", "enum")
         if not supported:
@@ -751,10 +768,69 @@ class Parser:
           ConvertMapping(CONVERT_IGNORE, CONVERT_COPY, source=source_field.name),
         )
 
+  def _validateEnumConvert(self, target, source):
+    target_values = {pf.name for pf in target.fields if pf.name}
+    source_values = [pf.name for pf in source.fields if pf.name]
+    explicit = {}
+    for mapping in target.converts[source.name]:
+      if mapping.operator != CONVERT_COPY or mapping.target == CONVERT_IGNORE:
+        raise SourceException(
+          f"Enum {CONVERT_LABEL} only supports the {CONVERT_COPY} operator",
+          what=f"{target.name}.{source.name}: {mapping}",
+        )
+      if mapping.target not in target_values:
+        raise SourceException(
+          "Unknown target enum value",
+          what=f"{target.name}.{source.name}: {mapping}",
+        )
+      if mapping.source not in source_values:
+        raise SourceException(
+          "Unknown source enum value",
+          what=f"{target.name}.{source.name}: {mapping}",
+        )
+      if mapping.source in explicit:
+        raise SourceException(
+          "Duplicate source enum value",
+          what=f"{target.name}.{source.name}: {mapping}",
+        )
+      explicit[mapping.source] = mapping.target
+
+    resolved = []
+    for source_name in source_values:
+      target_name = explicit.get(source_name)
+      if target_name is None:
+        if source_name not in target_values:
+          raise SourceException(
+            "Source enum value is not mapped",
+            what=f"{target.name}.{source.name}: {source_name}",
+          )
+        target_name = source_name
+      resolved.append(ConvertMapping(target_name, CONVERT_COPY, source=source_name))
+    target.converts[source.name] = resolved
+
   def _validateConverts(self):
     for target in self.packet_list.values():
+      for enum in target.enums.values():
+        if enum.converts:
+          raise SourceException(
+            f"Enum {CONVERT_LABEL} is only supported on top-level enums",
+            what=f"{target.name}.{enum.name}",
+          )
       for ctype in target.converts:
         source = self.packet_list.get(ctype)
+        if target.is_enum:
+          if not source or not source.is_enum:
+            raise SourceException(
+              f"{CONVERT_LABEL} source must be an enum",
+              what=f"{target.name}.{ctype}",
+            )
+          if source is target:
+            raise SourceException(
+              f"{CONVERT_LABEL} source cannot be the target enum",
+              what=f"{target.name}.{ctype}",
+            )
+          self._validateEnumConvert(target, source)
+          continue
         if not source or source.is_enum or source.is_abstract:
           raise SourceException(
             f"{CONVERT_LABEL} source must be a concrete packet",

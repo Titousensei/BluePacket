@@ -43,6 +43,11 @@ def header(out, data, field_is_enum=None):
     println(out, "# WARNING: Auto-generated class - do not edit - any change will be overwritten and lost")
     println(out, "import enum")
     println(out)
+    if data.is_enum:
+      for ftype in sorted(data.converts):
+        println(out, f"from .{ftype} import {ftype}")
+      if data.converts:
+        println(out)
     if not data.is_enum:
       helpers = ""
       if data.converts:
@@ -345,6 +350,8 @@ def pythonConversion(data, mapping, expression):
   force_enum = mapping.operator == CONVERT_FORCE and mapping.source_kind == "enum" and mapping.target_kind == "enum"
   if same_type and (mapping.operator == CONVERT_COPY or (mapping.operator == CONVERT_FORCE and not force_enum)):
     return expression
+  if mapping.enum_convert:
+    return f"{pythonEnumRef(data, mapping.target_type)}.convert{mapping.source_type}({expression})"
   if mapping.operator == CONVERT_WIDEN:
     if mapping.target_type == "string":
       if mapping.source_type == "string":
@@ -428,6 +435,25 @@ def pythonConstant(data, mapping):
   return repr(constant.value)
 
 
+def produceEnumConvert(out, data, ctype, mappings, indent):
+  println(out)
+  println(out, indent + "@staticmethod")
+  println(out, f"{indent}def convert{ctype}(other):")
+  produceDocstring(out, indent + "  ",
+    [
+      f"Converter method to build a {data.name} from an instance of {ctype}",
+      f"Args:",
+      f"    other: instance of {ctype}",
+      f"Returns:",
+      f"    matching instance of {data.name}",
+    ]
+  )
+  for mapping in mappings:
+    println(out, f"{indent}  if other == {ctype}.{mapping.source}:")
+    println(out, f"{indent}    return {data.name}.{mapping.target}")
+  println(out, f'{indent}  raise ValueError("Unknown {ctype} value: " + str(other))')
+
+
 def exportInnerEnum(out, data, indent0):
   println(out, f"{indent0}class {data.name}(enum.Enum):")
   indent = indent0 + "    "
@@ -443,6 +469,8 @@ def exportInnerEnum(out, data, indent0):
       i += 1
     elif pf.docstring:
       println(out)
+  for ctype, mappings in data.converts.items():
+    produceEnumConvert(out, data, ctype, mappings, indent)
 
 
 def exportInnerClass(out, data, field_is_enum, parentName):

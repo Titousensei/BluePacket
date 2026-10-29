@@ -21,6 +21,10 @@ DemoSecond {DemoSecond/C F=[N=id T=int, N=text T=string list, N=enabled T=bool] 
 DemoThirdOld {DemoThirdOld/C F=[N=field2 T=int, N=field4 T=bool, N=field6 T=string] C[] E[] D[]}
 DemoThirdNew {DemoThirdNew/C F=[N=field1 T=long, N=field3 T=bool, N=field5 T=int] C[] E[] X[DemoThirdOld]=[field1<=field2, field3<-field4, field5=123, _<-field6] D[]}
 ConvertEnum {ConvertEnum/E F=[N=ZERO, N=ONE, N=TWO] D[]}
+ConvertEnumMore {ConvertEnumMore/E F=[N=ZERO, N=ONE, N=TWO, N=THREE] D[]}
+ConvertEnumNew {ConvertEnumNew/E F=[N=ONE, N=TWO, N=THREE] D[]}
+EnumFieldSource {EnumFieldSource/C F=[N=oldValue T=ConvertEnum] C[] E[] D[]}
+EnumFieldTarget {EnumFieldTarget/C F=[N=newValue T=ConvertEnumNew] C[] E[] X[EnumFieldSource]=[newValue<-oldValue] D[]}
 ForceSource {ForceSource/C F=[N=intValue T=int, N=intText T=string, N=boolText T=string, N=boolValue T=bool, N=longValue T=long, N=enumValue T=ConvertEnum, N=intList T=int list] C[] E[] D[]}
 ForceTarget {ForceTarget/C F=[N=boolFromText T=bool, N=boolFromInt T=bool, N=boolFromEnum T=bool, N=intFromText T=int, N=intFromLong T=int, N=byteFromText T=ubyte, N=stringFromBool T=string, N=stringFromEnum T=string, N=doubleFromText T=double, N=enumFromText T=ConvertEnum, N=enumFromInt T=ConvertEnum, N=listDoubled T=int list, N=listText T=string list] C[] E[] X[ForceSource]=[boolFromText<!boolText, boolFromInt<!intValue, boolFromEnum<!enumValue, intFromText<!intText, intFromLong<!longValue, byteFromText<!intText, stringFromBool<!boolValue, stringFromEnum<!enumValue, doubleFromText<!boolText, enumFromText<!boolText, enumFromInt<!intValue, listDoubled<!intList, listText<!intList] D[]}
 StringSource {StringSource/C F=[N=flag T=bool, N=number T=int, N=ratio T=double, N=color T=ConvertEnum, N=text T=string, N=flags T=bool list] C[] E[] D[]}
