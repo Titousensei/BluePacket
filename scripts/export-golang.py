@@ -388,6 +388,38 @@ def goConversion(data, mapping, expression):
   return expression
 
 
+def produceConvertMetadata(out, data, all_data, versions):
+  """Emit the packet type metadata used by the runtime convertIfPossible.
+
+  Go has no static per-type field, so the metadata is an optional method: a packet
+  without a convert target does not implement BluePacket.Convertible and is never
+  converted.
+  """
+  # The parser guarantees at most one target per source.
+  target = next((
+    other.name for other in all_data.values()
+    if other.name != data.name and not other.is_enum and not other.is_abstract and data.name in other.converts
+  ), None)
+  if target is None:
+    return
+
+  goname = _getGoType(data.name)
+  tgoname = _getGoType(target)
+  if tgoname not in versions:
+    raise SourceException("Converter target was not generated", what=target)
+
+  println(out)
+  produceDocstring(out, "",
+    [f"Packet type {tgoname} this packet is converted to during deserialization."]
+  )
+  println(out, f"func (bp *{goname}) GetConvertTo() *bluepacket.ConvertInfo {{")
+  println(out, "\treturn &bluepacket.ConvertInfo{")
+  println(out, f"\t\tTarget: {versions[tgoname]},")
+  println(out, f"\t\tConvert: func() bluepacket.BluePacket {{ return bp.New{tgoname}() }},")
+  println(out, "\t}")
+  println(out, "}")
+
+
 def produceConvert(out, data, ctype, mappings, indent):
   println(out)
   produceDocstring(out, indent,
@@ -441,7 +473,7 @@ def _innerFieldIsEnumWithNamespace(data):
       yield info, num
 
 
-def exportStruct(out_dir, package, data, version, all_data):
+def exportStruct(out_dir, package, data, version, all_data, versions):
   # namespace inner definition by using the parent package as prefix
   data.fields = list(_innerFieldsWithNamespace(data))
   data.field_is_enum = {k: v for k, v in _innerFieldIsEnumWithNamespace(data)}
@@ -464,6 +496,8 @@ def exportStruct(out_dir, package, data, version, all_data):
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
       produceConvert(out, data, ctype, mappings, "")
+
+    produceConvertMetadata(out, data, all_data, versions)
 
     if data.inner:
       println(out)
@@ -614,5 +648,5 @@ if __name__ == "__main__":
     if data.is_enum:
       exportEnum(args.output_dir, args.package, data)
     else:
-      exportStruct(args.output_dir, args.package, data, versions[_getGoType(data.name)], all_data)
+      exportStruct(args.output_dir, args.package, data, versions[_getGoType(data.name)], all_data, versions)
   exportApiVersion(args.output_dir, args.package, p.api_version)

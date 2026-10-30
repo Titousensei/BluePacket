@@ -355,7 +355,41 @@ namespace BluePackets
       // Body
       packet.PopulateData(ms);
 
-      return packet;
+      // Convert when the packet type declares a mapping to another packet
+      return ConvertIfPossible(packet);
+    }
+
+    /// <summary>
+    /// Convert a deserialized packet when its type declares a convert target.
+    /// </summary>
+    /// <param name="packet">the deserialized packet</param>
+    /// <returns>the converted packet, or the original packet when no conversion applies</returns>
+    public static BluePacket ConvertIfPossible(BluePacket packet)
+    {
+      Type target = GetConvertTo(packet.GetType());
+      if (target == null || !IsKnown(target)) return packet;
+
+      return ConvertPacket(target, packet);
+    }
+
+    private static Type GetConvertTo(Type packetType)
+    {
+      FieldInfo field = packetType.GetField("convertTo", BindingFlags.Public | BindingFlags.Static);
+      if (field == null)
+      {
+        throw new InvalidOperationException("Packet " + packetType.Name + " has no accessible convertTo metadata");
+      }
+      return (Type) field.GetValue(null);
+    }
+
+    private static BluePacket ConvertPacket(Type target, BluePacket packet)
+    {
+      MethodInfo method = target.GetMethod("convert", new Type[] { packet.GetType() });
+      if (method == null)
+      {
+        throw new InvalidOperationException("Packet " + target.Name + " has no convert method for " + packet.GetType().Name);
+      }
+      return (BluePacket) method.Invoke(null, new object[] { packet });
     }
 
     /// <summary>Internal method to read a given number of bytes from a stream</summary>

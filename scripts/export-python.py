@@ -321,6 +321,30 @@ def produceFieldsToString(out, name, fields, indent, field_is_enum, is_inner=Fal
   else:
     println(out, f'{indent}    return "{{{name} " + self.packetHex + "}}"')
 
+def produceConvertMetadata(out, data, all_data, indent):
+  """Emit the packet type metadata used by BluePacketRegistry.convert_if_possible."""
+  convert_from = sorted(data.converts)
+  # The parser guarantees at most one target per source.
+  convert_to = next((
+    other.name for other in all_data.values()
+    if other.name != data.name and not other.is_enum and not other.is_abstract and data.name in other.converts
+  ), None)
+
+  println(out)
+  println(out, f"{indent}# Packet types this packet can be converted from")
+  if convert_from:
+    # A tuple with a single element needs a trailing comma
+    separator = "," if len(convert_from) == 1 else ""
+    println(out, f"{indent}convertFrom = ({', '.join(convert_from)}{separator})")
+  else:
+    println(out, f"{indent}convertFrom = ()")
+  println(out, f"{indent}# Packet type this packet is converted to during deserialization, or None")
+  # The name is stored instead of the class: the target imports this packet for
+  # its converter, so importing the target here would create a cycle
+  println(out, f'{indent}convertTo = "{convert_to}"' if convert_to else f"{indent}convertTo = None")
+  println(out)
+
+
 def produceConvertAll(out, name, converts, indent):
   if not converts:
     return
@@ -522,6 +546,7 @@ def exportClass(out_dir, data, version, all_data):
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
       produceConvert(out, data, ctype, mappings, DEFAULT_INDENT)
+    produceConvertMetadata(out, data, all_data, DEFAULT_INDENT)
 
     if data.inner:
       println(out)

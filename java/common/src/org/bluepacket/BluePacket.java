@@ -429,7 +429,8 @@ public abstract class BluePacket
       // Body
       packet.populateData(registry, dis);
 
-      return packet;
+      // Convert when a registered packet declares a mapping from this packet type
+      return registry.convertIfPossible(packet);
     }
     catch (IOException ex) {
       throw new RuntimeException(ex);

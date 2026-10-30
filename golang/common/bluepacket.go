@@ -20,6 +20,21 @@ type BluePacket interface {
 	String() string
 }
 
+// ConvertInfo describes how a packet converts to another packet during deserialization.
+//
+// Target is the packet hash of the conversion target and Convert builds the target
+// from the packet that declares this info.
+type ConvertInfo struct {
+	Target  int64
+	Convert func() BluePacket
+}
+
+// Convertible is implemented by generated packets that declare a convert block.
+// A packet without this method deserializes as itself.
+type Convertible interface {
+	GetConvertTo() *ConvertInfo
+}
+
 var registry = map[int64]reflect.Type{}
 
 func Register(bp BluePacket) {
@@ -146,8 +161,29 @@ func deserializeFromReader(r *bytes.Reader) (*BluePacket, error) {
 	// Body
 	packet := reflect.New(proto).Interface().(BluePacket)
 	packet.PopulateData(r)
+	packet = convertIfPossible(packet)
 
 	return &packet, nil
+}
+
+// convertIfPossible builds the packet type that replaces the deserialized packet.
+//
+// The target comes from the packet's own metadata, never from a scan of the registry,
+// and the conversion only fires when the target type is registered: an application
+// that only knows the old packet keeps receiving the old packet.
+func convertIfPossible(packet BluePacket) BluePacket {
+	convertible, ok := packet.(Convertible)
+	if !ok {
+		return packet
+	}
+	info := convertible.GetConvertTo()
+	if info == nil {
+		return packet
+	}
+	if _, ok := registry[info.Target]; !ok {
+		return packet
+	}
+	return info.Convert()
 }
 
 func ReadByte(r *bytes.Reader) byte {

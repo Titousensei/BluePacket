@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import os, sys
 import unittest
+from types import SimpleNamespace
 
 sys.path.append("../common")
 
@@ -418,6 +419,27 @@ class TestBluePacket(unittest.TestCase):
     expectedConvert2 = [d1.packetHash]
     actualConvert2 = [p.packetHash for p in d2.convert()]
     self.assertEqual(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond")
+
+  def testAutoConvert(self):
+    # Metadata generated at export time
+    self.assertEqual("DemoSecond", t.DemoFirst.convertTo)
+    self.assertEqual((), t.DemoFirst.convertFrom)
+    self.assertIsNone(t.DemoSecond.convertTo)
+    self.assertEqual((t.DemoFirst,), t.DemoSecond.convertFrom)
+
+    first = t.DemoFirst(id=123, text=["line1", "line2"])
+    converted = self._BP_REGISTRY.deserialize(first.serialize())
+    self.assertIsInstance(converted, t.DemoSecond)
+    self.assertEqual(123, converted.id)
+    self.assertEqual(["line1", "line2"], converted.text)
+    self.assertTrue(converted.enabled)
+
+    # Unregistered target keeps the original packet
+    registry = BluePacketRegistry()
+    registry.register(SimpleNamespace(DemoFirst=t.DemoFirst))
+    unchanged = registry.deserialize(first.serialize())
+    self.assertIsInstance(unchanged, t.DemoFirst)
+    self.assertEqual(123, unchanged.id)
 
   def testEnumConvert(self):
     self.assertEqual(t.ConvertEnumMore.ZERO, t.ConvertEnumMore.convertConvertEnum(t.ConvertEnum.ZERO))

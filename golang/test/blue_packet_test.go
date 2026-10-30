@@ -346,6 +346,49 @@ func TestEnumConvert(t *testing.T) {
 	ConvertEnumNewEnumConvert(ConvertEnum(99))
 }
 
+func TestAutoConvert(t *testing.T) {
+	t.Log("-- testAutoConvert")
+
+	id := int32(123)
+	text := []string {"line1", "line2"}
+	source := &DemoFirst { Id: id, Text: text }
+
+	info := source.GetConvertTo()
+	assertEquals(t, "Metadata 'convertTo' target hash", (&DemoSecond{}).GetPacketHash(), info.Target)
+
+	var packet bluepacket.BluePacket = source
+	data := bluepacket.Serialize(&packet)
+
+	// Only the source is registered, so the packet keeps its own type.
+	bluepacket.Register(&DemoFirst{})
+	original, err := bluepacket.Deserialize(data)
+	if err != nil {
+		t.Log("ERROR - " + err.Error())
+		t.FailNow()
+	}
+	assertTrue(t, "unregistered convert target keeps DemoFirst", reflect.TypeOf(*original) == reflect.TypeOf(&DemoFirst{}))
+
+	// Registering the target enables the conversion.
+	bluepacket.Register(&DemoSecond{})
+	converted, err := bluepacket.Deserialize(data)
+	if err != nil {
+		t.Log("ERROR - " + err.Error())
+		t.FailNow()
+	}
+	assertTrue(t, "deserialized DemoFirst is converted", reflect.TypeOf(*converted) == reflect.TypeOf(&DemoSecond{}))
+	d2, ok := (*converted).(*DemoSecond)
+	if !ok {
+		t.Log("ERROR - deserialized DemoFirst is not a DemoSecond")
+		t.FailNow()
+	}
+	assertEquals(t, "Converted 'id' field value", id, d2.Id)
+	assertEquals(t, "Converted 'text' field length", len(text), len(d2.Text))
+	for i, _ := range text {
+		assertEquals(t, "Converted 'text' field value[i]", text[i], d2.Text[i])
+	}
+	assertEquals(t, "Converted constant 'enabled' field value", true, d2.Enabled)
+}
+
 func TestApiVersion(t *testing.T) {
 	t.Log("-- testApiVersion")
 	assertTrue(t, "BluePacketAPIVersion calculated", BluePacketApiVersion != 0)

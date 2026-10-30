@@ -1,0 +1,15 @@
+# Expected to fail because a source packet can only be converted to one target
+# @what Third.First
+
+First:
+    int a
+
+Second:
+    int a
+
+    convert First:
+
+Third:
+    int a
+
+    convert First:

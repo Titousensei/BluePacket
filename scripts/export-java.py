@@ -52,6 +52,7 @@ def header(out, package, data):
     println(out)
     if not data.is_enum and not data.is_abstract:
       println(out, "import java.util.Collection;")
+      println(out, "import java.util.List;")
       println(out, "import org.bluepacket.BluePacket;")
       println(out)
 
@@ -280,12 +281,37 @@ def produceConvertAll(out, name, converts, indent):
       "{@inheritDoc}"
     ]
   )
-  println(out, f"{indent}public java.util.List<? extends BluePacket> convert()")
+  println(out, f"{indent}public List<? extends BluePacket> convert()")
   println(out, indent + "{")
-  println(out, indent + "  return java.util.List.of(")
+  println(out, indent + "  return List.of(")
   println(out, f"{indent}    " + ", ".join("new " + c + "()" for c in converts))
   println(out, indent + "  );")
   println(out, indent + "}")
+
+def javaClassList(names):
+  if not names:
+    return "List.of()"
+  return "List.of(" + ", ".join(name + ".class" for name in names) + ")"
+
+
+def produceConvertMetadata(out, data, all_data, indent):
+  """Emit the packet type metadata used by BluePacketRegistry for automatic conversion."""
+  convert_from = sorted(data.converts)
+  # The parser guarantees at most one target per source.
+  convert_to = next((
+    other.name for other in all_data.values()
+    if other.name != data.name and not other.is_enum and not other.is_abstract and data.name in other.converts
+  ), None)
+  convert_to_class = "null" if convert_to is None else convert_to + ".class"
+
+  println(out)
+  produceDocstring(out, indent, ["Packet types this packet can be converted from."])
+  println(out, f"{indent}public static final List<Class<? extends BluePacket>> convertFrom = {javaClassList(convert_from)};")
+  println(out)
+  produceDocstring(out, indent, ["Packet type this packet is converted to during deserialization, or null."])
+  println(out, f"{indent}public static final Class<? extends BluePacket> convertTo = {convert_to_class};")
+  println(out)
+
 
 
 def javaConstant(mapping):
@@ -529,6 +555,8 @@ def exportClass(out_dir, package, data, version, all_data):
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
       produceConvert(out, data, ctype, mappings, DEFAULT_INDENT)
+    # Generate convertTo/convertFrom metadata
+    produceConvertMetadata(out, data, all_data, DEFAULT_INDENT)
 
     if data.inner:
       println(out)

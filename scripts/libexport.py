@@ -809,6 +809,7 @@ class Parser:
     target.converts[source.name] = resolved
 
   def _validateConverts(self):
+    converted_sources = {}
     for target in self.packet_list.values():
       for enum in target.enums.values():
         if enum.converts:
@@ -841,6 +842,12 @@ class Parser:
             f"{CONVERT_LABEL} source cannot be the target packet",
             what=f"{target.name}.{ctype}",
           )
+        if source.name in converted_sources:
+          raise SourceException(
+            f"{CONVERT_LABEL} source already converted by another packet",
+            what=f"{target.name}.{ctype}",
+          )
+        converted_sources[source.name] = target
         self._validateConvert(target, source)
 
   def _generate_manifest(self, manifest_path):

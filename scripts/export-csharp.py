@@ -259,6 +259,30 @@ def produceConvertAll(out, name, converts, indent):
   println(out, indent + "}")
 
 
+def produceConvertMetadata(out, data, all_data, indent):
+  """Emit the packet type metadata used by BluePacket.ConvertIfPossible."""
+  convert_from = sorted(data.converts)
+  # The parser guarantees at most one target per source.
+  convert_to = next((
+    other.name for other in all_data.values()
+    if other.name != data.name and not other.is_enum and not other.is_abstract and data.name in other.converts
+  ), None)
+  convert_to_type = "null" if convert_to is None else f"typeof({convert_to})"
+  if convert_from:
+    convert_from_types = ", ".join(f"typeof({name})" for name in convert_from)
+    convert_from_value = f"new Type[] {{ {convert_from_types} }}"
+  else:
+    convert_from_value = "new Type[0]"
+
+  println(out)
+  produceDocstring(out, indent, ["Packet types this packet can be converted from."])
+  println(out, f"{indent}public static readonly Type[] convertFrom = {convert_from_value};")
+  println(out)
+  produceDocstring(out, indent, ["Packet type this packet is converted to during deserialization, or null."])
+  println(out, f"{indent}public static readonly Type convertTo = {convert_to_type};")
+  println(out)
+
+
 def csConstant(mapping):
   constant = mapping.constant
   target_type = mapping.target_type
@@ -430,6 +454,8 @@ def exportClass(out_dir, namespace, data, version, all_data):
       if not other:
         raise SourceException("Converter from unknown type", what=ctype)
       produceConvert(out, data, ctype, mappings, DEFAULT_INDENT)
+    # Generate convertTo/convertFrom metadata
+    produceConvertMetadata(out, data, all_data, DEFAULT_INDENT)
 
     if data.inner:
       println(out)

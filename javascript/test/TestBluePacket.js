@@ -565,6 +565,8 @@ _runTest("testDefault round-trip", () => {
     );
     _assertTrue(classes.length > 0, "no packet classes found");
     for (const cls of classes) {
+        // A class with a convertTo mapping deserializes as another packet type, covered by testAutoConvert
+        if (cls.convertTo) continue;
         const packet = new cls();
         const bytes = packet.serialize();
         const round = T.registry.deserialize(bytes);
@@ -1024,6 +1026,28 @@ _runTest("testConvert", () => {
     let expectedConvert2 = [d1.packetHash];
     let actualConvert2 = d2.convert().map(p => p.packetHash);
     _assertEqual(expectedConvert2, actualConvert2, "List of convertible BluePackets for DemoSecond");
+});
+
+_runTest("testAutoConvert", () => {
+    // Metadata generated at export time
+    _assertEqual([T.DemoFirst], T.DemoSecond.convertFrom, "DemoSecond convertFrom metadata");
+    _assertEqual([], T.DemoFirst.convertFrom, "DemoFirst convertFrom metadata");
+    _assertEqual(T.DemoSecond, T.DemoFirst.convertTo, "DemoFirst convertTo metadata");
+    _assertEqual(null, T.DemoSecond.convertTo, "DemoSecond convertTo metadata");
+
+    let first = new T.DemoFirst({id: 123, text: ["line1", "line2"]});
+    let converted = T.registry.deserialize(first.serialize());
+    _assertTrue(converted instanceof T.DemoSecond, "DemoFirst deserializes as DemoSecond");
+    _assertEqual(123, converted.id, "auto convert id");
+    _assertEqual(["line1", "line2"], converted.text, "auto convert text");
+    _assertEqual(true, converted.enabled, "auto convert constant enabled");
+
+    // Unregistered target keeps the original packet
+    let registry = new T.BluePacketRegistry();
+    registry.register(T.DemoFirst);
+    let unchanged = registry.deserialize(first.serialize());
+    _assertTrue(unchanged instanceof T.DemoFirst, "unregistered target keeps DemoFirst");
+    _assertEqual(123, unchanged.id, "unchanged id");
 });
 
 _runTest("testEnumConvert", () => {

@@ -19,6 +19,8 @@ public class BluePacketRegistry
    */
   public Map<Long, BluePacket> packet_id_to_class_ = new HashMap<>();
 
+  private final Set<Class<? extends BluePacket>> registered_classes_ = new HashSet<>();
+
   /**
    * Initialize the packet registry
    * @param pkg package contening all the generated BluePacket classes
@@ -68,6 +70,7 @@ public class BluePacketRegistry
       System.err.println("[BluePacketRegistry] DEBUG - Registered: " + clazz.getSimpleName());
     }
     packet_id_to_class_.put(id, bp);
+    registered_classes_.add(clazz);
   }
 
   /**
@@ -128,6 +131,43 @@ public class BluePacketRegistry
       return os.toByteArray();
     } catch (IOException ex) {
       throw new RuntimeException(ex);
+    }
+  }
+
+  /**
+   * Convert a deserialized packet when a registered packet declares a convert
+   * mapping from its type.
+   *
+   * @param packet the deserialized packet
+   * @return the converted packet, or the original packet when no registered
+   *         conversion applies
+   */
+  public BluePacket convertIfPossible(BluePacket packet)
+  {
+    Class<? extends BluePacket> target = getConvertTo(packet);
+    if (target == null || !registered_classes_.contains(target)) return packet;
+
+    return convert(target, packet);
+  }
+
+  @SuppressWarnings("unchecked")
+  private Class<? extends BluePacket> getConvertTo(BluePacket packet)
+  {
+    try {
+      Field field = packet.getClass().getField("convertTo");
+      return (Class<? extends BluePacket>) field.get(null);
+    } catch (NoSuchFieldException | IllegalAccessException ex) {
+      throw new RuntimeException("Packet " + packet.getClass().getSimpleName() + " has no accessible convertTo metadata", ex);
+    }
+  }
+
+  private BluePacket convert(Class<? extends BluePacket> target, BluePacket packet)
+  {
+    try {
+      Method method = target.getMethod("convert", packet.getClass());
+      return (BluePacket) method.invoke(null, packet);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
+      throw new RuntimeException("Cannot convert " + packet.getClass().getSimpleName() + " to " + target.getSimpleName(), ex);
     }
   }
 }

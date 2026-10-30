@@ -426,7 +426,21 @@ class BluePacketRegistry {
     if (!cls) throw new Error('Unknown packetHash received: ' + packetHash);
     const packet = new cls();
     packet.populateData(this, bpr);
-    return packet;
+    return this._convertIfPossible(packet);
+  }
+
+  _convertIfPossible(packet) {
+    // Read the target off the packet's own class; never scan the registered classes
+    const target = packet.constructor.convertTo;
+    if (!target) return packet;
+    // The target is only converted when it is registered in this registry
+    if (!this._packetIdToClass.has(target.packetHash)) return packet;
+
+    const converter = target['convert' + packet.constructor.name];
+    if (typeof converter !== 'function') {
+      throw new Error(target.name + ' has no convert' + packet.constructor.name + ' method');
+    }
+    return converter(packet);
   }
 }
 

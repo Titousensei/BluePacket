@@ -304,6 +304,24 @@ def produceConvert(out, data, ctype, mappings, indent):
   println(out, indent + "}")
 
 
+def produceConvertMetadata(out, data, all_data, indent):
+  """Emit the type metadata used by BluePacketRegistry._convertIfPossible."""
+  convert_from = sorted(data.converts)
+  # The parser guarantees at most one target per source.
+  convert_to = next((
+    other.name for other in all_data.values()
+    if other.name != data.name and not other.is_enum and not other.is_abstract and data.name in other.converts
+  ), None)
+
+  # Getters, not fields: the bundle declares classes in file order, so a field
+  # would hit the temporal dead zone when the target comes later.
+  println(out)
+  println(out, indent + "// Packet types this packet can be converted from")
+  println(out, indent + f"static get convertFrom() {{ return [{', '.join(convert_from)}]; }}")
+  println(out, indent + "// Packet type this packet is converted to during deserialization, or null")
+  println(out, indent + f"static get convertTo() {{ return {convert_to or 'null'}; }}")
+
+
 def produceClass(out, data, owner, all_data, version):
   produceDocstring(out, "", data.docstring)
   println(out, f"class {data.name} extends BluePacket")
@@ -337,6 +355,8 @@ def produceClass(out, data, owner, all_data, version):
     for ctype, mappings in data.converts.items():
       println(out)
       produceConvert(out, data, ctype, mappings, INDENT)
+  if version is not None:
+    produceConvertMetadata(out, data, all_data, INDENT)
   println(out, "}")
 
 

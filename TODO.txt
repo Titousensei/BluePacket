@@ -8,15 +8,15 @@
   - IIFE is properly wrapping the gen.js code
 
 === Convert ===
-- convert: custom field mapping
+- convert keep as default with _
 Example:
 ```
+  OldPacket:
+    string field1 = ""
   NewPacket:
+    int field1 = 5
     convert OldPacket:
-      field1 <= field2  # cast
-      field3 <- field4  # identical (optional, default)
-      field5 = constant
-      _ <- field6  # ignore
+      field1 = _
 ```
 
 === Export Tests ===

@@ -113,13 +113,15 @@ class BluePacketRegistry:
 
   def __init__(self, ):
         self._packet_id_to_class = {}
-        
+        self._packet_name_to_class = {}
+
   def register(self, module):
     for name, cl in inspect.getmembers(module):
       if not name.startswith("__"):
         h = getattr(cl, "packetHash", None)
         if h is not None:
           self._packet_id_to_class[h] = cl
+          self._packet_name_to_class[name] = cl
 
   def deserialize(self, buffer):
     bpr = _BluePacketReader(buffer)
@@ -138,7 +140,25 @@ class BluePacketRegistry:
     # Body
     packet.populateData(self, bpr)
 
-    return packet
+    # Convert when the packet type declares a mapping to another packet
+    return self.convert_if_possible(packet)
+
+  def convert_if_possible(self, packet):
+    target = getattr(type(packet), "convertTo", None)
+    if target is None:
+      return packet
+    # convertTo holds the class name, since importing that class here would
+    # create a cycle with the target's import of this packet for its converter
+    if not isinstance(target, type):
+      target = self._packet_name_to_class.get(target)
+      if target is None:
+        # Target packet is not registered in this registry
+        return packet
+
+    converter = getattr(target, "convert" + type(packet).__name__, None)
+    if converter is None:
+      raise Exception(f"Packet {target.__name__} has no convert{type(packet).__name__} method")
+    return converter(packet)
 
   def __str__(self):
     return f"BluePacketRegistry{self._packet_id_to_class}"

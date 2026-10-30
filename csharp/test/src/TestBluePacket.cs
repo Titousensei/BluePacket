@@ -329,6 +329,27 @@ class TestBluePacket
     Console.WriteLine("PASS");
   }
 
+  private void testAutoConvert(String name)
+  {
+    Console.Write(name + ": ");
+
+    AssertEquals(typeof(DemoSecond), DemoFirst.convertTo, "DemoFirst convertTo metadata");
+    AssertEquals(0, DemoFirst.convertFrom.Length, "DemoFirst convertFrom metadata");
+    AssertTrue(DemoSecond.convertTo == null, "DemoSecond convertTo metadata");
+    AssertEquals(1, DemoSecond.convertFrom.Length, "DemoSecond convertFrom metadata size");
+    AssertEquals(typeof(DemoFirst), DemoSecond.convertFrom[0], "DemoSecond convertFrom metadata");
+
+    DemoFirst first = new DemoFirst { id = 123, text = new String[] {"line1", "line2"} };
+    BluePacket converted = BluePacket.Deserialize(first.Serialize());
+    AssertEquals(typeof(DemoSecond), converted.GetType(), "deserialized DemoFirst is converted");
+    DemoSecond second = (DemoSecond) converted;
+    AssertEquals(123, second.id, "converted 'id' field value");
+    AssertEquals("line1,line2", string.Join(",", second.text), "converted 'text' field value");
+    AssertEquals(true, second.enabled, "converted constant 'enabled' field value");
+
+    Console.WriteLine("PASS");
+  }
+
   static void Main(string[] args)
   {
     TestBluePacket test = new TestBluePacket();
@@ -363,6 +384,7 @@ class TestBluePacket
     test.TestPacketHash("testIncludeDeprecated2", new DemoIncludeVersion{}, -4044184110803273943L);
 
     test.testConvert("testConvert");
+    test.testAutoConvert("testAutoConvert");
     test.testForceConvert("testForceConvert");
     test.testEnumConvert("testEnumConvert");
     test.testApiVersion("testApiVersion");

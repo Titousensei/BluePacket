@@ -327,6 +327,29 @@ class TestBluePacket
     System.out.println("PASS");
   }
 
+  private void testAutoConvert(String name)
+  throws Exception
+  {
+    System.out.print(name + ": ");
+
+    assertEquals(DemoSecond.class, DemoFirst.convertTo, "DemoFirst convertTo metadata");
+    assertEquals(List.of(DemoFirst.class), DemoSecond.convertFrom, "DemoSecond convertFrom metadata");
+
+    DemoFirst first = new DemoFirst().setId(123).setText(new String[]{"line1", "line2"});
+    BluePacket converted = BluePacket.deserialize(registry_, first.serialize());
+    assertInstanceOf(converted, DemoSecond.class, "deserialized DemoFirst is converted");
+    DemoSecond second = (DemoSecond) converted;
+    assertEquals(123, second.id, "converted 'id' field value");
+    assertEquals(new String[]{"line1", "line2"}, second.text, "converted 'text' field value");
+    assertEquals(true, second.enabled, "converted constant 'enabled' field value");
+
+    BluePacketRegistry isolated = new BluePacketRegistry();
+    isolated.register(DemoFirst.class);
+    assertInstanceOf(BluePacket.deserialize(isolated, first.serialize()), DemoFirst.class, "unregistered convert target keeps original packet");
+
+    System.out.println("PASS");
+  }
+
   private void testConvertMappings(String name)
   throws Exception
   {
@@ -463,6 +486,7 @@ class TestBluePacket
     test.testPacketHash("testIncludeDeprecated2", new DemoIncludeVersion(), -4044184110803273943L);
 
     test.testConvert("testConvert");
+    test.testAutoConvert("testAutoConvert");
     test.testConvertMappings("testConvertMappings");
     test.testForceConvert("testForceConvert");
     test.testEnumConvert("testEnumConvert");
